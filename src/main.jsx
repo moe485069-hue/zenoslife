@@ -11,6 +11,14 @@ window.addEventListener('vite:preloadError', (event) => {
   window.location.reload();
 });
 
+// Auto-recover and instant-update when a new PWA version is activated
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('ZenOsLife: New service worker controller active, reloading...');
+    window.location.reload();
+  });
+}
+
 // If running on localhost in dev, ensure stale service worker caches don't intercept dev server
 if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
   if ('serviceWorker' in navigator) {
