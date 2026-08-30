@@ -1,0 +1,211 @@
+{
+  "app": { "name": "زندگی‌ساز", "tagline": "سیستم عامل جامع رشد و مدیریت زندگی" },
+  "nav": {
+    "home": "خانه",
+    "mindfulness": "مراقبه و ورزش",
+    "learning": "یادگیری",
+    "selfDiscovery": "خودشناسی",
+    "wealth": "ثروت",
+    "world": "ایران و جهان",
+    "integrity": "درستی",
+    "nonJudgment": "قضاوت نکردن",
+    "perspective": "دیدگاه و بینش",
+    "security": "امنیت و نفوذناپذیری",
+    "health": "بهداشت",
+    "cosmicUnity": "وحدت کیهانی",
+    "addiction": "رهایی از اعتیاد",
+    "calendar": "تقویم",
+    "settings": "تنظیمات"
+  },
+  "home": {
+    "greeting": "سلام",
+    "dailyScore": "امتیاز امروز",
+    "streak": "روز متوالی",
+    "level": "سطح",
+    "xp": "امتیاز تجربه",
+    "todayTasks": "کارهای امروز",
+    "progress": "پیشرفت",
+    "badges": "نشان‌ها",
+    "quickActions": "دسترسی سریع"
+  },
+  "security": {
+    "title": "امنیت جامع و نفوذناپذیری",
+    "subtitle": "سپر دفاعی روانی، فیزیکی، شناختی و آکادمی پیشرفته امنیت دستگاه‌ها و سایبر",
+    "scanner": "اسکنر ترمینال",
+    "academy": "آکادمی امنیت سایبری",
+    "dimensions": "لایه‌های امنیت ۴گانه",
+    "analyzer": "تحلیلگر رمزعبور",
+    "habits": "عادات فایروال روزانه"
+  },
+  "perspective": {
+    "title": "دیدگاه، بینش و وسعت نظر",
+    "subtitle": "تغییر مقیاس دغدغه‌ها، رهایی از هیاهو و تماشای زندگی از اوج",
+    "overview": "نمای بال عقاب",
+    "paradigms": "پارادایم‌های آرامش",
+    "letgo": "اتاق سکوت و رهاسازی",
+    "habits": "عادات پرورش بینش"
+  },
+  "health": {
+    "title": "بهداشت و مراقبت جسمانی",
+    "subtitle": "نظم، پاکیزگی و سلامت پایدار بدن، پوست، دهان و خواب",
+    "hydration": "ردیاب آب",
+    "checklist": "چک‌لیست بهداشت",
+    "tips": "راهنمای سلامت پیشگیرانه"
+  },
+  "cosmicUnity": {
+    "title": "وحدت کیهانی بی‌وقفه",
+    "subtitle": "احساس یگانگی عمیق با پهنه کیهان، غبار ستارگان و جریان کل حیات",
+    "immersion": "غوطه‌وری کیهانی",
+    "compass": "قطب‌نمای پیوستگی",
+    "facts": "دانستنی‌های کیهان"
+  },
+  "addiction": {
+    "title": "رهایی و مهار اعتیاد",
+    "subtitle": "شمارنده روزهای پاکی، موج‌سواری بر وسوسه و اقتدار بر نفس",
+    "counter": "روزهای پاکی",
+    "urgent": "مهار وسوسه فوری",
+    "halt": "پایش وضعیت HALT"
+  },
+  "nonJudgment": {
+    "title": "قضاوت نکردن و پذیرش",
+    "subtitle": "مشاهده آگاهانه رخدادها و انسان‌ها بدون برچسب خوب یا بد",
+    "reframe": "بازنگری شناختی",
+    "filters": "سه پالایه خرد",
+    "journal": "دفترچه رصد قضاوت‌ها",
+    "habits": "تمرین‌ها و عادات روزمره"
+  },
+  "mindfulness": {
+    "title": "مراقبه و ورزش",
+    "meditation": "مراقبه",
+    "exercise": "ورزش",
+    "breathing": "تنفس",
+    "timer": "تایمر",
+    "start": "شروع",
+    "pause": "مکث",
+    "stop": "توقف",
+    "minutes": "دقیقه",
+    "sounds": "صداهای آرام‌بخش",
+    "addExercise": "افزودن تمرین",
+    "customExercises": "تمرین‌های من"
+  },
+  "learning": {
+    "title": "یادگیری روزانه",
+    "quoteOfDay": "نقل قول روز",
+    "flashcards": "فلش‌کارت",
+    "studyGoals": "اهداف مطالعه",
+    "addSource": "افزودن منبع",
+    "front": "روی کارت",
+    "back": "پشت کارت",
+    "deck": "دسته",
+    "easy": "آسان",
+    "hard": "سخت"
+  },
+  "selfDiscovery": {
+    "title": "خودشناسی",
+    "journal": "ژورنال",
+    "reflection": "تأمل",
+    "emotions": "احساسات",
+    "values": "ارزش‌ها",
+    "addQuestion": "افزودن سوال",
+    "todayFeeling": "امروز چه احساسی داری؟",
+    "writeHere": "اینجا بنویس..."
+  },
+  "wealth": {
+    "title": "درآمد و ثروت",
+    "income": "درآمد",
+    "expense": "هزینه",
+    "balance": "موجودی",
+    "goals": "اهداف مالی",
+    "addTransaction": "افزودن تراکنش",
+    "amount": "مبلغ",
+    "category": "دسته‌بندی",
+    "note": "یادداشت"
+  },
+  "world": {
+    "title": "ایران و جهان",
+    "savedNews": "مطالب ذخیره‌شده",
+    "culture": "فرهنگ و تاریخ",
+    "stats": "آمار و اطلاعات",
+    "addContent": "افزودن محتوا",
+    "url": "لینک",
+    "title_field": "عنوان"
+  },
+  "integrity": {
+    "title": "درستی و فضیلت",
+    "principles": "اصول اخلاقی",
+    "commitments": "تعهدات",
+    "ethicalHabits": "عادت‌های اخلاقی",
+    "dailyCheck": "چک روزانه وجدان",
+    "addPrinciple": "افزودن اصل",
+    "addCommitment": "افزودن تعهد"
+  },
+  "calendar": {
+    "title": "تقویم و برنامه",
+    "addTask": "افزودن کار",
+    "taskTitle": "عنوان کار",
+    "dueDate": "تاریخ",
+    "dueTime": "زمان",
+    "priority": "اولویت",
+    "high": "بالا",
+    "medium": "متوسط",
+    "low": "پایین",
+    "repeat": "تکرار",
+    "none": "بدون تکرار",
+    "daily": "روزانه",
+    "weekly": "هفتگی",
+    "monthly": "ماهانه",
+    "reminder": "یادآوری",
+    "jalali": "شمسی",
+    "gregorian": "میلادی",
+    "section": "بخش مرتبط"
+  },
+  "settings": {
+    "title": "تنظیمات",
+    "theme": "تم بصری",
+    "light": "روشن",
+    "dark": "تیره",
+    "cosmic": "کیهانی",
+    "language": "زبان",
+    "persian": "فارسی",
+    "english": "انگلیسی",
+    "notifications": "اعلان‌ها",
+    "enable": "فعال‌سازی",
+    "about": "درباره برنامه"
+  },
+  "common": {
+    "add": "افزودن",
+    "save": "ذخیره",
+    "cancel": "انصراف",
+    "delete": "حذف",
+    "edit": "ویرایش",
+    "done": "انجام شد",
+    "today": "امروز",
+    "yesterday": "دیروز",
+    "complete": "تکمیل",
+    "incomplete": "ناتمام",
+    "loading": "در حال بارگذاری...",
+    "empty": "محتوایی وجود ندارد",
+    "addNew": "جدید بیفزا",
+    "close": "بستن",
+    "confirm": "تایید",
+    "online": "آنلاین",
+    "offline": "آفلاین",
+    "installed": "نصب شد",
+    "install": "نصب اپ"
+  },
+  "gamification": {
+    "levelUp": "سطح بالا رفت!",
+    "newBadge": "نشان جدید!",
+    "streakDay": "روز متوالی",
+    "xpEarned": "XP دریافت کردید",
+    "badges": {
+      "firstDay": "گام نخست",
+      "week": "یک هفته استمرار",
+      "month": "یک ماه پایداری",
+      "meditator": "استاد مراقبه",
+      "learner": "جوینده دانش",
+      "journaler": "راوی درون",
+      "saver": "معمار ثروت"
+    }
+  }
+}

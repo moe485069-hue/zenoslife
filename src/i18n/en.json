@@ -1,0 +1,211 @@
+{
+  "app": { "name": "Life OS", "tagline": "Your Life Operating System" },
+  "nav": {
+    "home": "Home",
+    "mindfulness": "Mindfulness",
+    "learning": "Learning",
+    "selfDiscovery": "Self Discovery",
+    "wealth": "Wealth",
+    "world": "World",
+    "integrity": "Integrity",
+    "nonJudgment": "Non-Judgment",
+    "perspective": "Perspective",
+    "security": "Security & Defense",
+    "health": "Health & Hygiene",
+    "cosmicUnity": "Cosmic Unity",
+    "addiction": "Addiction Recovery",
+    "calendar": "Calendar",
+    "settings": "Settings"
+  },
+  "home": {
+    "greeting": "Hello",
+    "dailyScore": "Today's Score",
+    "streak": "Day Streak",
+    "level": "Level",
+    "xp": "XP",
+    "todayTasks": "Today's Tasks",
+    "progress": "Progress",
+    "badges": "Badges",
+    "quickActions": "Quick Actions"
+  },
+  "security": {
+    "title": "Comprehensive Security & Cyber-Shield",
+    "subtitle": "Psychological, physical & cognitive security with cyber-defense academy",
+    "scanner": "Terminal Scanner",
+    "academy": "Cyber Defense Academy",
+    "dimensions": "4 Security Layers",
+    "analyzer": "Password Analyzer",
+    "habits": "Firewall Habits"
+  },
+  "perspective": {
+    "title": "Perspective & Higher View",
+    "subtitle": "Overview effect, zooming out from noise, and calm clarity",
+    "overview": "Eagle's Overview",
+    "paradigms": "Calm Paradigms",
+    "letgo": "Let Go Sanctuary",
+    "habits": "Perspective Habits"
+  },
+  "health": {
+    "title": "Health & Hygiene",
+    "subtitle": "Daily care, hydration, oral hygiene and sleep hygiene",
+    "hydration": "Hydration",
+    "checklist": "Hygiene Checklist",
+    "tips": "Preventive Health"
+  },
+  "cosmicUnity": {
+    "title": "Seamless Cosmic Oneness",
+    "subtitle": "Infinite connection to the cosmos, starstuff and the web of life",
+    "immersion": "Cosmic Immersion",
+    "compass": "Oneness Compass",
+    "facts": "Cosmic Realities"
+  },
+  "addiction": {
+    "title": "Addiction Freedom & Recovery",
+    "subtitle": "Sobriety counter, urge surfing, and inner sovereignty",
+    "counter": "Clean Days",
+    "urgent": "SOS Urge Surfing",
+    "halt": "HALT Check"
+  },
+  "nonJudgment": {
+    "title": "Mindful Non-Judgment",
+    "subtitle": "Observing reality as it is, without labeling good or bad",
+    "reframe": "Cognitive Reframe",
+    "filters": "The 3 Filters",
+    "journal": "Judgment Log",
+    "habits": "Daily Practices"
+  },
+  "mindfulness": {
+    "title": "Mindfulness & Fitness",
+    "meditation": "Meditation",
+    "exercise": "Exercise",
+    "breathing": "Breathing",
+    "timer": "Timer",
+    "start": "Start",
+    "pause": "Pause",
+    "stop": "Stop",
+    "minutes": "minutes",
+    "sounds": "Ambient Sounds",
+    "addExercise": "Add Exercise",
+    "customExercises": "My Exercises"
+  },
+  "learning": {
+    "title": "Daily Learning",
+    "quoteOfDay": "Quote of the Day",
+    "flashcards": "Flashcards",
+    "studyGoals": "Study Goals",
+    "addSource": "Add Source",
+    "front": "Front",
+    "back": "Back",
+    "deck": "Deck",
+    "easy": "Easy",
+    "hard": "Hard"
+  },
+  "selfDiscovery": {
+    "title": "Self Discovery",
+    "journal": "Journal",
+    "reflection": "Reflection",
+    "emotions": "Emotions",
+    "values": "Values",
+    "addQuestion": "Add Question",
+    "todayFeeling": "How are you feeling today?",
+    "writeHere": "Write here..."
+  },
+  "wealth": {
+    "title": "Income & Wealth",
+    "income": "Income",
+    "expense": "Expense",
+    "balance": "Balance",
+    "goals": "Financial Goals",
+    "addTransaction": "Add Transaction",
+    "amount": "Amount",
+    "category": "Category",
+    "note": "Note"
+  },
+  "world": {
+    "title": "Iran & World",
+    "savedNews": "Saved News",
+    "culture": "Culture & Art",
+    "stats": "Stats & Info",
+    "addContent": "Add Content",
+    "url": "URL",
+    "title_field": "Title"
+  },
+  "integrity": {
+    "title": "Integrity",
+    "principles": "Principles",
+    "commitments": "Commitments",
+    "ethicalHabits": "Ethical Habits",
+    "dailyCheck": "Daily Check",
+    "addPrinciple": "Add Principle",
+    "addCommitment": "Add Commitment"
+  },
+  "calendar": {
+    "title": "Calendar & Tasks",
+    "addTask": "Add Task",
+    "taskTitle": "Task Title",
+    "dueDate": "Due Date",
+    "dueTime": "Due Time",
+    "priority": "Priority",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "repeat": "Repeat",
+    "none": "None",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "reminder": "Reminder",
+    "jalali": "Jalali",
+    "gregorian": "Gregorian",
+    "section": "Related Section"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "cosmic": "Cosmic",
+    "language": "Language",
+    "persian": "Persian",
+    "english": "English",
+    "notifications": "Notifications",
+    "enable": "Enable",
+    "about": "About"
+  },
+  "common": {
+    "add": "Add",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "done": "Done",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "complete": "Complete",
+    "incomplete": "Incomplete",
+    "loading": "Loading...",
+    "empty": "No content",
+    "addNew": "Add New",
+    "close": "Close",
+    "confirm": "Confirm",
+    "online": "Online",
+    "offline": "Offline",
+    "installed": "Installed",
+    "install": "Install App"
+  },
+  "gamification": {
+    "levelUp": "Level Up!",
+    "newBadge": "New Badge!",
+    "streakDay": "Day Streak",
+    "xpEarned": "XP Earned",
+    "badges": {
+      "firstDay": "First Day",
+      "week": "One Week",
+      "month": "One Month",
+      "meditator": "Meditator",
+      "learner": "Learner",
+      "journaler": "Journaler",
+      "saver": "Saver"
+    }
+  }
+}
