@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import realtimeNetwork from '../services/realtimeNetwork';
 import { COMPANION_PERSONAS, generateCompanionReply } from '../services/companionAI';
+import soundEngine from '../utils/audio';
+import haptics from '../utils/haptics';
 
 // Persistent user identity
 const savedId = localStorage.getItem('life_os_user_id') || ('user_' + Math.random().toString(36).substr(2, 9));
@@ -24,7 +26,9 @@ const DEFAULT_MENTORS = Object.values(COMPANION_PERSONAS).map(c => ({
   color: 'from-purple-500 to-indigo-600',
   isMentor: true,
   isReal: true,
-  status: c.status
+  status: c.status,
+  currentRoom: 'general',
+  lastSeen: Date.now()
 }));
 
 const loadSavedDms = () => {
@@ -64,6 +68,30 @@ const loadSavedThreads = () => {
   ];
 };
 
+const loadSavedRooms = () => {
+  try {
+    const saved = localStorage.getItem('zen_custom_rooms');
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return [
+    { id: 'general', nameFa: 'لابی عمومی', nameEn: 'General Lobby', icon: 'Globe', category: 'general' },
+    { id: 'tech', nameFa: 'فناوری و کد', nameEn: 'Tech & Code', icon: 'Hash', category: 'tech' },
+    { id: 'philosophy', nameFa: 'فلسفه و خودشناسی', nameEn: 'Philosophy', icon: 'Zap', category: 'philosophy' },
+    { id: 'business', nameFa: 'کسب‌و‌کار و ثروت', nameEn: 'Business', icon: 'Shield', category: 'business' },
+    { id: 'fitness', nameFa: 'ورزش و سلامت', nameEn: 'Fitness', icon: 'Activity', category: 'fitness' },
+    { id: 'vip', nameFa: 'اتاق اعضای ویژه', nameEn: 'VIP Lounge', icon: 'Lock', category: 'vip', locked: true },
+    { id: 'support', nameFa: 'پشتیبانی راهنما', nameEn: 'Support', icon: 'MessageSquare', category: 'support' }
+  ];
+};
+
+const loadSavedBadges = () => {
+  try {
+    const saved = localStorage.getItem('zen_user_badges');
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return {};
+};
+
 const useMultiplayerStore = create((set, get) => {
   const handleIncomingPayload = (data) => {
     if (!data || !data.type) return;
@@ -80,10 +108,11 @@ const useMultiplayerStore = create((set, get) => {
           const newUser = {
             id: data.userId,
             name: data.userName || 'کاربر مهمان',
-            role: data.role || 'کاربر آنلاین',
+            role: state.userBadges[data.userId] || data.role || 'کاربر آنلاین',
             avatar: data.avatar || '👤',
             color: 'from-sky-500 to-indigo-600',
             lastSeen: Date.now(),
+            currentRoom: data.currentRoom || 'general',
             isReal: true
           };
           return {
@@ -92,8 +121,11 @@ const useMultiplayerStore = create((set, get) => {
         });
       }
     } else if (data.type === 'CHAT') {
+      // Check if room was purged or message deleted
       set(state => {
         if (state.globalChat.some(m => m.id === data.id)) return state;
+        // If user is muted, ignore their chat
+        if (state.mutedUserIds.includes(data.userId)) return state;
         return {
           globalChat: [...state.globalChat, data]
         };
@@ -101,6 +133,9 @@ const useMultiplayerStore = create((set, get) => {
     } else if (data.type === 'DIRECT_MSG') {
       const myId = get().userId;
       if (data.targetUserId === myId) {
+        soundEngine.playMessageChime?.();
+        haptics.notification?.();
+
         set(state => {
           const chatKey = data.senderId;
           const existing = state.directMessages[chatKey] || [];
@@ -119,7 +154,27 @@ const useMultiplayerStore = create((set, get) => {
             [chatKey]: [...existing, newMsg]
           };
           localStorage.setItem('zen_direct_messages', JSON.stringify(next));
-          return { directMessages: next };
+
+          // Increment unread count if user is not actively viewing this conversation
+          const currentDmId = state.activeDmUserId;
+          const isCurrentlyViewing = currentDmId === chatKey && state.activeTab === 'dm';
+          const newUnread = isCurrentlyViewing ? (state.unreadDmCounts[chatKey] || 0) : ((state.unreadDmCounts[chatKey] || 0) + 1);
+
+          return { 
+            directMessages: next,
+            unreadDmCounts: {
+              ...state.unreadDmCounts,
+              [chatKey]: newUnread
+            },
+            incomingDmToast: {
+              id: data.id,
+              senderId: data.senderId,
+              senderName: data.senderName,
+              senderAvatar: data.senderAvatar || '👤',
+              text: data.text,
+              timestamp: data.timestamp
+            }
+          };
         });
       }
     } else if (data.type === 'LIKE_MSG') {
@@ -137,6 +192,40 @@ const useMultiplayerStore = create((set, get) => {
         localStorage.setItem('zen_forum_threads', JSON.stringify(next));
         return { forumThreads: next };
       });
+    } else if (data.type === 'ADMIN_ROOMS_UPDATE') {
+      if (data.rooms) {
+        set({ customRooms: data.rooms });
+        localStorage.setItem('zen_custom_rooms', JSON.stringify(data.rooms));
+      }
+    } else if (data.type === 'ADMIN_PURGE_ROOM') {
+      if (data.roomId) {
+        set(state => ({
+          globalChat: state.globalChat.filter(m => m.roomId !== data.roomId)
+        }));
+      }
+    } else if (data.type === 'ADMIN_DELETE_MSG') {
+      if (data.msgId) {
+        set(state => ({
+          globalChat: state.globalChat.filter(m => m.id !== data.msgId)
+        }));
+      }
+    } else if (data.type === 'ADMIN_USER_BADGE') {
+      if (data.targetUserId && data.badge) {
+        set(state => {
+          const next = { ...state.userBadges, [data.targetUserId]: data.badge };
+          localStorage.setItem('zen_user_badges', JSON.stringify(next));
+          return {
+            userBadges: next,
+            onlineUsers: state.onlineUsers.map(u => u.id === data.targetUserId ? { ...u, role: data.badge } : u)
+          };
+        });
+      }
+    } else if (data.type === 'ADMIN_MUTE_USER') {
+      if (data.targetUserId) {
+        set(state => ({
+          mutedUserIds: [...new Set([...state.mutedUserIds, data.targetUserId])]
+        }));
+      }
     }
   };
 
@@ -163,6 +252,18 @@ const useMultiplayerStore = create((set, get) => {
     activeRelayCount: 0,
     activeDmUserId: 'companion_sara',
     isCompanionTyping: false,
+    activeTab: 'chat',
+
+    // Unread and Toast Notifications
+    unreadDmCounts: {},
+    incomingDmToast: null,
+
+    // Admin & Moderation State
+    isAdminUnlocked: false,
+    customRooms: loadSavedRooms(),
+    userBadges: loadSavedBadges(),
+    mutedUserIds: [],
+    bannedUserIds: [],
 
     onlineUsers: [...DEFAULT_MENTORS],
 
@@ -210,6 +311,111 @@ const useMultiplayerStore = create((set, get) => {
 
     activeGameId: null,
     gameState: null,
+
+    // Notifications & Unread handlers
+    dismissIncomingDmToast: () => set({ incomingDmToast: null }),
+    
+    clearUnreadForPeer: (peerId) => {
+      set(state => ({
+        unreadDmCounts: {
+          ...state.unreadDmCounts,
+          [peerId]: 0
+        }
+      }));
+    },
+
+    setActiveTabState: (tab) => set({ activeTab: tab }),
+
+    // Admin Unlock & Actions
+    unlockAdmin: (pin) => {
+      if (pin === '979797') {
+        set({ isAdminUnlocked: true });
+        soundEngine.playLevelUp?.();
+        haptics.success?.();
+        return true;
+      }
+      return false;
+    },
+
+    addCustomRoom: (newRoom) => {
+      const roomObj = {
+        id: 'room_' + Date.now().toString(36),
+        nameFa: newRoom.nameFa,
+        nameEn: newRoom.nameEn || newRoom.nameFa,
+        icon: newRoom.icon || 'Hash',
+        category: newRoom.category || 'custom',
+        locked: !!newRoom.locked
+      };
+      set(state => {
+        const next = [...state.customRooms, roomObj];
+        localStorage.setItem('zen_custom_rooms', JSON.stringify(next));
+        const payload = { type: 'ADMIN_ROOMS_UPDATE', rooms: next };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { customRooms: next };
+      });
+      soundEngine.playCheckmark?.();
+    },
+
+    deleteCustomRoom: (roomId) => {
+      set(state => {
+        const next = state.customRooms.filter(r => r.id !== roomId);
+        localStorage.setItem('zen_custom_rooms', JSON.stringify(next));
+        const payload = { type: 'ADMIN_ROOMS_UPDATE', rooms: next };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { customRooms: next };
+      });
+      soundEngine.playTap?.();
+    },
+
+    setUserBadge: (targetUserId, badge) => {
+      set(state => {
+        const next = { ...state.userBadges, [targetUserId]: badge };
+        localStorage.setItem('zen_user_badges', JSON.stringify(next));
+        const payload = { type: 'ADMIN_USER_BADGE', targetUserId, badge };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return {
+          userBadges: next,
+          onlineUsers: state.onlineUsers.map(u => u.id === targetUserId ? { ...u, role: badge } : u)
+        };
+      });
+      soundEngine.playLevelUp?.();
+      haptics.success?.();
+    },
+
+    muteUser: (targetUserId) => {
+      set(state => {
+        const next = [...new Set([...state.mutedUserIds, targetUserId])];
+        const payload = { type: 'ADMIN_MUTE_USER', targetUserId };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { mutedUserIds: next };
+      });
+      soundEngine.playCheckmark?.();
+    },
+
+    deleteChatMessage: (msgId) => {
+      set(state => {
+        const next = state.globalChat.filter(m => m.id !== msgId);
+        const payload = { type: 'ADMIN_DELETE_MSG', msgId };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { globalChat: next };
+      });
+    },
+
+    purgeRoomChat: (roomId) => {
+      set(state => {
+        const next = state.globalChat.filter(m => m.roomId !== roomId);
+        const payload = { type: 'ADMIN_PURGE_ROOM', roomId };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { globalChat: next };
+      });
+      soundEngine.playCheckmark?.();
+    },
     
     setUserName: (name) => {
       localStorage.setItem('life_os_user_name', name);
@@ -226,21 +432,40 @@ const useMultiplayerStore = create((set, get) => {
     },
 
     setActiveDmUserId: (userId) => {
-      set({ activeDmUserId: userId });
+      set(state => ({
+        activeDmUserId: userId,
+        unreadDmCounts: {
+          ...state.unreadDmCounts,
+          [userId]: 0
+        }
+      }));
     },
 
-    pingUsers: () => {
+    pingUsers: (currentRoom = 'general') => {
       realtimeNetwork.broadcastPresence();
-      channel?.postMessage({ type: 'PRESENCE', userId: get().userId, userName: get().userName, avatar: get().userAvatar });
+      channel?.postMessage({ 
+        type: 'PRESENCE', 
+        userId: get().userId, 
+        userName: get().userName, 
+        avatar: get().userAvatar,
+        currentRoom 
+      });
     },
 
     sendGlobalMessage: (text, roomId = 'general', isSystem = false, extra = {}) => {
+      const myId = get().userId;
+      if (get().mutedUserIds.includes(myId)) {
+        alert('شما در حال حاضر توسط مدیریت بی‌صدا شده‌اید.');
+        return;
+      }
+
       const msg = {
         type: 'CHAT',
         id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        userId: isSystem ? 'system' : get().userId,
+        userId: isSystem ? 'system' : myId,
         userName: isSystem ? 'سیستم' : get().userName,
         userAvatar: isSystem ? '⚙️' : get().userAvatar,
+        userRole: get().userBadges[myId] || 'عضو جامعه',
         roomId,
         text,
         timestamp: new Date().toISOString(),
@@ -271,6 +496,7 @@ const useMultiplayerStore = create((set, get) => {
         isMe: true
       };
 
+      // 1. Instant local append for 0ms feedback
       set(state => {
         const existing = state.directMessages[targetUserId] || [];
         const next = {
@@ -292,10 +518,11 @@ const useMultiplayerStore = create((set, get) => {
         timestamp
       };
 
+      // 2. Instant multi-device publish
       channel?.postMessage(networkPayload);
       realtimeNetwork.publish(networkPayload);
 
-      // Automated intelligent reply from AI companion
+      // 3. Automated intelligent reply from AI companion
       if (COMPANION_PERSONAS[targetUserId]) {
         set({ isCompanionTyping: true });
         setTimeout(() => {
@@ -309,6 +536,9 @@ const useMultiplayerStore = create((set, get) => {
             isMe: false
           };
 
+          soundEngine.playMessageChime?.();
+          haptics.notification?.();
+
           set(state => {
             const existing = state.directMessages[targetUserId] || [];
             const next = {
@@ -318,7 +548,7 @@ const useMultiplayerStore = create((set, get) => {
             localStorage.setItem('zen_direct_messages', JSON.stringify(next));
             return { directMessages: next, isCompanionTyping: false };
           });
-        }, 1100);
+        }, 900);
       }
     },
 
