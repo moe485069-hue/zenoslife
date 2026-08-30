@@ -107,11 +107,19 @@ export default function Header() {
               </button>
             )}
             
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xl sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif]">
+            <div 
+              onClick={() => {
+                haptics.tap?.();
+                soundEngine.playTap?.();
+                navigate('/');
+              }}
+              className="flex items-center gap-2 min-w-0 cursor-pointer select-none active:scale-95 transition-all group"
+              title={isRtl ? 'بازگشت به صفحه اصلی' : 'Go to Home'}
+            >
+              <span className="text-xl sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif] group-hover:brightness-110 transition-all">
                 {isRtl ? 'زنوسلایف' : 'ZenOsLife'}
               </span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-purple-500/15 via-cyan-500/15 to-emerald-500/15 border border-purple-500/30 text-purple-400 dark:text-purple-300 hidden xs:inline not-italic">
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-purple-500/15 via-cyan-500/15 to-emerald-500/15 border border-purple-500/30 text-purple-400 dark:text-purple-300 hidden xs:inline not-italic group-hover:border-purple-400/60 transition-all">
                 {isRtl ? 'ZenOsLife' : 'زنوسلایف'}
               </span>
             </div>
