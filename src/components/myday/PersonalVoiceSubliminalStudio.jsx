@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Play, Pause, RotateCcw, Volume2, VolumeX, Sparkles,
   Download, Trash2, CheckCircle2, Shield, Heart, Moon, Radio,
-  Slider, Clock, RefreshCw, Zap, Check, Sliders, Waves
+  Clock, RefreshCw, Zap, Check, Sliders, Waves
 } from 'lucide-react';
 import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
