@@ -260,26 +260,61 @@ export default function Backgammon() {
     }
   };
 
+  // Standard international strict bearing off rules
+  const canBearOffFromPoint = (fromPoint, die, player, currentPoints, currentBar) => {
+    if (!isHomeBoardReady(player, currentPoints, currentBar)) return false;
+
+    if (player === 'white') {
+      if (fromPoint === die) return true; // Exact match
+      if (fromPoint < die) {
+        // Only legal if NO checkers on higher points in home board (fromPoint + 1 to 6)
+        for (let p = fromPoint + 1; p <= 6; p++) {
+          if (currentPoints[p].player === 'white' && currentPoints[p].count > 0) {
+            return false;
+          }
+        }
+        return true;
+      }
+    } else {
+      // Black: Home board is 19 to 24. Distance to off is (25 - fromPoint)
+      const dist = 25 - fromPoint;
+      if (dist === die) return true; // Exact match
+      if (die > dist) {
+        // Only legal if NO checkers on points further from off (19 to fromPoint - 1)
+        for (let p = 19; p < fromPoint; p++) {
+          if (currentPoints[p].player === 'black' && currentPoints[p].count > 0) {
+            return false;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  };
+
   const getValidMovesForPoint = (fromPoint, currentPoints, currentBar, currentMoves, player) => {
     const validDestinations = [];
     const uniqueMoves = Array.from(new Set(currentMoves));
 
     uniqueMoves.forEach(die => {
-      let target;
+      // Check Bar Re-entry
       if (fromPoint === 'bar') {
-        target = player === 'white' ? 25 - die : die;
-      } else {
-        target = player === 'white' ? fromPoint - die : fromPoint + die;
-      }
-
-      // Bearing Off Check
-      if ((player === 'white' && target < 1) || (player === 'black' && target > 24)) {
-        if (isHomeBoardReady(player, currentPoints, currentBar)) {
-          validDestinations.push({ target: 'off', dieUsed: die });
+        const target = player === 'white' ? 25 - die : die;
+        const dest = currentPoints[target];
+        const opponent = player === 'white' ? 'black' : 'white';
+        if (!dest.player || dest.player === player || (dest.player === opponent && dest.count === 1)) {
+          validDestinations.push({ target, dieUsed: die });
         }
         return;
       }
 
+      // Check Bearing Off
+      if (canBearOffFromPoint(fromPoint, die, player, currentPoints, currentBar)) {
+        validDestinations.push({ target: 'off', dieUsed: die });
+      }
+
+      // Normal Board Move
+      const target = player === 'white' ? fromPoint - die : fromPoint + die;
       if (target >= 1 && target <= 24) {
         const dest = currentPoints[target];
         const opponent = player === 'white' ? 'black' : 'white';
@@ -445,16 +480,36 @@ export default function Backgammon() {
   };
 
   // ----------------------------------------------------
-  // SET & MATCH WIN HANDLING
+  // SET & MATCH WIN HANDLING (GAMMON & BACKGAMMON SCORING)
   // ----------------------------------------------------
   const handleSetWin = (winner, curOff, curBar) => {
     const loser = winner === 'white' ? 'black' : 'white';
     let setPointsEarned = 1;
-    let winType = isRtl ? 'برد عادی' : 'Normal Win';
+    let winType = isRtl ? 'برد عادی (۱ امتیاز)' : 'Normal Win (1 Pt)';
 
+    // Gammon Check: Loser has borne off 0 checkers
     if (curOff[loser] === 0) {
-      setPointsEarned = 2;
-      winType = isRtl ? 'مارس! (۲ امتیاز)' : 'Gammon! (2 Pts)';
+      // Backgammon Check: Loser has 0 off AND has checkers on Bar or in winner's home board
+      let hasInWinnerHome = false;
+      if (winner === 'white') {
+        // White home is 1 to 6
+        for (let p = 1; p <= 6; p++) {
+          if (points[p].player === 'black' && points[p].count > 0) hasInWinnerHome = true;
+        }
+      } else {
+        // Black home is 19 to 24
+        for (let p = 19; p <= 24; p++) {
+          if (points[p].player === 'white' && points[p].count > 0) hasInWinnerHome = true;
+        }
+      }
+
+      if (curBar[loser] > 0 || hasInWinnerHome) {
+        setPointsEarned = 3;
+        winType = isRtl ? '🔥 بک‌گامون / سگ‌مارس! (۳ امتیاز)' : '🔥 Backgammon! (3 Pts)';
+      } else {
+        setPointsEarned = 2;
+        winType = isRtl ? '⚡ مارس کامل! (۲ امتیاز)' : '⚡ Gammon! (2 Pts)';
+      }
     }
 
     const newScoreW = winner === 'white' ? scoreWhite + setPointsEarned : scoreWhite;
@@ -470,8 +525,8 @@ export default function Backgammon() {
     if (newScoreW >= matchSets || newScoreB >= matchSets) {
       const matchWin = newScoreW >= matchSets ? 'white' : 'black';
       setMatchWinner(matchWin);
-      addXP?.(100 * matchSets, 'پیروزی در مچ تخته نرد');
-      addCoins?.(25 * matchSets);
+      addXP?.(150 * matchSets, 'پیروزی در مچ تخته نرد');
+      addCoins?.(50 * matchSets);
     }
   };
 
@@ -547,14 +602,29 @@ export default function Backgammon() {
       return;
     }
 
-    // Heuristic: 1) Hit white blot, 2) Bear off, 3) Make a point, 4) Advance furthest
+    // Heuristic Evaluation based on Bot Difficulty
     allPossibleMoves.sort((a, b) => {
       let scoreA = 0;
       let scoreB = 0;
-      if (a.to === 'off') scoreA += 100;
-      if (b.to === 'off') scoreB += 100;
-      if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 80;
-      if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 80;
+
+      if (a.to === 'off') scoreA += 130;
+      if (b.to === 'off') scoreB += 130;
+
+      // Hit opponent's single blot
+      if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 100;
+      if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 100;
+
+      // Make a secure point / prime (2+ checkers)
+      if (typeof a.to === 'number' && points[a.to].player === 'black' && points[a.to].count === 1) scoreA += 60;
+      if (typeof b.to === 'number' && points[b.to].player === 'black' && points[b.to].count === 1) scoreB += 60;
+
+      // Advance furthest
+      if (typeof a.to === 'number') scoreA += a.to * 2;
+      if (typeof b.to === 'number') scoreB += b.to * 2;
+
+      if (botDifficulty === 'easy') {
+        return Math.random() - 0.5;
+      }
       return scoreB - scoreA;
     });
 
@@ -590,10 +660,49 @@ export default function Backgammon() {
     }
   };
 
+  // Calculate live Pip Counts
+  const pipWhite = points.reduce((acc, p, idx) => acc + (p.player === 'white' ? p.count * idx : 0), 0) + (bar.white * 25);
+  const pipBlack = points.reduce((acc, p, idx) => acc + (p.player === 'black' ? p.count * (25 - idx) : 0), 0) + (bar.black * 25);
+
   // Get active valid destinations if selected
   const activeValidDestinations = selectedPoint !== null 
     ? getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn).map(m => m.target)
     : [];
+
+  // Render Stacked Checkers in realistic 3D
+  const renderCheckersStack = (pt, isTop, pIdx, isSelected, isFriendlyAndMovable) => {
+    if (pt.count === 0) return null;
+    const maxVisible = Math.min(pt.count, 5);
+    const isWhite = pt.player === 'white';
+    const checkerStyle = isWhite ? themeConfig.checkerWhite : themeConfig.checkerBlack;
+
+    return (
+      <div className={`absolute ${isTop ? 'top-5' : 'bottom-5'} flex flex-col items-center z-10 select-none`}>
+        {Array.from({ length: maxVisible }).map((_, idx) => {
+          const isTopChecker = idx === maxVisible - 1;
+          return (
+            <motion.div
+              key={idx}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              whileHover={isFriendlyAndMovable ? { scale: 1.15 } : {}}
+              style={{
+                marginTop: idx > 0 ? '-13px' : '0',
+                zIndex: idx + 1
+              }}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md transition-all ${checkerStyle} ${
+                isSelected && isTopChecker ? 'ring-4 ring-amber-400 scale-110' : ''
+              } ${isFriendlyAndMovable && isTopChecker ? 'ring-2 ring-amber-300 animate-pulse' : ''}`}
+            >
+              {idx === maxVisible - 1 && pt.count > 5 ? (
+                <span className="text-[10px] font-black">{pt.count}</span>
+              ) : null}
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Render a point triangle
   const renderPoint = (pIdx, isTop) => {
@@ -632,19 +741,8 @@ export default function Backgammon() {
           {pIdx}
         </span>
 
-        {/* Checkers Stack */}
-        <div className={`absolute ${isTop ? 'top-5' : 'bottom-5'} flex flex-col items-center gap-0.5 z-10`}>
-          {pt.count > 0 && (
-            <motion.div
-              whileTap={{ scale: 0.9 }}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md ${
-                pt.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
-              } ${isFriendlyAndMovable ? 'ring-2 ring-amber-300 animate-pulse' : ''} ${isSelected ? 'ring-4 ring-yellow-400 scale-110' : ''}`}
-            >
-              {pt.count > 1 ? pt.count : ''}
-            </motion.div>
-          )}
-        </div>
+        {/* Stacked Checkers */}
+        {renderCheckersStack(pt, isTop, pIdx, isSelected, isFriendlyAndMovable)}
       </div>
     );
   };
@@ -658,26 +756,43 @@ export default function Backgammon() {
           <button
             onClick={() => navigate('/games')}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[var(--text-primary)]"
+            title={isRtl ? 'بازگشت به بازی‌ها' : 'Back to Games'}
           >
             {isRtl ? <ChevronLeft size={20} className="rotate-180" /> : <ChevronLeft size={20} />}
           </button>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-500">
+            <h1 className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500">
               {isRtl ? 'تخته نرد شاهانه ایرانی' : 'Royal Persian Backgammon'}
             </h1>
             <span className="text-[10px] text-slate-400">
-              {gameMode === 'bot' ? '🤖 بازی با ربات' : gameMode === 'local' ? '📱 دونفره یک دستگاه' : `🌐 اتاق آنلاین: ${onlineRoomCode}`}
+              {gameMode === 'bot' ? '🤖 بازی با ربات هوشمند' : gameMode === 'local' ? '📱 دونفره در یک دستگاه' : `🌐 اتاق آنلاین: ${onlineRoomCode}`}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Theme Selector Pill */}
+          <button
+            onClick={() => {
+              const themesKeys = Object.keys(THEMES);
+              const nextIdx = (themesKeys.indexOf(boardTheme) + 1) % themesKeys.length;
+              setBoardTheme(themesKeys[nextIdx]);
+              soundEngine.playTap?.();
+              haptics.tap?.();
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold flex items-center gap-1"
+            title={isRtl ? 'تغییر قالب تخته' : 'Change Theme'}
+          >
+            <span>{themeConfig.icon}</span>
+            <span className="text-[10px] hidden sm:inline">{themeConfig.nameFa}</span>
+          </button>
+
           <button
             onClick={() => setIsSetupModalOpen(true)}
             className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black hover:bg-amber-500/30 flex items-center gap-1"
           >
             <Settings size={13} />
-            <span>{isRtl ? 'تنظیمات / مسابقه جدید' : 'Setup'}</span>
+            <span>{isRtl ? 'تنظیمات' : 'Setup'}</span>
           </button>
 
           <button
@@ -691,22 +806,29 @@ export default function Backgammon() {
 
       <div className="max-w-md mx-auto p-4 space-y-4">
 
-        {/* ── 2. MATCH SCOREBOARD ── */}
+        {/* ── 2. MATCH SCOREBOARD & PIP COUNT ── */}
         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 to-cyan-950/40 border border-amber-500/30 flex items-center justify-between px-4 shadow-md">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-amber-400 border-2 border-amber-300 shadow-sm flex items-center justify-center text-xs font-black text-black">
+            <div className="w-8 h-8 rounded-full bg-amber-400 border-2 border-amber-300 shadow-sm flex items-center justify-center text-xs font-black text-black">
               {scoreWhite}
             </div>
-            <span className="text-xs font-bold text-amber-300">{isRtl ? 'سفید (شما)' : 'White'}</span>
+            <div>
+              <span className="text-xs font-bold text-amber-300 block">{isRtl ? 'سفید (شما)' : 'White'}</span>
+              <span className="text-[9px] text-amber-400/80 font-mono">Pip: {pipWhite}</span>
+            </div>
           </div>
 
-          <div className="text-xs font-mono font-black px-2.5 py-1 rounded-xl bg-black/50 border border-slate-700 text-slate-200">
-            {isRtl ? `ست ${currentSet} از ${matchSets}` : `Set ${currentSet}/${matchSets}`}
+          <div className="text-xs font-mono font-black px-3 py-1 rounded-xl bg-black/50 border border-slate-700 text-slate-200 text-center">
+            <div>{isRtl ? `ست ${currentSet} از ${matchSets}` : `Set ${currentSet}/${matchSets}`}</div>
+            <div className="text-[9px] text-amber-400">{isRtl ? 'هدف: برد در دست‌ها' : 'First to win'}</div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-cyan-300">{isRtl ? (gameMode === 'bot' ? 'ربات هوشمند' : 'سیاه') : 'Black'}</span>
-            <div className="w-7 h-7 rounded-full bg-cyan-700 border-2 border-cyan-400 shadow-sm flex items-center justify-center text-xs font-black text-white">
+            <div className="text-end">
+              <span className="text-xs font-bold text-cyan-300 block">{isRtl ? (gameMode === 'bot' ? 'ربات هوشمند' : 'سیاه') : 'Black'}</span>
+              <span className="text-[9px] text-cyan-400/80 font-mono">Pip: {pipBlack}</span>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-cyan-700 border-2 border-cyan-400 shadow-sm flex items-center justify-center text-xs font-black text-white">
               {scoreBlack}
             </div>
           </div>
