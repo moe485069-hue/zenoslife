@@ -6,7 +6,8 @@ import {
   Send, UserPlus, Zap, Activity, Heart, Coins, MoreVertical, X, 
   MessagesSquare, FileText, PlusCircle, Smile, Reply, CornerDownRight, 
   Sparkles, AtSign, Eye, EyeOff, Check, UserCheck, Flame, Volume2, Gamepad2,
-  Bell, BellRing, Settings, Crown, Trash2, Ban, MicOff, Key, Radio, Compass, RefreshCw
+  Bell, BellRing, Settings, Crown, Trash2, Ban, MicOff, Key, Radio, Compass, 
+  Upload, Image, UserX, UserMinus, Star, Gift, ExternalLink, Sliders
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
@@ -48,7 +49,49 @@ const BADGE_OPTIONS = [
   { id: '⚡ قهرمان استمرار', label: '⚡ قهرمان استمرار', color: 'from-rose-500 to-orange-600' }
 ];
 
+const PRESET_AVATARS = [
+  '🌟', '👑', '🦁', '💎', '🚀', '🌌', '🧘', '🌸', '⚔️', '🦅', 
+  '🔥', '⚡', '🏆', '🌿', '🎯', '🪐', '🦄', '🕊️', '🦊', '🐺', 
+  '🌺', '🧙‍♂️', '🧝‍♀️', '🔮', '🎭', '🎨', '🚀', '🏎️', '🐉', '🐲'
+];
+
 export const MATCH_COMPANIONS = Object.values(COMPANION_PERSONAS);
+
+// Helper to compress gallery image to fast base64 data URL
+const compressImageFile = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxSize = 128;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function ChatRooms() {
   const { language, coins, addCoins } = useAppStore();
@@ -59,10 +102,11 @@ export default function ChatRooms() {
     networkStatus, activeRelayCount,
     onlineUsers, globalChat, forumThreads,
     customRooms, addCustomRoom, deleteCustomRoom,
-    userBadges, setUserBadge, muteUser, deleteChatMessage, purgeRoomChat,
+    userBadges, setUserBadge, muteUser, banUser, deleteChatMessage, purgeUserMessages, purgeRoomChat,
     isAdminUnlocked, unlockAdmin,
     directMessages, activeDmUserId, setActiveDmUserId, sendDirectMessage,
     unreadDmCounts, incomingDmToast, dismissIncomingDmToast,
+    ignoredUserIds, toggleIgnoreUser,
     isCompanionTyping,
     pingUsers, sendGlobalMessage, likeMessage, tipMessage, addForumThread 
   } = useMultiplayerStore();
@@ -70,21 +114,21 @@ export default function ChatRooms() {
   const [activeRoom, setActiveRoom] = useState('general');
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'match' | 'dm' | 'forum'
   
-  // Secret Admin Modal & Trigger
+  // Secret Admin Trigger
   const [adminClicks, setAdminClicks] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [isAdminPinModalOpen, setIsAdminPinModalOpen] = useState(false);
   const [adminPinInput, setAdminPinInput] = useState('');
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState('rooms'); // 'rooms' | 'users' | 'badges' | 'moderation' | 'logs'
+  const [adminTab, setAdminTab] = useState('rooms'); // 'rooms' | 'users' | 'badges' | 'logs'
   
-  // New Room Form in Admin
+  // Room Form in Admin
   const [newRoomFa, setNewRoomFa] = useState('');
   const [newRoomEn, setNewRoomEn] = useState('');
   const [newRoomIcon, setNewRoomIcon] = useState('Hash');
   const [newRoomLocked, setNewRoomLocked] = useState(false);
 
-  // Matchmaking & Companions State
+  // Matchmaking State
   const [matchCategory, setMatchCategory] = useState('all');
   const [connectedUserIds, setConnectedUserIds] = useState(() => {
     try {
@@ -111,11 +155,18 @@ export default function ChatRooms() {
   });
   const [hasRegisteredProfile, setHasRegisteredProfile] = useState(() => !!localStorage.getItem('zen_my_match_bio'));
   
+  // User Profile Action Sheet Modal State
+  const [inspectedUser, setInspectedUser] = useState(null); // { id, name, avatar, role, city, bio, chakra, isReal }
+  
+  // Photo & Avatar Picker Modal
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarTab, setAvatarTab] = useState('presets'); // 'presets' | 'upload'
+  const fileInputRef = useRef(null);
+
   const [chatInput, setChatInput] = useState('');
   const [dmInput, setDmInput] = useState('');
   const [isEditingName, setIsEditingName] = useState(!userName || userName.startsWith('User'));
   const [tempName, setTempName] = useState(userName || '');
-  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   // Whisper & Reply
@@ -125,10 +176,7 @@ export default function ChatRooms() {
   // Mobile drawers
   const [isMobileUsersOpen, setIsMobileUsersOpen] = useState(false);
 
-  const AVATARS = ['🌟', '👑', '🦁', '💎', '🚀', '🌌', '🧘', '🌸', '⚔️', '🦅', '🔥', '⚡', '🏆', '🌿', '🎯', '🪐', '🦄', '🕊️'];
-
-  // Modals
-  const [selectedUser, setSelectedUser] = useState(null);
+  // New Forum Thread
   const [isNewThreadModalOpen, setIsNewThreadModalOpen] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadCategory, setNewThreadCategory] = useState('philosophy');
@@ -136,8 +184,9 @@ export default function ChatRooms() {
   const chatEndRef = useRef(null);
   const dmEndRef = useRef(null);
 
-  // Total unread DMs count
   const totalUnreadCount = Object.values(unreadDmCounts || {}).reduce((a, b) => a + b, 0);
+  const myRole = userBadges[userId] || (isAdminUnlocked ? '👑 مالک و مدیر ارشد' : 'عضو جامعه');
+  const isUserAdminOrMod = isAdminUnlocked || myRole.includes('مالک') || myRole.includes('مدیر') || myRole.includes('ناظم');
 
   useEffect(() => {
     pingUsers(activeRoom);
@@ -157,7 +206,7 @@ export default function ChatRooms() {
     }
   }, [directMessages, activeDmUserId, activeTab, isCompanionTyping]);
 
-  // Secret Admin Trigger on Triple Click
+  // Secret Admin Trigger
   const handleLobbyClickSecret = () => {
     const now = Date.now();
     if (now - lastClickTime < 1500) {
@@ -198,6 +247,20 @@ export default function ChatRooms() {
       setIsEditingName(false);
       soundEngine.playCheckmark?.();
       haptics.success?.();
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const base64 = await compressImageFile(file);
+      setUserAvatar(base64);
+      setIsAvatarModalOpen(false);
+      soundEngine.playCheckmark?.();
+      haptics.success?.();
+    } catch (err) {
+      alert('خطا در بارگذاری تصویر!');
     }
   };
 
@@ -252,17 +315,27 @@ export default function ChatRooms() {
     });
   };
 
-  const handleStartDmWithCompanion = (companion) => {
-    setActiveDmUserId(companion.id);
+  const handleStartDmWithUser = (user) => {
+    setActiveDmUserId(user.id);
     setActiveTab('dm');
+    setInspectedUser(null);
+    setIsMobileUsersOpen(false);
     soundEngine.playTap?.();
     haptics.tap?.();
   };
 
-  const handleInviteToGame = (companion) => {
+  const handleStartWhisperWithUser = (user) => {
+    setWhisperTarget(user);
+    setInspectedUser(null);
+    setIsMobileUsersOpen(false);
+    soundEngine.playTap?.();
+    haptics.tap?.();
+  };
+
+  const handleInviteToGame = (user) => {
     soundEngine.playCheckmark?.();
     haptics.tap?.();
-    const cleanName = (companion.name || 'SOUL').replace(/\s+/g, '-');
+    const cleanName = (user.name || 'SOUL').replace(/\s+/g, '-');
     navigate(`/games/backgammon?room=${encodeURIComponent('SOUL-' + cleanName)}&mode=online`);
   };
 
@@ -291,7 +364,7 @@ export default function ChatRooms() {
     localStorage.setItem('zen_my_match_tags', JSON.stringify(mySelectedTags));
     setHasRegisteredProfile(true);
     setIsMyProfileModalOpen(false);
-    sendGlobalMessage(isRtl ? `✨ ${myMatchName} پروفایل هم‌فرکانسی و دوستیابی خود را در شبکه فعال کرد!` : `✨ ${myMatchName} published their soul match profile!`, 'general', true);
+    sendGlobalMessage(isRtl ? `✨ ${myMatchName} پروفایل هم‌فرکانسی خود را در شبکه فعال کرد!` : `✨ ${myMatchName} published their soul match profile!`, 'general', true);
     soundEngine.playLevelUp?.();
     haptics.success?.();
   };
@@ -327,19 +400,16 @@ export default function ChatRooms() {
     }
   };
 
-  const handleStartWhisper = (user) => {
-    setWhisperTarget(user);
-    setSelectedUser(null);
-    setIsMobileUsersOpen(false);
-    soundEngine.playTap?.();
-    haptics.tap?.();
-  };
-
-  const handleMentionUser = (user) => {
-    setChatInput(prev => `${prev} @${user.name} `);
-    setSelectedUser(null);
-    setIsMobileUsersOpen(false);
-    soundEngine.playTap?.();
+  const handleTipUserDirectly = (targetUser) => {
+    if (coins >= 5) {
+      addCoins(-5);
+      sendGlobalMessage(isRtl ? `💎 ${userName} ۵ سکه 🪙 پاداش به ${targetUser.name} اهدا کرد!` : `💎 ${userName} sent a 5🪙 gift to ${targetUser.name}!`, activeRoom, true);
+      soundEngine.playLevelUp?.();
+      haptics.success?.();
+      alert(`۵ سکه با موفقیت به ${targetUser.name} اهدا شد!`);
+    } else {
+      alert('سکه کافی ندارید!');
+    }
   };
 
   const handleCreateThread = (e) => {
@@ -371,8 +441,9 @@ export default function ChatRooms() {
     setNewRoomLocked(false);
   };
 
-  // Filter messages for current room and respect whisper privacy
+  // Filter messages for current room, exclude ignored users, and respect whisper privacy
   const roomMessages = globalChat.filter(m => {
+    if (ignoredUserIds.includes(m.userId)) return false;
     const isThisRoom = m.roomId === activeRoom || m.text.startsWith(`[${activeRoom}]`);
     if (!isThisRoom) return false;
     if (m.isWhisper) {
@@ -389,7 +460,6 @@ export default function ChatRooms() {
 
   const activePeer = onlineUsers.find(u => u.id === activeDmUserId) || MATCH_COMPANIONS.find(c => c.id === activeDmUserId) || { id: activeDmUserId, name: 'همراه', avatar: '🌸' };
 
-  // Filtered companions
   const filteredCompanions = MATCH_COMPANIONS.filter(c => {
     if (matchCategory === 'connected') return connectedUserIds.includes(c.id);
     if (matchCategory === 'all') return true;
@@ -408,8 +478,21 @@ export default function ChatRooms() {
     }
   };
 
+  // Render Avatar (Handles Base64 image URL or Emoji)
+  const renderAvatar = (avatarStr, sizeClasses = 'w-8 h-8 text-sm') => {
+    if (!avatarStr) return <div className={`${sizeClasses} rounded-2xl bg-purple-600 flex items-center justify-center text-white`}>👤</div>;
+    if (avatarStr.startsWith('data:image/') || avatarStr.startsWith('http')) {
+      return <img src={avatarStr} alt="Avatar" className={`${sizeClasses} rounded-2xl object-cover border border-white/20 shadow-sm`} />;
+    }
+    return (
+      <div className={`${sizeClasses} rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0`}>
+        {avatarStr}
+      </div>
+    );
+  };
+
   return (
-    <div className="w-full h-[calc(100dvh-75px)] relative overflow-hidden bg-[var(--bg-primary)] flex flex-col" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="w-full h-[calc(100dvh-75px)] relative overflow-hidden bg-[var(--bg-primary)] flex flex-col font-sans" dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Background Subtle Graphic */}
       <div className="absolute inset-0 opacity-5 pointer-events-none flex items-center justify-center">
@@ -426,9 +509,7 @@ export default function ChatRooms() {
             className="fixed top-3 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-50 p-3.5 rounded-3xl bg-slate-900/95 border border-indigo-500/50 shadow-2xl backdrop-blur-2xl flex items-center justify-between gap-3 text-white"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
-                {incomingDmToast.senderAvatar || '👤'}
-              </div>
+              {renderAvatar(incomingDmToast.senderAvatar, 'w-10 h-10 text-lg')}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <BellRing size={12} className="text-amber-400 animate-bounce" />
@@ -496,7 +577,7 @@ export default function ChatRooms() {
 
           {/* Right Controls */}
           <div className="flex items-center gap-1.5">
-            {/* Admin Panel Quick Button if Unlocked */}
+            {/* Admin Panel Button if Unlocked */}
             {isAdminUnlocked && (
               <button
                 onClick={() => setIsAdminPanelOpen(true)}
@@ -523,33 +604,17 @@ export default function ChatRooms() {
               <span>{coins}</span>
             </div>
 
-            {/* Avatar Picker */}
-            <div className="relative">
-              <button
-                onClick={() => setIsAvatarPickerOpen(o => !o)}
-                className="w-8 h-8 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-purple-500 flex items-center justify-center text-sm shadow-xs transition-all"
-                title={isRtl ? 'تغییر آواتار' : 'Change Avatar'}
-              >
-                {userAvatar || '🌟'}
-              </button>
-              {isAvatarPickerOpen && (
-                <div className="absolute top-10 left-0 sm:right-0 z-50 p-2.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl grid grid-cols-6 gap-1.5 w-52 backdrop-blur-xl">
-                  {AVATARS.map(av => (
-                    <button
-                      key={av}
-                      onClick={() => {
-                        setUserAvatar(av);
-                        setIsAvatarPickerOpen(false);
-                        soundEngine.playTap?.();
-                      }}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-base hover:scale-110 transition-transform ${userAvatar === av ? 'bg-purple-600/30 border border-purple-500' : 'hover:bg-white/10'}`}
-                    >
-                      {av}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Avatar & Photo Picker Trigger */}
+            <button
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="relative p-0.5 rounded-2xl border border-purple-500/40 hover:border-purple-400 transition-all shadow-sm group"
+              title={isRtl ? 'انتخاب آواتار یا تصویر از گالری' : 'Change Avatar'}
+            >
+              {renderAvatar(userAvatar, 'w-8 h-8 text-sm')}
+              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[9px] shadow-xs">
+                📷
+              </span>
+            </button>
 
             {/* Username pill */}
             {isEditingName ? (
@@ -577,7 +642,7 @@ export default function ChatRooms() {
           </div>
         </div>
 
-        {/* Mobile Horizontal Channels Strip (Shown only in Chat Tab) */}
+        {/* Mobile Horizontal Channels Strip */}
         {activeTab === 'chat' && (
           <div className="flex md:hidden items-center gap-1 overflow-x-auto no-scrollbar py-1 shrink-0 mb-1">
             {customRooms.map(room => (
@@ -603,8 +668,8 @@ export default function ChatRooms() {
         {/* Main Workspace Layout */}
         <div className="flex-1 flex flex-col md:flex-row gap-3 min-h-0 relative pb-1">
           
-          {/* Desktop Left Sidebar: Rooms & Online Users (Visible on Desktop) */}
-          <div className="hidden md:flex w-60 flex-col gap-2 shrink-0 h-full overflow-hidden">
+          {/* Desktop Left Sidebar: Rooms & Online Users */}
+          <div className="hidden md:flex w-64 flex-col gap-2 shrink-0 h-full overflow-hidden">
             <div className="p-2.5 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] space-y-1 shadow-sm">
               <div className="flex items-center justify-between px-2 py-1">
                 <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase">
@@ -644,35 +709,38 @@ export default function ChatRooms() {
               ))}
             </div>
             
-            {/* Online Users Box */}
+            {/* Online Users Box (Flash Style List) */}
             <div className="mt-auto pt-2">
               <div className="p-3.5 rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--bg-card)] to-slate-900/40 shadow-inner">
                 <h4 className="text-xs font-bold text-emerald-400 flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>{isRtl ? 'همراهان آنلاین' : 'Online Companions'}</span>
+                    <span>{isRtl ? 'همراهان آنلاین' : 'Online Members'}</span>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30">
                     {onlineUsers.length + 1}
                   </span>
                 </h4>
                 <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto no-scrollbar">
-                  <span className="text-[11px] font-bold px-2 py-1 bg-purple-950/50 text-purple-200 rounded-xl border border-purple-500/40 flex items-center gap-1">
-                    <span>{userAvatar || '🌟'}</span>
+                  <button
+                    onClick={() => setInspectedUser({ id: userId, name: userName, avatar: userAvatar, role: myRole, isMe: true })}
+                    className="text-[11px] font-bold px-2 py-1 bg-purple-950/50 text-purple-200 rounded-xl border border-purple-500/40 flex items-center gap-1.5 hover:scale-102 transition-transform"
+                  >
+                    {renderAvatar(userAvatar, 'w-4 h-4 text-[10px]')}
                     <span>{userName}</span>
                     <span className="text-[9px] opacity-75">(شما)</span>
-                  </span>
+                  </button>
                   {onlineUsers.map(u => (
                     <button 
                       key={u.id} 
-                      onClick={() => setSelectedUser(u)}
-                      className={`text-[11px] font-bold px-2 py-1 rounded-xl border flex items-center gap-1 transition-all ${
+                      onClick={() => setInspectedUser(u)}
+                      className={`text-[11px] font-bold px-2 py-1 rounded-xl border flex items-center gap-1.5 transition-all hover:scale-105 ${
                         u.isReal 
                           ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:bg-emerald-900/50 shadow-xs' 
                           : 'bg-slate-800/60 text-slate-300 border-white/5 hover:bg-slate-700'
                       }`}
                     >
-                      <span>{u.avatar || '👤'}</span>
+                      {renderAvatar(u.avatar, 'w-4 h-4 text-[10px]')}
                       <span>{u.name}</span>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     </button>
@@ -759,7 +827,7 @@ export default function ChatRooms() {
                   </div>
                 </div>
 
-                {/* Messages Timeline */}
+                {/* Messages Timeline (Flash Style with Profile Pictures Beside Messages) */}
                 <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 no-scrollbar">
                   {roomMessages.map(msg => {
                     const isMe = msg.userId === userId;
@@ -767,73 +835,100 @@ export default function ChatRooms() {
                     return (
                       <div
                         key={msg.id}
-                        className={`flex flex-col gap-1 max-w-[90%] sm:max-w-[80%] ${isMe ? 'self-end mr-auto items-end' : 'self-start ml-auto items-start'}`}
+                        className={`flex gap-2.5 max-w-[92%] sm:max-w-[82%] ${isMe ? 'self-end mr-auto flex-row-reverse' : 'self-start ml-auto'}`}
                       >
-                        {/* Sender info & Badge */}
-                        {!isMe && (
+                        {/* Profile Image / Avatar Beside Message (Clickable to open user profile) */}
+                        <button
+                          onClick={() => setInspectedUser({
+                            id: msg.userId,
+                            name: msg.userName,
+                            avatar: msg.userAvatar,
+                            role: msg.userRole,
+                            isMe: isMe
+                          })}
+                          className="shrink-0 group hover:scale-110 transition-transform self-start mt-0.5"
+                          title="مشاهده پروفایل و گزینه‌ها"
+                        >
+                          {renderAvatar(msg.userAvatar, 'w-8 h-8 sm:w-9 sm:h-9 text-base')}
+                        </button>
+
+                        <div className={`flex flex-col gap-1 min-w-0 ${isMe ? 'items-end' : 'items-start'}`}>
+                          {/* Sender info & Badge */}
                           <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] px-1">
-                            <span className="text-sm">{msg.userAvatar || '👤'}</span>
-                            <span className="font-black text-[var(--text-primary)]">{msg.userName}</span>
+                            <button
+                              onClick={() => setInspectedUser({
+                                id: msg.userId,
+                                name: msg.userName,
+                                avatar: msg.userAvatar,
+                                role: msg.userRole,
+                                isMe: isMe
+                              })}
+                              className="font-black text-[var(--text-primary)] hover:underline"
+                            >
+                              {msg.userName}
+                            </button>
+                            
                             {msg.userRole && msg.userRole !== 'عضو جامعه' && (
                               <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">
                                 {msg.userRole}
                               </span>
                             )}
+                            
                             <span className="text-[9px] opacity-70">{formatTime(msg.timestamp)}</span>
                           </div>
-                        )}
 
-                        {/* Bubble */}
-                        <div className={`p-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm relative group ${
-                          isMe 
-                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tr-sm' 
-                            : msg.isWhisper
-                            ? 'bg-fuchsia-950/40 border border-fuchsia-500/40 text-fuchsia-200 rounded-tl-sm'
-                            : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm'
-                        }`}>
-                          {msg.replyTo && (
-                            <div className="p-1.5 mb-1.5 rounded-xl bg-black/20 text-[10px] border-r-2 border-amber-400 opacity-90 truncate">
-                              <span className="font-bold">{msg.replyTo.userName}: </span>
-                              <span>{msg.replyTo.text}</span>
-                            </div>
-                          )}
+                          {/* Bubble */}
+                          <div className={`p-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm relative group ${
+                            isMe 
+                              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tr-sm' 
+                              : msg.isWhisper
+                              ? 'bg-fuchsia-950/40 border border-fuchsia-500/40 text-fuchsia-200 rounded-tl-sm'
+                              : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm'
+                          }`}>
+                            {msg.replyTo && (
+                              <div className="p-1.5 mb-1.5 rounded-xl bg-black/20 text-[10px] border-r-2 border-amber-400 opacity-90 truncate">
+                                <span className="font-bold">{msg.replyTo.userName}: </span>
+                                <span>{msg.replyTo.text}</span>
+                              </div>
+                            )}
 
-                          {msg.isWhisper && (
-                            <div className="flex items-center gap-1 text-[10px] text-fuchsia-300 font-bold mb-1">
-                              <Lock size={10} />
-                              <span>{isRtl ? 'پیام نجوا (خصوصی)' : 'Private Whisper'}</span>
-                            </div>
-                          )}
+                            {msg.isWhisper && (
+                              <div className="flex items-center gap-1 text-[10px] text-fuchsia-300 font-bold mb-1">
+                                <Lock size={10} />
+                                <span>{isRtl ? 'پیام نجوا (خصوصی)' : 'Private Whisper'}</span>
+                              </div>
+                            )}
 
-                          <p>{msg.text}</p>
+                            <p className="break-words">{msg.text}</p>
 
-                          {/* Quick interactions */}
-                          <div className="flex items-center justify-between gap-3 pt-1.5 mt-1 border-t border-white/10 text-[10px]">
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => handleLike(msg.id)} className="flex items-center gap-1 opacity-80 hover:opacity-100 hover:scale-110 transition-all">
-                                <span>❤️</span>
-                                <span>{msg.likes || 0}</span>
-                              </button>
-                              {msg.tips > 0 && (
-                                <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                                  <span>🪙</span>
-                                  <span>{msg.tips}</span>
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 opacity-80">
-                              <button onClick={() => setReplyingTo(msg)} className="hover:text-amber-300" title="پاسخ">
-                                <Reply size={12} />
-                              </button>
-                              <button onClick={() => handleTip(msg.id)} className="hover:text-amber-300" title="اهدای ۵ سکه">
-                                🪙
-                              </button>
-                              {isAdminUnlocked && (
-                                <button onClick={() => deleteChatMessage(msg.id)} className="text-rose-400 hover:text-rose-300" title="حذف توسط ادمین">
-                                  <Trash2 size={12} />
+                            {/* Quick interactions */}
+                            <div className="flex items-center justify-between gap-3 pt-1.5 mt-1 border-t border-white/10 text-[10px]">
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleLike(msg.id)} className="flex items-center gap-1 opacity-80 hover:opacity-100 hover:scale-110 transition-all">
+                                  <span>❤️</span>
+                                  <span>{msg.likes || 0}</span>
                                 </button>
-                              )}
+                                {msg.tips > 0 && (
+                                  <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                                    <span>🪙</span>
+                                    <span>{msg.tips}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 opacity-80">
+                                <button onClick={() => setReplyingTo(msg)} className="hover:text-amber-300" title="پاسخ">
+                                  <Reply size={12} />
+                                </button>
+                                <button onClick={() => handleTip(msg.id)} className="hover:text-amber-300" title="اهدای ۵ سکه">
+                                  🪙
+                                </button>
+                                {isUserAdminOrMod && (
+                                  <button onClick={() => deleteChatMessage(msg.id)} className="text-rose-400 hover:text-rose-300" title="حذف توسط ادمین">
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -948,8 +1043,8 @@ export default function ChatRooms() {
                 {hasRegisteredProfile && (
                   <div className="p-4 rounded-3xl bg-gradient-to-r from-purple-950/40 to-indigo-950/40 border-2 border-purple-500/50 shadow-lg space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{userAvatar || '🌟'}</span>
+                      <div className="flex items-center gap-2.5">
+                        {renderAvatar(userAvatar, 'w-10 h-10 text-base')}
                         <div>
                           <h4 className="text-xs font-black text-purple-300 flex items-center gap-1">
                             <span>{myMatchName}</span>
@@ -1020,14 +1115,20 @@ export default function ChatRooms() {
                         {/* Top Row: Avatar, Name, Match Score */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-purple-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
-                              {companion.avatar}
-                            </div>
+                            <button
+                              onClick={() => setInspectedUser(companion)}
+                              className="group-hover:scale-105 transition-transform"
+                            >
+                              {renderAvatar(companion.avatar, 'w-12 h-12 text-2xl')}
+                            </button>
                             <div>
-                              <h4 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-1.5">
+                              <button
+                                onClick={() => setInspectedUser(companion)}
+                                className="text-sm font-black text-[var(--text-primary)] hover:underline flex items-center gap-1.5"
+                              >
                                 <span>{companion.name}</span>
                                 {companion.age && <span className="text-[10px] text-[var(--text-secondary)] font-normal">({companion.age} ساله • {companion.city})</span>}
-                              </h4>
+                              </button>
                               <span className="text-[11px] text-rose-400 font-bold block mt-0.5">
                                 {companion.lookingFor || companion.role}
                               </span>
@@ -1072,7 +1173,7 @@ export default function ChatRooms() {
                         {/* Action Buttons */}
                         <div className="pt-2 border-t border-[var(--border)] flex items-center gap-2">
                           <button
-                            onClick={() => handleStartDmWithCompanion(companion)}
+                            onClick={() => handleStartDmWithUser(companion)}
                             className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                           >
                             <MessageSquare size={13} />
@@ -1112,7 +1213,7 @@ export default function ChatRooms() {
             {activeTab === 'dm' && (
               <div className="flex-1 flex flex-col md:flex-row min-h-0">
                 {/* DM Peers Sidebar */}
-                <div className="w-full md:w-56 border-b md:border-b-0 md:border-l border-[var(--border)] bg-[var(--bg-secondary)]/50 p-2 overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-1.5 shrink-0">
+                <div className="w-full md:w-60 border-b md:border-b-0 md:border-l border-[var(--border)] bg-[var(--bg-secondary)]/50 p-2 overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-1.5 shrink-0">
                   <div className="text-[10px] font-black text-[var(--text-secondary)] px-2 py-1 uppercase hidden md:block">
                     {isRtl ? 'مخاطبین و همراهان' : 'Contacts'}
                   </div>
@@ -1134,9 +1235,7 @@ export default function ChatRooms() {
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">
-                            {peer.avatar || '👤'}
-                          </div>
+                          {renderAvatar(peer.avatar, 'w-8 h-8 text-sm')}
                           <div className="text-start">
                             <div className="text-xs font-bold leading-tight">{peer.name}</div>
                             <span className="text-[9px] text-[var(--text-secondary)] opacity-75 hidden md:block truncate">{peer.role || peer.chakra}</span>
@@ -1158,13 +1257,13 @@ export default function ChatRooms() {
                   {/* DM Header */}
                   <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-base font-bold shadow-xs">
-                        {activePeer?.avatar || '👤'}
-                      </div>
+                      <button onClick={() => setInspectedUser(activePeer)}>
+                        {renderAvatar(activePeer?.avatar, 'w-9 h-9 text-base')}
+                      </button>
                       <div>
-                        <h4 className="text-xs sm:text-sm font-black text-[var(--text-primary)]">
+                        <button onClick={() => setInspectedUser(activePeer)} className="text-xs sm:text-sm font-black text-[var(--text-primary)] hover:underline text-start block">
                           {activePeer?.name || 'گفتگوی خصوصی'}
-                        </h4>
+                        </button>
                         <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           {isRtl ? 'آنلاین • پاسخگوی هم‌فرکانس' : 'Online & Active'}
@@ -1304,6 +1403,281 @@ export default function ChatRooms() {
           </div>
         </div>
       </div>
+
+      {/* NOSTALGIC FLASH-STYLE INTERACTIVE USER PROFILE ACTION MODAL */}
+      <AnimatePresence>
+        {inspectedUser && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="w-full max-w-sm rounded-3xl bg-[var(--bg-card)] border border-[var(--border)] p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+              {/* Header: Avatar, Name, Role */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    {renderAvatar(inspectedUser.avatar, 'w-14 h-14 text-3xl')}
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-900 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>{inspectedUser.name}</span>
+                      {inspectedUser.isMe && <span className="text-[10px] text-purple-400 font-normal">(شما)</span>}
+                    </h3>
+                    <span className="text-xs text-purple-400 font-bold block mt-0.5">
+                      {inspectedUser.role || inspectedUser.chakra || 'عضو جامعه ذن'}
+                    </span>
+                    <span className="text-[10px] text-[var(--text-secondary)]">شناسه: {inspectedUser.id}</span>
+                  </div>
+                </div>
+                <button onClick={() => setInspectedUser(null)} className="p-1 text-[var(--text-secondary)] hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Bio & Chakra if available */}
+              {inspectedUser.bio && (
+                <div className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] leading-relaxed">
+                  {inspectedUser.bio}
+                </div>
+              )}
+
+              {/* Standard User Actions (Flash Chat Style) */}
+              {!inspectedUser.isMe && (
+                <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleStartDmWithUser(inspectedUser)}
+                      className="py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                    >
+                      <MessageSquare size={14} />
+                      <span>پیام خصوصی 💬</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleStartWhisperWithUser(inspectedUser)}
+                      className="py-2.5 px-3 rounded-2xl bg-fuchsia-600/20 text-fuchsia-300 border border-fuchsia-500/40 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-fuchsia-600/30"
+                    >
+                      <Lock size={14} />
+                      <span>ارسال نجوا 🔒</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleInviteToGame(inspectedUser)}
+                      className="py-2.5 px-3 rounded-2xl bg-purple-600/20 text-purple-300 border border-purple-500/40 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-purple-600/30"
+                    >
+                      <Gamepad2 size={14} />
+                      <span>دعوت به بازی 🎲</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleTipUserDirectly(inspectedUser)}
+                      className="py-2.5 px-3 rounded-2xl bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-500/25"
+                    >
+                      <Gift size={14} />
+                      <span>اهدای ۵ سکه 🪙</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        handleToggleConnect(inspectedUser);
+                        setInspectedUser(null);
+                      }}
+                      className="col-span-1 py-2.5 px-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:border-emerald-500/40"
+                    >
+                      <UserPlus size={14} />
+                      <span>پیوند همراهی ❤️</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        toggleIgnoreUser(inspectedUser.id);
+                        setInspectedUser(null);
+                      }}
+                      className={`col-span-1 py-2.5 px-3 rounded-2xl border font-bold text-xs flex items-center justify-center gap-1.5 ${
+                        ignoredUserIds.includes(inspectedUser.id)
+                          ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'
+                          : 'bg-rose-600/15 text-rose-400 border-rose-500/30 hover:bg-rose-600/25'
+                      }`}
+                    >
+                      <UserX size={14} />
+                      <span>{ignoredUserIds.includes(inspectedUser.id) ? 'لغو ایگنور' : 'ایگنور و مسدود 🚫'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SPECIAL ADMIN & MODERATOR CONTROLS SECTION */}
+              {isUserAdminOrMod && !inspectedUser.isMe && (
+                <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/40 space-y-2.5">
+                  <h4 className="text-[11px] font-black text-amber-300 flex items-center gap-1.5">
+                    <Crown size={14} className="text-amber-400" />
+                    <span>پنل ویژه نظارت و مدیریت (Admin Actions)</span>
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => {
+                        muteUser(inspectedUser.id);
+                        alert(`کاربر ${inspectedUser.name} بی‌صدا شد.`);
+                        setInspectedUser(null);
+                      }}
+                      className="py-2 px-2.5 rounded-xl bg-amber-600/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-amber-600/30"
+                    >
+                      <MicOff size={12} />
+                      <span>بی‌صدا کردن 🔇</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (confirm(`آیا از اخراج و مسدودسازی ${inspectedUser.name} مطمئن هستید؟`)) {
+                          banUser(inspectedUser.id);
+                          setInspectedUser(null);
+                        }
+                      }}
+                      className="py-2 px-2.5 rounded-xl bg-rose-600/20 text-rose-400 border border-rose-500/40 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-rose-600/30"
+                    >
+                      <Ban size={12} />
+                      <span>مسدود و اخراج ⛔</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (confirm(`آیا از پاکسازی تمام پیام‌های ${inspectedUser.name} مطمئن هستید؟`)) {
+                          purgeUserMessages(inspectedUser.id);
+                          setInspectedUser(null);
+                        }
+                      }}
+                      className="col-span-2 py-2 px-2.5 rounded-xl bg-slate-800 text-slate-300 border border-white/10 text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-slate-700"
+                    >
+                      <Trash2 size={12} />
+                      <span>پاکسازی تمام پیام‌های این کاربر 🗑️</span>
+                    </button>
+                  </div>
+
+                  {/* Promote Badges in Popup */}
+                  <div className="pt-1.5 border-t border-amber-500/20">
+                    <span className="text-[10px] text-amber-300 font-bold block mb-1">ارتقای درجه کاربر:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {BADGE_OPTIONS.map(b => (
+                        <button
+                          key={b.id}
+                          onClick={() => {
+                            setUserBadge(inspectedUser.id, b.id);
+                            alert(`نشان ${b.label} به ${inspectedUser.name} اعطا شد!`);
+                            setInspectedUser(null);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-slate-900 border border-amber-500/30 text-[9px] font-bold text-amber-200 hover:bg-amber-900/40"
+                        >
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* AVATAR & GALLERY IMAGE PICKER MODAL */}
+      <AnimatePresence>
+        {isAvatarModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="w-full max-w-md rounded-3xl bg-[var(--bg-card)] border border-[var(--border)] p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
+                    <Image size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">انتخاب تصویر پروفایل و آواتار</h3>
+                    <span className="text-[10px] text-[var(--text-secondary)]">تصویر اختصاصی از گالری یا آواتارهای آماده</span>
+                  </div>
+                </div>
+                <button onClick={() => setIsAvatarModalOpen(false)} className="text-[var(--text-secondary)] hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Tabs: Upload vs Presets */}
+              <div className="flex items-center border-b border-[var(--border)] gap-2">
+                <button
+                  onClick={() => setAvatarTab('presets')}
+                  className={`flex-1 py-2 text-xs font-black border-b-2 transition-all ${
+                    avatarTab === 'presets' ? 'border-purple-500 text-purple-400' : 'border-transparent text-[var(--text-secondary)]'
+                  }`}
+                >
+                  آواتارهای ویژه و ایموجی ✨
+                </button>
+                <button
+                  onClick={() => setAvatarTab('upload')}
+                  className={`flex-1 py-2 text-xs font-black border-b-2 transition-all ${
+                    avatarTab === 'upload' ? 'border-purple-500 text-purple-400' : 'border-transparent text-[var(--text-secondary)]'
+                  }`}
+                >
+                  انتخاب عکس از گالری 📷
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar py-2">
+                {avatarTab === 'presets' ? (
+                  <div className="grid grid-cols-6 gap-2">
+                    {PRESET_AVATARS.map(av => (
+                      <button
+                        key={av}
+                        onClick={() => {
+                          setUserAvatar(av);
+                          setIsAvatarModalOpen(false);
+                          soundEngine.playTap?.();
+                          haptics.tap?.();
+                        }}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl hover:scale-110 transition-transform ${
+                          userAvatar === av 
+                            ? 'bg-purple-600 text-white border-2 border-purple-400 shadow-md' 
+                            : 'bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-purple-500'
+                        }`}
+                      >
+                        {av}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4 text-center p-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <div 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-8 rounded-3xl border-2 border-dashed border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer flex flex-col items-center justify-center space-y-3 transition-colors"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-2xl shadow-lg">
+                        <Upload size={24} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-[var(--text-primary)]">برای انتخاب عکس کلیک کنید</h4>
+                        <span className="text-[10px] text-[var(--text-secondary)]">پشتیبانی از فرمت‌های JPG, PNG (بهینه‌سازی خودکار)</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* SECRET ADMIN PIN MODAL */}
       <AnimatePresence>
@@ -1489,7 +1863,7 @@ export default function ChatRooms() {
                   <div className="space-y-3">
                     <div className="p-3 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span className="text-xl">{userAvatar || '🌟'}</span>
+                        {renderAvatar(userAvatar, 'w-9 h-9 text-base')}
                         <div>
                           <div className="text-xs font-black text-purple-300">{userName} (دستگاه فعلی شما)</div>
                           <span className="text-[10px] text-slate-400">شناسه: {userId} • در حال حضور در: {activeRoom}</span>
@@ -1501,7 +1875,7 @@ export default function ChatRooms() {
                     {onlineUsers.map(u => (
                       <div key={u.id} className="p-3 rounded-2xl bg-slate-800/60 border border-white/10 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <span className="text-xl">{u.avatar || '👤'}</span>
+                          {renderAvatar(u.avatar, 'w-9 h-9 text-base')}
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
                               <span>{u.name}</span>
@@ -1513,10 +1887,10 @@ export default function ChatRooms() {
 
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => muteUser(u.id)}
+                            onClick={() => setInspectedUser(u)}
                             className="px-2.5 py-1 rounded-xl bg-amber-600/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-600/40"
                           >
-                            بی‌صدا 🔇
+                            مدیریت ⚙️
                           </button>
                           <button
                             onClick={() => {
@@ -1542,7 +1916,7 @@ export default function ChatRooms() {
                       <div key={u.id} className="p-3.5 rounded-2xl bg-slate-800/60 border border-white/10 space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg">{u.avatar || '👤'}</span>
+                            {renderAvatar(u.avatar, 'w-7 h-7 text-xs')}
                             <span className="text-xs font-bold text-white">{u.name}</span>
                           </div>
                           <span className="text-[10px] text-purple-400 font-bold">{u.role || 'عادی'}</span>
@@ -1626,9 +2000,15 @@ export default function ChatRooms() {
 
               <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
                 {/* Self */}
-                <div className="p-2.5 rounded-2xl bg-purple-600/15 border border-purple-500/30 flex items-center justify-between">
+                <div 
+                  onClick={() => {
+                    setInspectedUser({ id: userId, name: userName, avatar: userAvatar, role: myRole, isMe: true });
+                    setIsMobileUsersOpen(false);
+                  }}
+                  className="p-2.5 rounded-2xl bg-purple-600/15 border border-purple-500/30 flex items-center justify-between cursor-pointer"
+                >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-base">{userAvatar || '🌟'}</span>
+                    {renderAvatar(userAvatar, 'w-8 h-8 text-sm')}
                     <span className="text-xs font-black text-purple-300">{userName} (شما)</span>
                   </div>
                   <span className="text-[10px] text-purple-400 font-bold">فعال</span>
@@ -1639,8 +2019,14 @@ export default function ChatRooms() {
                     key={u.id}
                     className="p-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">{u.avatar || '👤'}</span>
+                    <div 
+                      onClick={() => {
+                        setInspectedUser(u);
+                        setIsMobileUsersOpen(false);
+                      }}
+                      className="flex items-center gap-2.5 cursor-pointer"
+                    >
+                      {renderAvatar(u.avatar, 'w-8 h-8 text-sm')}
                       <div>
                         <div className="text-xs font-bold text-[var(--text-primary)]">{u.name}</div>
                         <span className="text-[9px] text-[var(--text-secondary)]">{u.role || u.chakra}</span>
@@ -1648,7 +2034,7 @@ export default function ChatRooms() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleStartWhisper(u)}
+                        onClick={() => handleStartWhisperWithUser(u)}
                         className="px-2.5 py-1 rounded-xl bg-fuchsia-600/20 text-fuchsia-300 border border-fuchsia-500/30 text-[10px] font-bold"
                       >
                         نجوا 🔒
@@ -1666,75 +2052,6 @@ export default function ChatRooms() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* USER ACTION MODAL */}
-      <AnimatePresence>
-        {selectedUser && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-[var(--bg-card)] border border-[var(--border)] p-5 shadow-2xl space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-600/30 flex items-center justify-center text-xl">
-                    {selectedUser.avatar || '👤'}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-[var(--text-primary)]">{selectedUser.name}</h3>
-                    <span className="text-[10px] text-[var(--text-secondary)]">{selectedUser.role || selectedUser.chakra}</span>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedUser(null)} className="text-[var(--text-secondary)]"><X size={18} /></button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border)]">
-                <button
-                  onClick={() => {
-                    setActiveTab('dm');
-                    setActiveDmUserId(selectedUser.id);
-                    setSelectedUser(null);
-                  }}
-                  className="py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md"
-                >
-                  <MessageSquare size={13} />
-                  <span>{isRtl ? 'گفتگوی خصوصی' : 'Direct Message'}</span>
-                </button>
-
-                <button
-                  onClick={() => handleStartWhisper(selectedUser)}
-                  className="py-2.5 px-3 rounded-2xl bg-fuchsia-600/20 text-fuchsia-300 border border-fuchsia-500/40 font-bold text-xs flex items-center justify-center gap-1.5"
-                >
-                  <Lock size={13} />
-                  <span>{isRtl ? 'ارسال نجوا' : 'Whisper'}</span>
-                </button>
-
-                <button
-                  onClick={() => handleMentionUser(selectedUser)}
-                  className="py-2.5 px-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] font-bold text-xs flex items-center justify-center gap-1.5 hover:border-purple-500/40"
-                >
-                  <AtSign size={13} />
-                  <span>{isRtl ? 'منشن در چت' : 'Mention'}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    sendGlobalMessage(isRtl ? `🔹 ${userName} به ${selectedUser.name} درخواست دوستی فرستاد!` : `🔹 ${userName} sent a friend request to ${selectedUser.name}!`, activeRoom, true);
-                    setSelectedUser(null);
-                    soundEngine.playLevelUp?.();
-                  }}
-                  className="py-2.5 px-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:border-emerald-500/40"
-                >
-                  <UserPlus size={13} />
-                  <span>{isRtl ? 'درخواست دوستی' : 'Add Friend'}</span>
-                </button>
               </div>
             </motion.div>
           </div>

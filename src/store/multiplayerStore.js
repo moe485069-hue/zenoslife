@@ -38,19 +38,19 @@ const loadSavedDms = () => {
   } catch (_) {}
   return {
     'companion_sara': [
-      { id: 'dm_sara_1', senderId: 'companion_sara', senderName: 'سارا (آناهیتا)', text: 'سلام دوست خوبم! به دنیای هم‌فرکانس‌ها خوش اومدی 🌸 هر زمان دوست داشتی درباره مراقبه، کتاب یا رشد فردی گپ بزنیم من اینجام!', timestamp: new Date(Date.now() - 3600000).toISOString(), isMe: false }
+      { id: 'dm_sara_1', senderId: 'companion_sara', senderName: 'سارا (آناهیتا)', senderAvatar: '🌸', text: 'سلام دوست خوبم! به دنیای هم‌فرکانس‌ها خوش اومدی 🌸 هر زمان دوست داشتی درباره مراقبه، کتاب یا رشد فردی گپ بزنیم من اینجام!', timestamp: new Date(Date.now() - 3600000).toISOString(), isMe: false }
     ],
     'companion_arash': [
-      { id: 'dm_arash_1', senderId: 'companion_arash', senderName: 'آرش کیهان', text: 'درود! اگر اهل بیزینس، استراتژی و بازی‌های فکری مثل تخته‌نرد و شطرنج هستی، می‌تونیم با هم رقابت‌های جذابی داشته باشیم 🚀', timestamp: new Date(Date.now() - 7200000).toISOString(), isMe: false }
+      { id: 'dm_arash_1', senderId: 'companion_arash', senderName: 'آرش کیهان', senderAvatar: '🚀', text: 'درود! اگر اهل بیزینس، استراتژی و بازی‌های فکری مثل تخته‌نرد و شطرنج هستی، می‌تونیم با هم رقابت‌های جذابی داشته باشیم 🚀', timestamp: new Date(Date.now() - 7200000).toISOString(), isMe: false }
     ],
     'companion_niloofar': [
-      { id: 'dm_niloofar_1', senderId: 'companion_niloofar', senderName: 'نیلوفر زاد', text: 'سلام و آرامش 💙 مراقبه امروزت چطور پیش رفت؟ بیا فضای امنی برای به اشتراک گذاشتن حس‌های خوب بسازیم.', timestamp: new Date(Date.now() - 10800000).toISOString(), isMe: false }
+      { id: 'dm_niloofar_1', senderId: 'companion_niloofar', senderName: 'نیلوفر زاد', senderAvatar: '🧘', text: 'سلام و آرامش 💙 مراقبه امروزت چطور پیش رفت؟ بیا فضای امنی برای به اشتراک گذاشتن حس‌های خوب بسازیم.', timestamp: new Date(Date.now() - 10800000).toISOString(), isMe: false }
     ],
     'companion_reza': [
-      { id: 'dm_reza_1', senderId: 'companion_reza', senderName: 'رضا فیتنس', text: 'سلام دلاور! 🔥 برای ساخت عادات فولادی و روتین پرانرژی روی من حساب کن. امروز چه ورزشی داشتی؟', timestamp: new Date(Date.now() - 14400000).toISOString(), isMe: false }
+      { id: 'dm_reza_1', senderId: 'companion_reza', senderName: 'رضا فیتنس', senderAvatar: '🔥', text: 'سلام دلاور! 🔥 برای ساخت عادات فولادی و روتین پرانرژی روی من حساب کن. امروز چه ورزشی داشتی؟', timestamp: new Date(Date.now() - 14400000).toISOString(), isMe: false }
     ],
     'companion_diana': [
-      { id: 'dm_diana_1', senderId: 'companion_diana', senderName: 'دیانا ستاره', text: 'سلام 💎 فلسفه، هنر و بازی‌های دونفره ذهن رو تازه می‌کنه. مشتاق مصاحبت با افراد خوش‌فکرم ✨', timestamp: new Date(Date.now() - 18000000).toISOString(), isMe: false }
+      { id: 'dm_diana_1', senderId: 'companion_diana', senderName: 'دیانا ستاره', senderAvatar: '💎', text: 'سلام 💎 فلسفه، هنر و بازی‌های دونفره ذهن رو تازه می‌کنه. مشتاق مصاحبت با افراد خوش‌فکرم ✨', timestamp: new Date(Date.now() - 18000000).toISOString(), isMe: false }
     ]
   };
 };
@@ -92,6 +92,14 @@ const loadSavedBadges = () => {
   return {};
 };
 
+const loadSavedIgnored = () => {
+  try {
+    const saved = localStorage.getItem('zen_ignored_users');
+    if (saved) return JSON.parse(saved);
+  } catch (_) {}
+  return [];
+};
+
 const useMultiplayerStore = create((set, get) => {
   const handleIncomingPayload = (data) => {
     if (!data || !data.type) return;
@@ -108,7 +116,7 @@ const useMultiplayerStore = create((set, get) => {
           const newUser = {
             id: data.userId,
             name: data.userName || 'کاربر مهمان',
-            role: state.userBadges[data.userId] || data.role || 'کاربر آنلاین',
+            role: state.userBadges[data.userId] || data.role || 'عضو جامعه',
             avatar: data.avatar || '👤',
             color: 'from-sky-500 to-indigo-600',
             lastSeen: Date.now(),
@@ -121,11 +129,9 @@ const useMultiplayerStore = create((set, get) => {
         });
       }
     } else if (data.type === 'CHAT') {
-      // Check if room was purged or message deleted
       set(state => {
         if (state.globalChat.some(m => m.id === data.id)) return state;
-        // If user is muted, ignore their chat
-        if (state.mutedUserIds.includes(data.userId)) return state;
+        if (state.mutedUserIds.includes(data.userId) || state.bannedUserIds.includes(data.userId)) return state;
         return {
           globalChat: [...state.globalChat, data]
         };
@@ -133,6 +139,9 @@ const useMultiplayerStore = create((set, get) => {
     } else if (data.type === 'DIRECT_MSG') {
       const myId = get().userId;
       if (data.targetUserId === myId) {
+        // Ignore if user blocked
+        if (get().ignoredUserIds.includes(data.senderId)) return;
+
         soundEngine.playMessageChime?.();
         haptics.notification?.();
 
@@ -145,6 +154,7 @@ const useMultiplayerStore = create((set, get) => {
             id: data.id,
             senderId: data.senderId,
             senderName: data.senderName,
+            senderAvatar: data.senderAvatar || '👤',
             text: data.text,
             timestamp: data.timestamp,
             isMe: false
@@ -155,7 +165,6 @@ const useMultiplayerStore = create((set, get) => {
           };
           localStorage.setItem('zen_direct_messages', JSON.stringify(next));
 
-          // Increment unread count if user is not actively viewing this conversation
           const currentDmId = state.activeDmUserId;
           const isCurrentlyViewing = currentDmId === chatKey && state.activeTab === 'dm';
           const newUnread = isCurrentlyViewing ? (state.unreadDmCounts[chatKey] || 0) : ((state.unreadDmCounts[chatKey] || 0) + 1);
@@ -226,6 +235,13 @@ const useMultiplayerStore = create((set, get) => {
           mutedUserIds: [...new Set([...state.mutedUserIds, data.targetUserId])]
         }));
       }
+    } else if (data.type === 'ADMIN_BAN_USER') {
+      if (data.targetUserId) {
+        set(state => ({
+          bannedUserIds: [...new Set([...state.bannedUserIds, data.targetUserId])],
+          globalChat: state.globalChat.filter(m => m.userId !== data.targetUserId)
+        }));
+      }
     }
   };
 
@@ -258,6 +274,9 @@ const useMultiplayerStore = create((set, get) => {
     unreadDmCounts: {},
     incomingDmToast: null,
 
+    // Ignored / Blocked Users
+    ignoredUserIds: loadSavedIgnored(),
+
     // Admin & Moderation State
     isAdminUnlocked: false,
     customRooms: loadSavedRooms(),
@@ -273,6 +292,7 @@ const useMultiplayerStore = create((set, get) => {
         userId: 'companion_sara',
         userName: 'سارا (آناهیتا)',
         userAvatar: '🌸',
+        userRole: '🌿 مربی ذن و آرامش',
         roomId: 'general',
         text: 'درود به تمام جویندگان رشد و دانایی! به تالار گفتگوی زنده و جامعه خودشناسی خوش آمدید. 🌟 پیام‌های شما به صورت بلادرنگ در سراسر جهان همگام می‌شود.',
         timestamp: new Date(Date.now() - 3600000).toISOString(),
@@ -285,6 +305,7 @@ const useMultiplayerStore = create((set, get) => {
         userId: 'companion_arash',
         userName: 'آرش کیهان',
         userAvatar: '🚀',
+        userRole: '💎 عضو ویژه VIP',
         roomId: 'tech',
         text: 'پومودورو و انضباط سیستماتیک در بخش «امروز من» بازدهی کار و یادگیری رو چند برابر می‌کنه! امتحانش کردید؟ 💼',
         timestamp: new Date(Date.now() - 1800000).toISOString(),
@@ -297,6 +318,7 @@ const useMultiplayerStore = create((set, get) => {
         userId: 'companion_niloofar',
         userName: 'نیلوفر زاد',
         userAvatar: '🧘',
+        userRole: '🌸 همراه مراقبه',
         roomId: 'philosophy',
         text: 'آرامش درونی از تسلط بر واکنش‌های خودمان سرچشمه می‌گیرد، نه از تلاش برای کنترل دنیای بیرون. 🌿',
         timestamp: new Date(Date.now() - 900000).toISOString(),
@@ -312,7 +334,6 @@ const useMultiplayerStore = create((set, get) => {
     activeGameId: null,
     gameState: null,
 
-    // Notifications & Unread handlers
     dismissIncomingDmToast: () => set({ incomingDmToast: null }),
     
     clearUnreadForPeer: (peerId) => {
@@ -324,9 +345,20 @@ const useMultiplayerStore = create((set, get) => {
       }));
     },
 
+    toggleIgnoreUser: (targetUserId) => {
+      set(state => {
+        const isIgnored = state.ignoredUserIds.includes(targetUserId);
+        const next = isIgnored 
+          ? state.ignoredUserIds.filter(id => id !== targetUserId)
+          : [...state.ignoredUserIds, targetUserId];
+        localStorage.setItem('zen_ignored_users', JSON.stringify(next));
+        soundEngine.playTap?.();
+        return { ignoredUserIds: next };
+      });
+    },
+
     setActiveTabState: (tab) => set({ activeTab: tab }),
 
-    // Admin Unlock & Actions
     unlockAdmin: (pin) => {
       if (pin === '979797') {
         set({ isAdminUnlocked: true });
@@ -396,6 +428,18 @@ const useMultiplayerStore = create((set, get) => {
       soundEngine.playCheckmark?.();
     },
 
+    banUser: (targetUserId) => {
+      set(state => {
+        const next = [...new Set([...state.bannedUserIds, targetUserId])];
+        const nextChat = state.globalChat.filter(m => m.userId !== targetUserId);
+        const payload = { type: 'ADMIN_BAN_USER', targetUserId };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { bannedUserIds: next, globalChat: nextChat };
+      });
+      soundEngine.playCheckmark?.();
+    },
+
     deleteChatMessage: (msgId) => {
       set(state => {
         const next = state.globalChat.filter(m => m.id !== msgId);
@@ -404,6 +448,17 @@ const useMultiplayerStore = create((set, get) => {
         realtimeNetwork.publish(payload);
         return { globalChat: next };
       });
+    },
+
+    purgeUserMessages: (targetUserId) => {
+      set(state => {
+        const next = state.globalChat.filter(m => m.userId !== targetUserId);
+        const payload = { type: 'ADMIN_PURGE_USER_MSGS', targetUserId };
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return { globalChat: next };
+      });
+      soundEngine.playCheckmark?.();
     },
 
     purgeRoomChat: (roomId) => {
@@ -454,8 +509,8 @@ const useMultiplayerStore = create((set, get) => {
 
     sendGlobalMessage: (text, roomId = 'general', isSystem = false, extra = {}) => {
       const myId = get().userId;
-      if (get().mutedUserIds.includes(myId)) {
-        alert('شما در حال حاضر توسط مدیریت بی‌صدا شده‌اید.');
+      if (get().mutedUserIds.includes(myId) || get().bannedUserIds.includes(myId)) {
+        alert('شما در حال حاضر توسط مدیریت بی‌صدا یا مسدود شده‌اید.');
         return;
       }
 
@@ -465,7 +520,7 @@ const useMultiplayerStore = create((set, get) => {
         userId: isSystem ? 'system' : myId,
         userName: isSystem ? 'سیستم' : get().userName,
         userAvatar: isSystem ? '⚙️' : get().userAvatar,
-        userRole: get().userBadges[myId] || 'عضو جامعه',
+        userRole: get().userBadges[myId] || (get().isAdminUnlocked ? '👑 مالک و مدیر ارشد' : 'عضو جامعه'),
         roomId,
         text,
         timestamp: new Date().toISOString(),
@@ -491,6 +546,7 @@ const useMultiplayerStore = create((set, get) => {
         id: msgId,
         senderId: 'me',
         senderName: get().userName || 'شما',
+        senderAvatar: get().userAvatar || '🌟',
         text,
         timestamp,
         isMe: true
@@ -531,6 +587,7 @@ const useMultiplayerStore = create((set, get) => {
             id: 'dm_reply_' + Date.now(),
             senderId: targetUserId,
             senderName: targetUserName,
+            senderAvatar: COMPANION_PERSONAS[targetUserId]?.avatar || '🌸',
             text: replyText,
             timestamp: new Date().toISOString(),
             isMe: false
