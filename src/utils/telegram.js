@@ -49,7 +49,29 @@ export const initTelegramMiniApp = (appStore) => {
       }
     }
 
-    // 4. Listen to theme changes from Telegram
+    // 4. Handle start_param Deep Linking & Referrals
+    const startParam = tg.initDataUnsafe?.start_param;
+    if (startParam) {
+      if (startParam.startsWith('ref_')) {
+        const referrerId = startParam.replace('ref_', '');
+        const myUserId = localStorage.getItem('life_os_user_id');
+        const hasClaimed = localStorage.getItem(`zen_ref_claimed_${referrerId}`);
+        if (referrerId && referrerId !== myUserId && !hasClaimed && appStore?.claimReferralBounty) {
+          appStore.claimReferralBounty(referrerId);
+          localStorage.setItem(`zen_ref_claimed_${referrerId}`, 'true');
+        }
+      } else if (['hokm', 'backgammon', 'ludo', 'pasur', 'billiards'].includes(startParam)) {
+        if (typeof window !== 'undefined' && !window.location.pathname.includes(`/games/${startParam}`)) {
+          window.location.hash = `#/games/${startParam}`;
+        }
+      } else if (startParam === 'chat') {
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
+          window.location.hash = '#/chat';
+        }
+      }
+    }
+
+    // 5. Listen to theme changes from Telegram
     tg.onEvent('themeChanged', () => {
       const colorScheme = tg.colorScheme; // 'dark' | 'light'
       if (colorScheme && appStore?.setTheme) {

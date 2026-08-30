@@ -1,0 +1,9 @@
+{
+  "name": "zenoslife-telegram-bot",
+  "version": "1.0.0",
+  "description": "High-performance Telegram Bot for ZenOsLife WebApp",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  }
+}
