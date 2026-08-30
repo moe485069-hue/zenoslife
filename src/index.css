@@ -945,3 +945,166 @@ input[type='range']:focus { outline: none; }
   letter-spacing: -0.02em;
 }
 
+/* =================================================================
+   ACCESSIBILITY & ULTRA-CLEAR HIGH-CONTRAST LIGHT THEME SYSTEM
+   Provides 100% sharp, readable text for users with any vision levels
+   ================================================================= */
+[data-theme='light'], body:not([data-theme='dark']) {
+  /* High contrast text overrides */
+  .text-slate-100,
+  .text-slate-200 {
+    color: #0f172a !important; /* Pitch Deep Slate */
+    font-weight: 600;
+  }
+
+  .text-slate-300,
+  .text-slate-400 {
+    color: #334155 !important; /* Charcoal Gray */
+    font-weight: 500;
+  }
+
+  .text-slate-500 {
+    color: #475569 !important;
+  }
+
+  .text-amber-100,
+  .text-amber-200,
+  .text-amber-300 {
+    color: #92400e !important; /* Rich Dark Amber */
+    font-weight: 700;
+  }
+
+  .text-amber-400 {
+    color: #b45309 !important;
+    font-weight: 700;
+  }
+
+  .text-emerald-100,
+  .text-emerald-200,
+  .text-emerald-300 {
+    color: #065f46 !important; /* Deep Forest Emerald */
+    font-weight: 700;
+  }
+
+  .text-emerald-400 {
+    color: #047857 !important;
+    font-weight: 700;
+  }
+
+  .text-cyan-100,
+  .text-cyan-200,
+  .text-cyan-300 {
+    color: #0e7490 !important; /* Deep Sapphire Cyan */
+    font-weight: 700;
+  }
+
+  .text-cyan-400 {
+    color: #0369a1 !important;
+    font-weight: 700;
+  }
+
+  .text-purple-100,
+  .text-purple-200,
+  .text-purple-300 {
+    color: #581c87 !important; /* Deep Royal Purple */
+    font-weight: 700;
+  }
+
+  .text-purple-400 {
+    color: #6b21a8 !important;
+    font-weight: 700;
+  }
+
+  .text-rose-100,
+  .text-rose-200,
+  .text-rose-300 {
+    color: #881337 !important; /* Deep Crimson Rose */
+    font-weight: 700;
+  }
+
+  .text-rose-400 {
+    color: #9f1239 !important;
+    font-weight: 700;
+  }
+
+  /* Card and Container Backgrounds in Light Mode */
+  .bg-black\/20,
+  .bg-black\/30,
+  .bg-black\/35,
+  .bg-black\/40,
+  .bg-black\/50,
+  .bg-black\/60,
+  .bg-black\/70,
+  .bg-black\/80 {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .bg-white\/5,
+  .bg-white\/10,
+  .bg-white\/15,
+  .bg-white\/20 {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+
+  .border-white\/5,
+  .border-white\/10,
+  .border-white\/15,
+  .border-white\/20 {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Gradients for Strolls & Corridors in Light Mode */
+  .from-amber-950\/40,
+  .from-amber-950\/50,
+  .from-amber-950\/60 {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 40%, #ffffff 100%) !important;
+    border-color: #f59e0b !important;
+  }
+
+  .from-emerald-950\/40,
+  .from-emerald-950\/50,
+  .from-emerald-950\/60 {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 40%, #ffffff 100%) !important;
+    border-color: #10b981 !important;
+  }
+
+  .from-cyan-950\/40,
+  .from-cyan-950\/50,
+  .from-cyan-950\/60 {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 40%, #ffffff 100%) !important;
+    border-color: #06b6d4 !important;
+  }
+
+  .from-purple-950\/40,
+  .from-purple-950\/50,
+  .from-purple-950\/60 {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 40%, #ffffff 100%) !important;
+    border-color: #a855f7 !important;
+  }
+
+  .from-rose-950\/40,
+  .from-rose-950\/50,
+  .from-rose-950\/60 {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 40%, #ffffff 100%) !important;
+    border-color: #f43f5e !important;
+  }
+
+  /* Input fields in Light Mode */
+  input[type="text"],
+  input[type="search"],
+  textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b !important;
+  }
+}
+
