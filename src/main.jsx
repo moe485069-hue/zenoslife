@@ -5,6 +5,14 @@ import App from './App.jsx';
 import './index.css';
 import './i18n/index.js';
 
+// Initialize Telegram WebApp if present
+if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+  try {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  } catch (e) {}
+}
+
 // Auto-recover from Vite chunk preload errors when deploying new updates
 window.addEventListener('vite:preloadError', (event) => {
   console.warn('New app version detected or preload error, refreshing...', event);
@@ -17,6 +25,13 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     console.log('ZenOsLife: New service worker controller active, reloading...');
     window.location.reload();
   });
+  
+  // Proactively check for newer versions on server every time app is opened
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let reg of registrations) {
+      reg.update().catch(() => {});
+    }
+  }).catch(() => {});
 }
 
 // If running on localhost in dev, ensure stale service worker caches don't intercept dev server

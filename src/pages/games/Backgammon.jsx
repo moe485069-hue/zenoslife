@@ -197,9 +197,19 @@ export default function Backgammon() {
   }, [isRolling]);
 
   const handleRollDice = () => {
-    if (hasRolled || isRolling || isRollingRef.current) return;
-    if (gameMode === 'bot' && turn === 'black') return;
-    if (gameMode === 'online' && turn !== myOnlineRole) return;
+    if (isRolling || isRollingRef.current) return;
+    if (hasRolled && remainingMoves.length > 0) {
+      setLastMoveMsg(isRtl ? '👈 لطفاً یکی از مهره‌های درخشان سفید را برای حرکت لمس کنید' : 'Tap a glowing checker to move');
+      return;
+    }
+    if (gameMode === 'bot' && turn === 'black') {
+      setLastMoveMsg(isRtl ? '🤖 نوبت ربات است...' : 'Bot is thinking...');
+      return;
+    }
+    if (gameMode === 'online' && turn !== myOnlineRole) {
+      setLastMoveMsg(isRtl ? '⏳ نوبت حریف آنلاین است...' : 'Opponent\'s turn...');
+      return;
+    }
 
     rollDiceAction();
   };
@@ -228,7 +238,7 @@ export default function Backgammon() {
         playSfx(soundEngine.playLevelUp);
         haptics.success?.();
       } else {
-        setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2}` : `Dice: ${d1} & ${d2}`);
+        setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره سفید را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a white checker`);
       }
 
       if (gameMode === 'online' && chatChannelRef.current) {
@@ -239,7 +249,7 @@ export default function Backgammon() {
       }
 
       checkAutoTurnPass(rolledDice, moves, points, bar, turn);
-    }, 350);
+    }, 300);
   };
 
   // ----------------------------------------------------
@@ -929,13 +939,20 @@ export default function Backgammon() {
               </span>
             </div>
 
-            {/* Interactive 3D Dice */}
-            <div className="flex items-center gap-3">
+            {/* Interactive 3D Dice (Clickable to roll) */}
+            <div 
+              onClick={handleRollDice}
+              className={`flex items-center gap-3 cursor-pointer p-1 rounded-2xl hover:bg-white/5 transition-all ${
+                !hasRolled && !isRolling && (turn === 'white' || gameMode === 'local') ? 'ring-2 ring-amber-400/60 animate-pulse' : ''
+              }`}
+              title={isRtl ? 'برای پرتاب تاس کلیک کنید' : 'Click to roll dice'}
+            >
               {dice[0] !== null && dice[1] !== null ? (
                 <div className="flex items-center gap-2">
                   <motion.div
                     initial={{ rotate: -20, scale: 0.8 }}
                     animate={{ rotate: 0, scale: 1 }}
+                    whileTap={{ scale: 0.95 }}
                     className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 flex items-center justify-center text-lg sm:text-xl font-black shadow-lg ${themeConfig.diceBg}`}
                   >
                     {dice[0]}
@@ -943,22 +960,24 @@ export default function Backgammon() {
                   <motion.div
                     initial={{ rotate: 20, scale: 0.8 }}
                     animate={{ rotate: 0, scale: 1 }}
+                    whileTap={{ scale: 0.95 }}
                     className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 flex items-center justify-center text-lg sm:text-xl font-black shadow-lg ${themeConfig.diceBg}`}
                   >
                     {dice[1]}
                   </motion.div>
                 </div>
               ) : (
-                <span className="text-xs text-slate-400 italic">
-                  {isRtl ? 'تاس‌ها را بیندازید 🎲' : 'Roll the dice'}
-                </span>
+                <div className="flex items-center gap-1.5 text-xs text-amber-300 font-bold bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/30">
+                  <span>🎲</span>
+                  <span>{isRtl ? 'پرتاب تاس' : 'Roll Dice'}</span>
+                </div>
               )}
 
               {/* Remaining Moves */}
               {remainingMoves.length > 0 && (
                 <div className="flex items-center gap-1">
                   {remainingMoves.map((m, idx) => (
-                    <span key={idx} className="px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-mono font-black text-xs border border-emerald-500/40">
+                    <span key={idx} className="px-2 py-0.5 rounded-lg bg-emerald-500/25 text-emerald-300 font-mono font-black text-xs border border-emerald-400">
                       {m}
                     </span>
                   ))}
@@ -966,15 +985,31 @@ export default function Backgammon() {
               )}
             </div>
 
-            {/* Roll Dice Button */}
-            <button
-              onClick={handleRollDice}
-              disabled={hasRolled || isRolling || (gameMode === 'bot' && turn === 'black') || (gameMode === 'online' && turn !== myOnlineRole)}
-              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 disabled:opacity-40 active:scale-95 transition-all flex items-center gap-1.5"
-            >
-              <Shuffle size={14} className={isRolling ? 'animate-spin' : ''} />
-              <span>{isRolling ? (isRtl ? 'در چرخش...' : 'Rolling...') : (isRtl ? 'پرتاب تاس 🎲' : 'Roll Dice 🎲')}</span>
-            </button>
+            {/* Roll Dice or Move Indicator Controls */}
+            {hasRolled && remainingMoves.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <span className="px-3.5 py-2 rounded-2xl bg-amber-500/20 border border-amber-400 text-amber-300 font-black text-xs flex items-center gap-1.5 shadow-sm">
+                  <span className="animate-bounce">👉</span>
+                  <span>{isRtl ? 'مهره را لمس کنید' : 'Tap a checker'}</span>
+                </span>
+                <button
+                  onClick={() => endTurn(points, bar, borneOff, turn)}
+                  className="px-2.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 text-slate-300 text-[11px] font-bold transition-colors"
+                  title={isRtl ? 'پاس دادن نوبت' : 'Pass Turn'}
+                >
+                  {isRtl ? 'رد نوبت ⏭️' : 'Pass'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleRollDice}
+                disabled={isRolling || (gameMode === 'bot' && turn === 'black') || (gameMode === 'online' && turn !== myOnlineRole)}
+                className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 active:scale-95 disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Shuffle size={14} className={isRolling ? 'animate-spin' : ''} />
+                <span>{isRolling ? (isRtl ? 'در چرخش...' : 'Rolling...') : (isRtl ? 'پرتاب تاس 🎲' : 'Roll Dice 🎲')}</span>
+              </button>
+            )}
 
           </div>
 
