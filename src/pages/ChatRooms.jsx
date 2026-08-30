@@ -33,6 +33,79 @@ const QUICK_PHRASES = [
   'دمت گرم رفیق، موفق باشی 👏'
 ];
 
+export const MATCH_COMPANIONS = [
+  {
+    id: 'companion_sara',
+    name: 'سارا (آناهیتا)',
+    avatar: '🌸',
+    age: 26,
+    city: 'تهران / آنلاین',
+    bio: 'عاشق مراقبه‌های سحرگاهی، پیاده‌روی در طبیعت و کتاب‌های کوانتومی و رشد فردی. به دنبال هم‌افزایی و تبادل انرژی مثبت.',
+    chakra: '💚 چاکرای قلب (عشق و صلح)',
+    lookingFor: 'همراه رشد و مراقبه',
+    interests: ['مدیتیشن', 'کتابخوانی', 'طبیعت‌گردی', 'یوگا', 'هنر'],
+    matchScore: 98,
+    status: '🟢 آنلاین • آماده گفتگو',
+    category: 'mindfulness'
+  },
+  {
+    id: 'companion_arash',
+    name: 'آرش کیهان',
+    avatar: '🚀',
+    age: 29,
+    city: 'اصفهان / آنلاین',
+    bio: 'کارآفرین تکنولوژی، مشتاق انضباط فردی، بازارهای مالی و بازی‌های استراتژیک تخته‌نرد و شطرنج. اهل بحث‌های عمیق و سازنده.',
+    chakra: '👁️ چاکرای چشم سوم (شهود و بینش)',
+    lookingFor: 'پارتنر بیزینس و بازی',
+    interests: ['سرمایه‌گذاری', 'شطرنج', 'تخته‌نرد', 'هوش مصنوعی', 'ورزش'],
+    matchScore: 95,
+    status: '🎮 آماده بازی و رقابت',
+    category: 'business'
+  },
+  {
+    id: 'companion_niloofar',
+    name: 'نیلوفر زاد',
+    avatar: '🧘',
+    age: 24,
+    city: 'شیراز / آنلاین',
+    bio: 'مربی مایندفولنس و آرامش ذهن. عاشق موسیقی اصیل، شعر مولانا و تمرین‌های تنفسی. بیا فضای آرامی برای مکالمه بسازیم.',
+    chakra: '💙 چاکرای گلو (بیان حقیقت)',
+    lookingFor: 'دوستی عمیق و حال خوب',
+    interests: ['مراقبه', 'موسیقی', 'روانشناسی', 'شعر', 'پادکست'],
+    matchScore: 92,
+    status: '🟢 آنلاین • در حال مطالعه',
+    category: 'mindfulness'
+  },
+  {
+    id: 'companion_reza',
+    name: 'رضا فیتنس',
+    avatar: '🔥',
+    age: 28,
+    city: 'مشهد / آنلاین',
+    bio: 'تمرکز ۱۰۰٪ روی روتین ۵ صبح، بدنسازی، تغذیه پاک و ساخت عادت‌های فولادی. اگر دنبال انگیزه و چالش ورزشی هستی پایه‌ام!',
+    chakra: '☀️ چاکرای خورشیدی (اراده و قدرت)',
+    lookingFor: 'پارتنر تمرین و چالش عادت',
+    interests: ['بدنسازی', 'روتین صبحگاهی', 'پومودورو', 'دوش آب سرد', 'دویدن'],
+    matchScore: 89,
+    status: '🏃 در حال روتین ورزشی',
+    category: 'fitness'
+  },
+  {
+    id: 'companion_diana',
+    name: 'دیانا ستاره',
+    avatar: '💎',
+    age: 27,
+    city: 'تبریز / آنلاین',
+    bio: 'طراح خلاق و علاقمند به فلسفه شرق، تائوئیسم و بازی‌های فکری. دنبال دوستان هم‌فرکانس برای گپ‌های شبانه و تخته‌نرد.',
+    chakra: '👑 چاکرای تاج (آگاهی کیهانی)',
+    lookingFor: 'همراه فکری و بازی',
+    interests: ['فلسفه', 'تخته‌نرد', 'طراحی', 'نوروفیدبک', 'تتریس'],
+    matchScore: 96,
+    status: '🟢 آنلاین • آماده چت',
+    category: 'gaming'
+  }
+];
+
 export default function ChatRooms() {
   const { language, coins, addCoins } = useAppStore();
   const isRtl = language === 'fa';
@@ -46,7 +119,21 @@ export default function ChatRooms() {
   } = useMultiplayerStore();
 
   const [activeRoom, setActiveRoom] = useState('general');
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'dm' | 'forum'
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'match' | 'dm' | 'forum'
+  
+  // Matchmaking & Companions State
+  const [matchCategory, setMatchCategory] = useState('all');
+  const [connectedUserIds, setConnectedUserIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zen_connected_companions') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [isMyProfileModalOpen, setIsMyProfileModalOpen] = useState(false);
+  const [myMatchBio, setMyMatchBio] = useState(() => localStorage.getItem('zen_my_match_bio') || 'علاقه‌مند به خودشناسی، مراقبه، ورزش و گفت‌وگوهای پرانرژی');
+  const [myMatchChakra, setMyMatchChakra] = useState(() => localStorage.getItem('zen_my_match_chakra') || '💚 چاکرای قلب');
+  const [myMatchGoal, setMyMatchGoal] = useState(() => localStorage.getItem('zen_my_match_goal') || 'همراه رشد و یادگیری');
   
   const [chatInput, setChatInput] = useState('');
   const [dmInput, setDmInput] = useState('');
@@ -128,6 +215,43 @@ export default function ChatRooms() {
     setDmInput('');
     soundEngine.playTap?.();
     haptics.tap?.();
+  };
+
+  const handleToggleConnect = (companion) => {
+    soundEngine.playLevelUp?.();
+    haptics.success?.();
+    setConnectedUserIds(prev => {
+      const isAlready = prev.includes(companion.id);
+      const next = isAlready ? prev.filter(id => id !== companion.id) : [...prev, companion.id];
+      localStorage.setItem('zen_connected_companions', JSON.stringify(next));
+      if (!isAlready) {
+        sendGlobalMessage(isRtl ? `❤️ ${userName} با ${companion.name} (${companion.matchScore}٪ هم‌فرکانس) پیوند همراهی برقرار کرد!` : `❤️ ${userName} connected with ${companion.name}!`, activeRoom, true);
+      }
+      return next;
+    });
+  };
+
+  const handleStartDmWithCompanion = (companion) => {
+    setActiveDmUserId(companion.id);
+    setActiveTab('dm');
+    soundEngine.playTap?.();
+    haptics.tap?.();
+  };
+
+  const handleInviteToGame = (companion) => {
+    soundEngine.playCheckmark?.();
+    haptics.tap?.();
+    navigate(`/games/backgammon?room=${encodeURIComponent('SOUL-' + companion.name)}&mode=online`);
+  };
+
+  const handleSaveMyMatchProfile = (e) => {
+    e?.preventDefault?.();
+    localStorage.setItem('zen_my_match_bio', myMatchBio);
+    localStorage.setItem('zen_my_match_chakra', myMatchChakra);
+    localStorage.setItem('zen_my_match_goal', myMatchGoal);
+    setIsMyProfileModalOpen(false);
+    soundEngine.playCheckmark?.();
+    haptics.success?.();
   };
 
   const handleSendQuickEmoji = (emoji) => {
@@ -216,8 +340,7 @@ export default function ChatRooms() {
       </div>
 
       <div className="relative z-10 px-2 sm:px-4 pt-2 sm:pt-4 max-w-6xl w-full mx-auto flex flex-col h-full min-h-0">
-        
-        {/* Top Header Bar */}
+{/* Top Header Bar */}
         <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
           <div className="flex items-center gap-2">
             <button 
@@ -318,7 +441,8 @@ export default function ChatRooms() {
           </div>
         </div>
 
-        {/* Mobile Horizontal Channels Strip */}
+        
+{/* Mobile Horizontal Channels Strip */}
         <div className="flex md:hidden items-center gap-1 overflow-x-auto no-scrollbar py-1 shrink-0 mb-1">
           {ROOMS.map(room => (
             <button
@@ -336,10 +460,10 @@ export default function ChatRooms() {
           ))}
         </div>
 
+        
         {/* Main Workspace Layout */}
         <div className="flex-1 flex flex-col md:flex-row gap-3 min-h-0 relative pb-1">
-          
-          {/* Desktop Left Sidebar: Rooms & Online Users */}
+{/* Desktop Left Sidebar: Rooms & Online Users */}
           <div className="hidden md:flex w-60 shrink-0 flex-col gap-3 overflow-y-auto no-scrollbar pb-2">
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] px-1 uppercase tracking-wider flex items-center gap-1.5">
               <Globe size={12} />
@@ -406,33 +530,46 @@ export default function ChatRooms() {
             </div>
           </div>
 
+          
           {/* Main Chat/Forum Area */}
           <div className="flex-1 flex flex-col bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl min-h-0 relative">
-            
-            {/* Top Bar Navigation Tabs */}
-            <div className="flex items-center border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0">
+            {/* Top Bar Navigation Tabs (4 Pillars: Chat, Soul Match, DM, Forums) */}
+            <div className="flex items-center border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0 overflow-x-auto no-scrollbar">
               <button 
                 onClick={() => setActiveTab('chat')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 ${
+                className={`flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'chat' ? 'border-purple-500 text-purple-500 bg-purple-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
                 <MessagesSquare size={15} />
                 <span>{isRtl ? 'اتاق‌های گفتگو' : 'Live Rooms'}</span>
               </button>
+
+              <button 
+                onClick={() => setActiveTab('match')}
+                className={`flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
+                  activeTab === 'match' ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
+                }`}
+              >
+                <Heart size={15} className={activeTab === 'match' ? 'fill-rose-500' : ''} />
+                <span>{isRtl ? 'همراهان و دوستیابی' : 'Soul Match'}</span>
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              </button>
+
               <button 
                 onClick={() => setActiveTab('dm')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 relative ${
+                className={`flex-1 min-w-[100px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
                   activeTab === 'dm' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
                 <MessageSquare size={15} />
                 <span>{isRtl ? 'پیام خصوصی' : 'Direct Msg'}</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               </button>
+
               <button 
                 onClick={() => setActiveTab('forum')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 ${
+                className={`flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'forum' ? 'border-sky-500 text-sky-400 bg-sky-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
@@ -440,8 +577,7 @@ export default function ChatRooms() {
                 <span>{isRtl ? 'انجمن و مباحث' : 'Forums'}</span>
               </button>
             </div>
-
-            {/* TAB CONTENT: CHAT */}
+{/* TAB CONTENT: CHAT */}
             {activeTab === 'chat' && (
               <div className="flex-1 flex flex-col min-h-0">
                 {/* Messages List Area */}
@@ -674,7 +810,172 @@ export default function ChatRooms() {
               </div>
             )}
 
-            {/* TAB CONTENT: DIRECT MESSAGES (DMs) */}
+            
+{/* TAB CONTENT: SOUL MATCH & CONSCIOUS DATING / FRIENDSHIP */}
+            {activeTab === 'match' && (
+              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-3 sm:p-5 space-y-4">
+                
+                {/* Matchmaking Hero Banner */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-rose-950/40 via-purple-950/30 to-cyan-950/40 border border-rose-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">✨❤️</span>
+                      <h3 className="text-sm sm:text-base font-black text-rose-400">
+                        {isRtl ? 'یافتن همراهان و دوستان هم‌فرکانس' : 'Soul Match & Conscious Connections'}
+                      </h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
+                        {isRtl ? 'تطابق ارتعاشی' : 'Frequency Match'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)] max-w-xl leading-relaxed">
+                      {isRtl 
+                        ? 'ارتباط با افرادی با اهداف مشترک، دیدگاه‌های عمیق، اهل مراقبه، ورزش، کتاب و بازی‌های فکری.' 
+                        : 'Connect with mindful friends sharing your goals, habits, meditation & game interests.'}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setIsMyProfileModalOpen(true)}
+                    className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-rose-600 to-purple-600 text-white text-xs font-black shadow-md flex items-center gap-1.5 shrink-0 active:scale-95 transition-all"
+                  >
+                    <Sparkles size={14} />
+                    <span>{isRtl ? 'پروفایل هم‌فرکانسی من' : 'My Match Profile'}</span>
+                  </button>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink-0">
+                  {[
+                    { id: 'all', labelFa: 'همه همراهان', labelEn: 'All', icon: '🌟' },
+                    { id: 'mindfulness', labelFa: 'مراقبه و خودشناسی', labelEn: 'Mindfulness', icon: '🧘' },
+                    { id: 'business', labelFa: 'کسب‌وکار و ثروت', labelEn: 'Business', icon: '💼' },
+                    { id: 'fitness', labelFa: 'ورزش و سلامتی', labelEn: 'Fitness', icon: '🏃' },
+                    { id: 'gaming', labelFa: 'بازی و رقابت', labelEn: 'Games & Play', icon: '🎮' }
+                  ].map(f => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setMatchCategory(f.id);
+                        soundEngine.playTap?.();
+                        haptics.tap?.();
+                      }}
+                      className={`px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 border ${
+                        matchCategory === f.id
+                          ? 'bg-rose-600 text-white border-rose-400 shadow-sm scale-102 font-black'
+                          : 'bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <span>{f.icon}</span>
+                      <span>{isRtl ? f.labelFa : f.labelEn}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Companions Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pb-2">
+                  {MATCH_COMPANIONS.filter(c => matchCategory === 'all' || c.category === matchCategory).map(companion => {
+                    const isConnected = connectedUserIds.includes(companion.id);
+
+                    return (
+                      <motion.div
+                        key={companion.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 sm:p-5 rounded-3xl bg-[var(--bg-secondary)] border border-[var(--border)] hover:border-rose-500/40 transition-all duration-300 shadow-md flex flex-col justify-between space-y-3.5 group"
+                      >
+                        {/* Top Row: Avatar, Name, Match Score */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-purple-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
+                              {companion.avatar}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-1.5">
+                                <span>{companion.name}</span>
+                                <span className="text-[10px] text-[var(--text-secondary)] font-normal">({companion.age} ساله • {companion.city})</span>
+                              </h4>
+                              <span className="text-[11px] text-rose-400 font-bold block mt-0.5">
+                                {companion.lookingFor}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Match Score Badge */}
+                          <div className="px-2.5 py-1 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black shrink-0 text-center shadow-inner">
+                            <div>{companion.matchScore}٪</div>
+                            <div className="text-[8px] opacity-80">{isRtl ? 'هم‌فرکانس' : 'Match'}</div>
+                          </div>
+                        </div>
+
+                        {/* Chakra & Bio */}
+                        <div className="space-y-2">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold">
+                            <span>{companion.chakra}</span>
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-3 font-medium">
+                            {companion.bio}
+                          </p>
+                        </div>
+
+                        {/* Interest Tags */}
+                        <div className="flex flex-wrap gap-1">
+                          {companion.interests.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[10px] font-medium text-[var(--text-secondary)]"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Status indicator */}
+                        <div className="text-[10px] font-bold text-slate-400">
+                          {companion.status}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="pt-2 border-t border-[var(--border)] flex items-center gap-2">
+                          <button
+                            onClick={() => handleStartDmWithCompanion(companion)}
+                            className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                          >
+                            <MessageSquare size={13} />
+                            <span>{isRtl ? 'گفت‌وگوی مستقیم' : 'Direct Message'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleToggleConnect(companion)}
+                            className={`py-2 px-3 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
+                              isConnected
+                                ? 'bg-rose-500/25 border-rose-400 text-rose-300 shadow-sm'
+                                : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)] hover:text-rose-400 hover:border-rose-400'
+                            }`}
+                            title={isConnected ? (isRtl ? 'پیوند برقرار است' : 'Connected') : (isRtl ? 'درخواست اتصال' : 'Connect')}
+                          >
+                            <Heart size={14} className={isConnected ? 'fill-rose-500 text-rose-500' : ''} />
+                            <span>{isConnected ? (isRtl ? 'متصل ✓' : 'Linked') : (isRtl ? 'اتصال ❤️' : 'Connect')}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleInviteToGame(companion)}
+                            className="p-2 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-all"
+                            title={isRtl ? 'دعوت به بازی تخته‌نرد' : 'Invite to Game'}
+                          >
+                            <Flame size={14} />
+                          </button>
+                        </div>
+
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            )}
+
+            
+{/* TAB CONTENT: DIRECT MESSAGES (DMs) */}
             {activeTab === 'dm' && (
               <div className="flex-1 flex flex-col md:flex-row min-h-0">
                 {/* DM Peers Sidebar */}
@@ -778,7 +1079,8 @@ export default function ChatRooms() {
               </div>
             )}
 
-            {/* TAB CONTENT: FORUMS */}
+            
+{/* TAB CONTENT: FORUMS */}
             {activeTab === 'forum' && (
               <div className="flex-1 flex flex-col min-h-0 p-4 overflow-y-auto no-scrollbar space-y-3">
                 <div className="flex items-center justify-between mb-2">
@@ -820,12 +1122,11 @@ export default function ChatRooms() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
 
-      {/* Mobile Online Users Drawer (Slide from Bottom / Sheet) */}
+{/* Mobile Online Users Drawer (Slide from Bottom / Sheet) */}
       <AnimatePresence>
         {isMobileUsersOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:hidden">
@@ -893,7 +1194,8 @@ export default function ChatRooms() {
         )}
       </AnimatePresence>
 
-      {/* User Action Modal (Whisper, DM, Mention, Add Friend) */}
+      
+{/* User Action Modal (Whisper, DM, Mention, Add Friend) */}
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
@@ -962,7 +1264,8 @@ export default function ChatRooms() {
         )}
       </AnimatePresence>
 
-      {/* New Forum Thread Modal */}
+      
+{/* New Forum Thread Modal */}
       <AnimatePresence>
         {isNewThreadModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
@@ -1001,6 +1304,100 @@ export default function ChatRooms() {
           </div>
         )}
       </AnimatePresence>
+
+      
+{/* My Match Profile Customizer Modal */}
+      <AnimatePresence>
+        {isMyProfileModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="w-full max-w-md rounded-3xl bg-[var(--bg-card)] border border-[var(--border)] p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    <Heart size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">
+                      {isRtl ? 'پروفایل هم‌فرکانسی و دوستیابی من' : 'My Soul Match Profile'}
+                    </h3>
+                    <span className="text-[10px] text-[var(--text-secondary)]">
+                      {isRtl ? 'نحوه نمایش به سایر همراهان' : 'How others see you'}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => setIsMyProfileModalOpen(false)} className="text-[var(--text-secondary)] hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveMyMatchProfile} className="space-y-3.5">
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-primary)] block mb-1">
+                    {isRtl ? 'درباره من و دیدگاه زندگی (Bio):' : 'About Me & Life View:'}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={myMatchBio}
+                    onChange={e => setMyMatchBio(e.target.value)}
+                    placeholder={isRtl ? 'علاقه‌مندی‌ها، اهداف و ارتعاش فکری خود را بنویسید...' : 'Write about your goals and mindset...'}
+                    className="w-full p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] outline-none focus:border-rose-500 font-medium resize-none leading-relaxed"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-primary)] block mb-1">
+                    {isRtl ? 'چاکرای فعال / گرایش درونی:' : 'Dominant Chakra / Alignment:'}
+                  </label>
+                  <select
+                    value={myMatchChakra}
+                    onChange={e => setMyMatchChakra(e.target.value)}
+                    className="w-full p-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] outline-none focus:border-rose-500 font-bold"
+                  >
+                    <option value="💚 چاکرای قلب (عشق و تعادل)">💚 چاکرای قلب (عشق، صلح و تعادل)</option>
+                    <option value="👁️ چاکرای چشم سوم (شهود و خرد)">👁️ چاکرای چشم سوم (شهود و بصیرت)</option>
+                    <option value="☀️ چاکرای خورشیدی (اراده و قدرت)">☀️ چاکرای خورشیدی (اراده، عمل و قدرت)</option>
+                    <option value="👑 چاکرای تاج (آگاهی کیهانی)">👑 چاکرای تاج (آگاهی و بعد برتر)</option>
+                    <option value="💙 چاکرای گلو (بیان حقیقت)">💙 چاکرای گلو (ارتباط و صداقت)</option>
+                    <option value="🔥 چاکرای ریشه و خاجی (شور و پویایی)">🔥 چاکرای ریشه و خاجی (شور، انگیزه و پویایی)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[var(--text-primary)] block mb-1">
+                    {isRtl ? 'به دنبال چه نوع همراهی هستید؟' : 'Looking For:'}
+                  </label>
+                  <select
+                    value={myMatchGoal}
+                    onChange={e => setMyMatchGoal(e.target.value)}
+                    className="w-full p-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] outline-none focus:border-rose-500 font-bold"
+                  >
+                    <option value="همراه رشد و مراقبه">همراه رشد و مراقبه 🧘</option>
+                    <option value="پارتنر بیزینس و رشد مالی">پارتنر بیزینس و رشد مالی 💼</option>
+                    <option value="پارتنر تمرین و چالش عادت">پارتنر تمرین و چالش عادت 🏃</option>
+                    <option value="همراه فکری و بازی‌های دونفره">همراه فکری و بازی‌های دونفره 🎮</option>
+                    <option value="دوستی عمیق و حال خوب">دوستی عمیق و حال خوب ❤️</option>
+                  </select>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 text-white font-black text-xs shadow-lg active:scale-98 transition-all"
+                  >
+                    {isRtl ? 'ذخیره پروفایل هم‌فرکانسی ✨' : 'Save Match Profile ✨'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
