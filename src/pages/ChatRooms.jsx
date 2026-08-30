@@ -20,6 +20,12 @@ import SuperGiftingModal from '../components/chat/SuperGiftingModal';
 import SoulBondModal from '../components/chat/SoulBondModal';
 import BlindChatModal from '../components/chat/BlindChatModal';
 import ZenStoreModal from '../components/chat/ZenStoreModal';
+import CoinShopModal from '../components/shop/CoinShopModal';
+import VipSubscriptionModal from '../components/dating/VipSubscriptionModal';
+import ReferralHubModal from '../components/referral/ReferralHubModal';
+import TournamentHubModal from '../components/games/TournamentHubModal';
+import TarotAstrologyModal from '../components/ai/TarotAstrologyModal';
+
 
 
 const FLASH_EMOJIS = ['🔥', '❤️', '👏', '🌟', '💎', '🚀', '👑', '🧘', '🌸', '⚔️', '💯', '✨', '☕', '💡', '🏆', '🎯'];
@@ -191,6 +197,13 @@ export default function ChatRooms() {
   const [isSoulBondModalOpen, setIsSoulBondModalOpen] = useState(false);
   const [isBlindChatModalOpen, setIsBlindChatModalOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [isCoinShopOpen, setIsCoinShopOpen] = useState(false);
+  const [isVipModalOpen, setIsVipModalOpen] = useState(false);
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+  const [isTournamentModalOpen, setIsTournamentModalOpen] = useState(false);
+  const [isTarotModalOpen, setIsTarotModalOpen] = useState(false);
+  const { isVip } = useAppStore();
+
   const [showRadioWidget, setShowRadioWidget] = useState(true);
   const [showTriviaWidget, setShowTriviaWidget] = useState(true);
   
@@ -609,6 +622,49 @@ export default function ChatRooms() {
             )}
 
             
+            
+            {/* Coins Shop Badge */}
+            <button
+              onClick={() => { setIsCoinShopOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-yellow-500/20 active:scale-95"
+              title="خرید سکه و الماس"
+            >
+              <span>🪙</span>
+              <span>{(coins || 0).toLocaleString()}</span>
+            </button>
+
+            {/* VIP Pass Button */}
+            <button
+              onClick={() => { setIsVipModalOpen(true); soundEngine.playTap?.(); }}
+              className={`p-1.5 px-2 rounded-xl border text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 ${
+                isVip ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-white/5 border-white/10 text-slate-300 hover:text-white'
+              }`}
+              title="اشتراک طلایی VIP"
+            >
+              <span>👑</span>
+              <span className="hidden sm:inline">{isVip ? 'VIP فعال' : 'عضویت VIP'}</span>
+            </button>
+
+            {/* Tarot & Astrology Button */}
+            <button
+              onClick={() => { setIsTarotModalOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
+              title="فال تاروت و چارت تولد"
+            >
+              <span>🔮</span>
+              <span className="hidden sm:inline">فال و چارت</span>
+            </button>
+
+            {/* Referral Invite Button */}
+            <button
+              onClick={() => { setIsReferralModalOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
+              title="دعوت دوستان و کسب درآمد"
+            >
+              <span>👥</span>
+              <span className="hidden sm:inline">دعوت</span>
+            </button>
+
             {/* VIP Store Button */}
             <button
               onClick={() => { setIsStoreModalOpen(true); soundEngine.playTap?.(); }}

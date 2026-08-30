@@ -68,6 +68,30 @@ const useAppStore = create((set, get) => ({
   deferredPrompt: null,
   levelUpModal: { isOpen: false, newLevel: 1 },
 
+  // Monetization & Telegram VIP State
+  isVip: localStorage.getItem('lifeos_is_vip') === '1',
+  vipExpiry: localStorage.getItem('lifeos_vip_expiry') || null,
+  isBoosted: localStorage.getItem('lifeos_is_boosted') === '1',
+  boostExpiry: localStorage.getItem('lifeos_boost_expiry') || null,
+
+  // Referral Stats
+  invitedCount: parseInt(localStorage.getItem('lifeos_invited_count') || '3', 10),
+  referralEarnings: parseInt(localStorage.getItem('lifeos_referral_earnings') || '1500', 10),
+  claimedEarnings: parseInt(localStorage.getItem('lifeos_claimed_earnings') || '0', 10),
+
+  // Sponsor Quests
+  completedTasks: JSON.parse(localStorage.getItem('lifeos_completed_tasks') || '["daily_checkin"]'),
+
+  // Astrological Natal Chart
+  birthChartData: JSON.parse(localStorage.getItem('lifeos_birth_chart') || 'null'),
+
+  // Dating Liked-By Admirers
+  likedByList: [
+    { id: 'admirer_1', name: 'نیلوفر زاد', avatar: '🧘', city: 'تهران', age: '۲۵', bio: 'علاقه‌مند به یوگا و کتابخوانی', likedAt: '۱۰ دقیقه پیش' },
+    { id: 'admirer_2', name: 'دیانا ستاره', avatar: '💎', city: 'شیراز', age: '۲۷', bio: 'مشتاق فلسفه و شطرنج', likedAt: '۱ ساعت پیش' },
+    { id: 'admirer_3', name: 'سارا آناهیتا', avatar: '🌸', city: 'اصفهان', age: '۲۴', bio: 'طراح گرافیک و عاشق ذن', likedAt: 'دیروز' }
+  ],
+
   userProfile: JSON.parse(localStorage.getItem('lifeos_user_profile') || JSON.stringify({
     fullName: 'مدیر ارشد سیستم',
     username: 'admin_user',
@@ -276,6 +300,52 @@ const useAppStore = create((set, get) => ({
       set({ equippedBubble: id });
     }
     soundEngine.playTap?.();
+  },
+
+  activateVip: (days = 30) => {
+    const expiry = new Date(Date.now() + days * 86400000).toISOString();
+    localStorage.setItem('lifeos_is_vip', '1');
+    localStorage.setItem('lifeos_vip_expiry', expiry);
+    set({ isVip: true, vipExpiry: expiry });
+    soundEngine.playLevelUp?.();
+  },
+
+  activateProfileBoost: (hours = 24) => {
+    const expiry = new Date(Date.now() + hours * 3600000).toISOString();
+    localStorage.setItem('lifeos_is_boosted', '1');
+    localStorage.setItem('lifeos_boost_expiry', expiry);
+    set({ isBoosted: true, boostExpiry: expiry });
+    soundEngine.playLevelUp?.();
+  },
+
+  claimReferralBounty: () => {
+    const { referralEarnings, claimedEarnings, coins, addCoins } = get();
+    const claimable = referralEarnings - claimedEarnings;
+    if (claimable <= 0) return { success: false, message: 'پاداش قابل برداشتی وجود ندارد' };
+
+    addCoins(claimable, 'Referral Bounty');
+    localStorage.setItem('lifeos_claimed_earnings', String(referralEarnings));
+    set({ claimedEarnings: referralEarnings });
+    soundEngine.playLevelUp?.();
+    return { success: true, amount: claimable };
+  },
+
+  completeSponsorTask: (taskId, rewardCoins) => {
+    const { completedTasks, addCoins } = get();
+    if (completedTasks.includes(taskId)) return false;
+
+    const updated = [...completedTasks, taskId];
+    localStorage.setItem('lifeos_completed_tasks', JSON.stringify(updated));
+    addCoins(rewardCoins, 'Sponsor Task');
+    set({ completedTasks: updated });
+    soundEngine.playLevelUp?.();
+    return true;
+  },
+
+  saveBirthChart: (data) => {
+    localStorage.setItem('lifeos_birth_chart', JSON.stringify(data));
+    set({ birthChartData: data });
+    soundEngine.playCheckmark?.();
   },
 
   addXP: (amount, reason = '') => {

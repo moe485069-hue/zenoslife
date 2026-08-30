@@ -10,6 +10,10 @@ import useMultiplayerStore from '../store/multiplayerStore';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
 import gameRoomsService from '../services/gameRoomsService';
+import CoinShopModal from '../components/shop/CoinShopModal';
+import TournamentHubModal from '../components/games/TournamentHubModal';
+import ReferralHubModal from '../components/referral/ReferralHubModal';
+
 
 const GAME_DEFS = [
   { id: 'hokm', titleFa: 'حکم ۴ نفره شاهانه', icon: '👑', path: '/games/hokm', category: 'board', maxPlayers: 4, color: 'from-amber-700/30 to-yellow-900/60 border-amber-400/50 ring-1 ring-amber-400/30', descFa: 'بازی اصیل حکم ۴ نفره با هوش مصنوعی و امکان شرط‌بندی سکه.', level: 'شاهانه 👑' },
@@ -176,6 +180,11 @@ export default function Games() {
   const [liveRooms, setLiveRooms] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [highScores, setHighScores] = useState({});
+  const { coins } = useAppStore();
+  const [showShopModal, setShowShopModal] = useState(false);
+  const [showTournamentsModal, setShowTournamentsModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+
 
   useEffect(() => {
     setHighScores({
@@ -227,6 +236,34 @@ export default function Games() {
               {userAvatar} <span className="text-fuchsia-400 font-bold">{userName || 'کاربر'}</span> · {GAME_DEFS.length} بازی
             </p>
           </div>
+          
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => { setShowTournamentsModal(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
+            >
+              <span>🏆</span>
+              <span className="hidden sm:inline">تورنمنت‌ها</span>
+            </button>
+
+            <button
+              onClick={() => { setShowReferralModal(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
+            >
+              <span>👥</span>
+              <span className="hidden sm:inline">دعوت</span>
+            </button>
+
+            <button
+              onClick={() => { setShowShopModal(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-yellow-500/20 active:scale-95"
+            >
+              <span>🪙</span>
+              <span>{(coins || 0).toLocaleString()}</span>
+            </button>
+          </div>
+
           <button onClick={() => navigate('/')} className="p-2 rounded-2xl bg-white/5 border border-white/10 text-slate-400 hover:text-white active:scale-95">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6"/></svg>
           </button>
@@ -358,6 +395,23 @@ export default function Games() {
         userName={userName}
         userAvatar={userAvatar}
       />
+
+      {/* Monetization Modals */}
+      <CoinShopModal
+        isOpen={showShopModal}
+        onClose={() => setShowShopModal(false)}
+      />
+
+      <TournamentHubModal
+        isOpen={showTournamentsModal}
+        onClose={() => setShowTournamentsModal(false)}
+      />
+
+      <ReferralHubModal
+        isOpen={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+      />
+
     </div>
   );
 }

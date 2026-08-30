@@ -5,12 +5,14 @@ import { ChevronLeft, Download, Globe, Sparkles, Sun, Moon, RefreshCw } from 'lu
 import haptics from '../../utils/haptics';
 import soundEngine from '../../utils/audio';
 import InstallGuideModal from '../ui/InstallGuideModal';
+import CoinShopModal from '../shop/CoinShopModal';
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { language, setLanguage, theme, setTheme, deferredPrompt } = useAppStore();
+  const { language, setLanguage, theme, setTheme, deferredPrompt, coins } = useAppStore();
   const isRtl = language === 'fa';
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false);
 
   const currentPath = location.pathname;
   const isRoot = currentPath === '/' || currentPath === '/welcome';
@@ -154,6 +156,20 @@ export default function Header() {
               </button>
             )}
 
+            {/* Coin Shop Quick Button */}
+            <button
+              onClick={() => {
+                haptics.tap?.();
+                soundEngine.playTap?.();
+                setIsShopModalOpen(true);
+              }}
+              className="px-2 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400/40 text-amber-300 hover:bg-amber-500/30 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+              title={isRtl ? 'خرید سکه و ستاره تلگرام' : 'Coin Shop'}
+            >
+              <span>🪙</span>
+              <span className="font-mono text-[11px]">{(coins || 0).toLocaleString()}</span>
+            </button>
+
             {/* Language Switcher */}
             <button
               onClick={handleToggleLanguage}
@@ -189,6 +205,12 @@ export default function Header() {
 
         </div>
       </header>
+
+      {/* Coin Shop Modal */}
+      <CoinShopModal
+        isOpen={isShopModalOpen}
+        onClose={() => setIsShopModalOpen(false)}
+      />
 
       {/* Step-by-Step Install Guide Modal if Direct Install Unavailable */}
       <InstallGuideModal
