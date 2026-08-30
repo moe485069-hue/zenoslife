@@ -1,19 +1,13 @@
 /**
- * ZenOsLife Ecosystem & Anonymous Chat Telegram Bot Engine
+ * ZenOsLife - Ultimate Dating, Anonymous Chat & Gaming Telegram Bot Engine
  * Features:
- * 1. Multi-Pillar Ecosystem Menu:
- *    - 🎭 Anonymous Chat (چت ناشناس زنده دوطرفه داخل خود ربات تلگرام)
- *    - 💬 Live ChatRooms & Community (تالار گفتگو و دوستیابی)
- *    - 🌿 Mindfulness & 432Hz Meditation (ذهن‌آگاهی و چاکراها)
- *    - 📅 My Day & Productivity (امروز من و برنامه‌ریزی)
- *    - 🤖 AI Zen Mentor & Life Coach (مربی هوش مصنوعی)
- *    - 🔮 AI Tarot & Astrological Natal Chart (فال تاروت و چارت تولد)
- *    - 🎮 Royal Arcade Games (حکم، تخته‌نرد، پاستور، منچ، بیلیارد)
- * 2. In-Bot Anonymous Chat Engine:
- *    - Matchmaking Queue (صف انتظار هوشمند)
- *    - Real-time anonymous relay of Text, Voice, Photo, Sticker
- *    - Next Partner (⏭️ هم‌صحبت بعدی), Stop (🛑 پایان مکالمه), Share Profile (💖 اشتراک آیدی)
- * 3. Telegram Stars Invoices (XTR), Daily Wheel, Viral Referral Loop & Admin Broadcast
+ * 1. Step-by-Step Onboarding (Name, Gender 👨/👩, Age, Province)
+ * 2. Smart Matchmaking with Gender & Province Filters (Dating Model)
+ * 3. In-Bot Anonymous Chat with Voice, Photo, Sticker relay & Info Badges
+ * 4. Coin & Stars Monetization (Paid Filters, VIP Pass, Telegram Stars Invoices)
+ * 5. Arcade Games Direct Access (Hokm, Backgammon, Pasur, Ludo, Billiards)
+ * 6. Viral 1-Tap Share Referral Loop (1,000 Coins + 10% Lifetime Cut)
+ * 7. Gateway to the ZenOsLife Mini App Universe
  */
 
 const https = require('https');
@@ -29,7 +23,7 @@ const CONFIG = {
   DATA_FILE: path.join(__dirname, 'bot_users.json')
 };
 
-// Database state
+// Database persistence
 let usersDb = {};
 try {
   if (fs.existsSync(CONFIG.DATA_FILE)) {
@@ -48,12 +42,14 @@ function saveDb() {
 }
 
 // ----------------------------------------------------
-// ANONYMOUS CHAT STATE & QUEUE
+// MATCHMAKING QUEUES & ACTIVE CHATS
 // ----------------------------------------------------
-// waitingQueue: Array of userIds waiting for an anonymous partner
+// waitingQueue: Array of objects { userId, filterGender: 'any'|'female'|'male', province: string }
 const waitingQueue = [];
 // activePairs: Map of userId -> partnerUserId
 const activePairs = new Map();
+// registrationSteps: Map of userId -> { step: 'name'|'gender'|'age'|'province', tempProfile: {} }
+const registrationSteps = new Map();
 
 // Helper: Telegram API Client
 function callTgApi(method, payload = {}) {
@@ -96,140 +92,294 @@ async function initBotSettings() {
     await callTgApi('setChatMenuButton', {
       menu_button: {
         type: 'web_app',
-        text: '🌟 سیستم عامل زندگی | Mini App',
+        text: '🎮 بازی‌ها و چت‌روم‌ها | Mini App',
         web_app: { url: CONFIG.WEBAPP_URL }
       }
     });
 
     await callTgApi('setMyCommands', {
       commands: [
-        { command: 'start', description: '🌟 منوی اصلی و معرفی زنوسلایف' },
-        { command: 'chat', description: '🎭 شروع چت ناشناس تلگرامی' },
-        { command: 'next', description: '⏭️ هم‌صحبت بعدی در چت ناشناس' },
-        { command: 'stop', description: '🛑 پایان چت ناشناس' },
-        { command: 'wheel', description: '🎁 گردونه شانس و پاداش روزانه' },
-        { command: 'buy', description: '⭐ خرید ستاره تلگرام و سکه' },
-        { command: 'ref', description: '👥 لینک دعوت و درآمدزایی' },
-        { command: 'help', description: '❓ راهنما و بخش‌های اپلیکیشن' }
+        { command: 'start', description: '🚀 منوی اصلی و پروفایل' },
+        { command: 'chat', description: '🙈 شروع چت ناشناس' },
+        { command: 'next', description: '⏭️ هم‌صحبت بعدی' },
+        { command: 'stop', description: '🛑 پایان گفتگو' },
+        { command: 'games', description: '🎮 آرکید بازی‌ها (حکم، تخته‌نرد و...)' },
+        { command: 'buy', description: '⭐ خرید ستاره و شارژ سکه' },
+        { command: 'ref', description: '👥 لینک دعوت و درآمدزایی' }
       ]
     });
 
-    console.log('✅ Bot Settings & Commands initialized successfully!');
+    console.log('✅ Bot Settings initialized successfully!');
   } catch (e) {
     console.warn('Notice during bot init:', e.message);
   }
 }
 
 // ----------------------------------------------------
-// ANONYMOUS CHAT ENGINE
+// 1. ONBOARDING & PROFILE SETUP
 // ----------------------------------------------------
-async function startAnonymousSearch(chatId, userId) {
-  // If already in a chat, notify user
-  if (activePairs.has(userId)) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🎭 <b>شما هم‌اکنون در حال گفتگو با یک هم‌صحبت ناشناس هستید!</b>\n\nبرای خروج یا تغییر هم‌صحبت از دکمه‌های زیر استفاده کنید:',
-      parse_mode: 'HTML',
-      reply_markup: {
-        keyboard: [
-          [{ text: '⏭️ هم‌صحبت بعدی' }, { text: '🛑 پایان گفتگو' }],
-          [{ text: '💖 ارسال آیدی تلگرام' }, { text: '🏠 بازگشت به منوی اصلی' }]
-        ],
-        resize_keyboard: true
-      }
-    });
+async function startRegistration(chatId, userId, startParam = '') {
+  registrationSteps.set(userId, {
+    step: 'gender',
+    tempProfile: {
+      userId,
+      invitedBy: startParam.startsWith('ref_') ? startParam.replace('ref_', '') : null,
+      coins: 1000,
+      referrals: [],
+      lastWheelSpin: 0,
+      createdAt: Date.now()
+    }
+  });
+
+  const promptText = '👋 <b>به ربات چت ناشناس و بازی‌های زنوسلایف خوش آمدید!</b>\n\n' +
+    '✨ برای اتصال به هم‌صحبت‌ها و شروع بازی، لطفاً ابتدا <b>جنسیت</b> خود را مشخص کنید:';
+
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        { text: '👨 پسرم', callback_data: 'reg_gender_male' },
+        { text: '👩 دخترم', callback_data: 'reg_gender_female' }
+      ]
+    ]
+  };
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: promptText,
+    parse_mode: 'HTML',
+    reply_markup: inlineKeyboard
+  });
+}
+
+// ----------------------------------------------------
+// 2. MAIN BOT KEYBOARD (REPLY KEYBOARD)
+// ----------------------------------------------------
+function getMainReplyKeyboard() {
+  return {
+    keyboard: [
+      [{ text: '🙈 به یه ناشناس وصلم کن!' }],
+      [{ text: '🛰️ افراد نزدیک (همشهری)' }, { text: '💬 جستجو کاربران (دختر/پسر)' }],
+      [{ text: '🎮 آرکید بازی‌ها و شرط‌بندی' }, { text: '🪙 موجودی سکه و VIP' }],
+      [{ text: '👤 پروفایل من' }, { text: '🔗 معرفی به دوستان (سکه رایگان)' }],
+      [{ text: '🌟 ورود به فضای جامع زنوسلایف (Mini App)' }]
+    ],
+    resize_keyboard: true
+  };
+}
+
+async function sendMainDashboard(chatId, userId, alertMsg = '') {
+  const user = usersDb[userId];
+  if (!user || !user.profileCompleted) {
+    return startRegistration(chatId, userId);
   }
 
-  // If already in queue
-  if (waitingQueue.includes(userId)) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🔍 <b>در حال جستجوی هم‌صحبت ناشناس...</b>\nلطفاً صبور باشید، به محض پیدا شدن کاربر متصل خواهید شد.',
-      parse_mode: 'HTML',
-      reply_markup: {
-        keyboard: [[{ text: '🛑 لغو جستجو' }]],
-        resize_keyboard: true
-      }
-    });
-  }
+  const genderIcon = user.gender === 'female' ? '👩' : '👨';
+  const genderFa = user.gender === 'female' ? 'خانم' : 'آقا';
 
-  // Try to match with someone waiting
-  if (waitingQueue.length > 0) {
-    const partnerId = waitingQueue.shift();
-    if (partnerId !== userId) {
-      activePairs.set(userId, partnerId);
-      activePairs.set(partnerId, userId);
+  const dashboardText = (alertMsg ? `${alertMsg}\n\n` : '') +
+    `👑 <b>پایگاه چت ناشناس و بازی‌های آنلاین</b>\n\n` +
+    `👤 <b>پروفایل شما:</b> ${genderIcon} ${user.name} (${user.age} ساله از ${user.province})\n` +
+    `🪙 <b>موجودی سکه:</b> <b>${(user.coins || 0).toLocaleString()}</b> سکه ${user.isVip ? '👑 VIP طلایی' : ''}\n` +
+    `👥 <b>تعداد دعوت‌ها:</b> ${(user.referrals || []).length} نفر\n\n` +
+    `👇 یکی از گزینه‌ها را برای شروع گفتگو یا بازی انتخاب کنید:`;
 
-      const connectedKeyboard = {
-        keyboard: [
-          [{ text: '⏭️ هم‌صحبت بعدی' }, { text: '🛑 پایان گفتگو' }],
-          [{ text: '💖 ارسال آیدی تلگرام' }, { text: '🏠 منوی اصلی زنوسلایف' }]
-        ],
-        resize_keyboard: true
-      };
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: dashboardText,
+    parse_mode: 'HTML',
+    reply_markup: getMainReplyKeyboard()
+  });
+}
 
-      const matchMsg = '🎉 <b>هم‌صحبت ناشناس پیدا شد!</b>\n\n' +
-        '💬 شما هم‌اکنون به یکدیگر متصل شدید. می‌توانید پیام متنی، ویس، استیکر یا عکس بفرستید.\n' +
-        '🔒 هویت شما کاملاً ناشناس و مخفی است.\n\n' +
-        '💡 <i>برای قطع مکالمه دکمه «🛑 پایان گفتگو» را بزنید.</i>';
+// ----------------------------------------------------
+// 3. FILTER MENU (به کی وصل بشم؟)
+// ----------------------------------------------------
+async function sendFilterMenu(chatId, userId) {
+  const user = usersDb[userId];
+  if (!user || !user.profileCompleted) return startRegistration(chatId, userId);
 
-      callTgApi('sendMessage', { chat_id: userId, text: matchMsg, parse_mode: 'HTML', reply_markup: connectedKeyboard }).catch(() => {});
-      callTgApi('sendMessage', { chat_id: partnerId, text: matchMsg, parse_mode: 'HTML', reply_markup: connectedKeyboard }).catch(() => {});
-      return;
+  const menuText = '🙈 <b>به کی وصل بشم؟ انتخاب کن:</b> 👇\n\n' +
+    '🎲 <b>جستجوی شانسی:</b> کاملاً رایگان (اتصال سریع)\n' +
+    '👩 <b>جستجوی دختر:</b> ۵۰ سکه (یا VIP)\n' +
+    '👨 <b>جستجوی پسر:</b> ۵۰ سکه (یا VIP)\n' +
+    '🛰️ <b>جستجوی همشهری:</b> ۳۰ سکه (افراد استان خودت)';
+
+  const inlineKeyboard = {
+    inline_keyboard: [
+      [
+        { text: '🎲 جستجوی شانسی (رایگان)', callback_data: 'filter_random' }
+      ],
+      [
+        { text: '👩 جستجوی دختر (۵۰ سکه)', callback_data: 'filter_female' },
+        { text: '👨 جستجوی پسر (۵۰ سکه)', callback_data: 'filter_male' }
+      ],
+      [
+        { text: '🛰️ جستجوی اطراف و همشهری (۳۰ سکه)', callback_data: 'filter_province' }
+      ],
+      [
+        { text: '🎮 ورود به چت‌روم‌ها و بازی آنلاین', web_app: { url: `${CONFIG.WEBAPP_URL}#/chat` } }
+      ]
+    ]
+  };
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: menuText,
+    parse_mode: 'HTML',
+    reply_markup: inlineKeyboard
+  });
+}
+
+// ----------------------------------------------------
+// 4. MATCHMAKING ENGINE
+// ----------------------------------------------------
+async function executeMatchSearch(chatId, userId, filterType = 'random') {
+  const user = usersDb[userId];
+  if (!user) return;
+
+  // Check Coins Cost
+  let cost = 0;
+  if (filterType === 'female' || filterType === 'male') cost = 50;
+  if (filterType === 'province') cost = 30;
+
+  if (cost > 0 && !user.isVip) {
+    if ((user.coins || 0) < cost) {
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: `⚠️ <b>موجودی سکه شما کافی نیست!</b>\n\nبرای جستجوی فیلتردار نیاز به <b>${cost} سکه</b> دارید.\nموجودی فعلی شما: <b>${(user.coins || 0).toLocaleString()}</b> سکه\n\nمی‌توانید با دعوت دوستان ۱,۰۰۰ سکه رایگان بگیرید یا اشتراک VIP تهیه کنید:`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⭐ خرید سکه با ستاره تلگرام', callback_data: 'buy_stars' }],
+            [{ text: '🎲 جستجوی شانسی رایگان', callback_data: 'filter_random' }],
+            [{ text: '👥 دریافت سکه رایگان با دعوت', callback_data: 'show_referral' }]
+          ]
+        }
+      });
     }
   }
 
-  // Put in waiting queue
-  waitingQueue.push(userId);
+  // Deduct coins if required
+  if (cost > 0 && !user.isVip) {
+    user.coins -= cost;
+    saveDb();
+  }
+
+  // Find match in queue
+  let matchedPartnerId = null;
+  for (let i = 0; i < waitingQueue.length; i++) {
+    const candidate = waitingQueue[i];
+    if (candidate.userId === userId) continue;
+
+    const candidateUser = usersDb[candidate.userId];
+    if (!candidateUser) continue;
+
+    // Check compatibility
+    let isMatch = true;
+
+    // My filter
+    if (filterType === 'female' && candidateUser.gender !== 'female') isMatch = false;
+    if (filterType === 'male' && candidateUser.gender !== 'male') isMatch = false;
+    if (filterType === 'province' && candidateUser.province !== user.province) isMatch = false;
+
+    // Candidate's filter
+    if (candidate.filterType === 'female' && user.gender !== 'female') isMatch = false;
+    if (candidate.filterType === 'male' && user.gender !== 'male') isMatch = false;
+    if (candidate.filterType === 'province' && candidate.province !== user.province) isMatch = false;
+
+    if (isMatch) {
+      matchedPartnerId = candidate.userId;
+      waitingQueue.splice(i, 1);
+      break;
+    }
+  }
+
+  // If matched
+  if (matchedPartnerId) {
+    activePairs.set(userId, matchedPartnerId);
+    activePairs.set(matchedPartnerId, userId);
+
+    const partnerUser = usersDb[matchedPartnerId];
+
+    const inChatKeyboard = {
+      keyboard: [
+        [{ text: '⏭️ هم‌صحبت بعدی' }, { text: '🛑 پایان گفتگو' }],
+        [{ text: '💖 ارسال آیدی تلگرام' }, { text: '🎮 دعوت به بازی دونفره' }]
+      ],
+      resize_keyboard: true
+    };
+
+    const userBadge = `${user.gender === 'female' ? '👩 دختر' : '👨 پسر'}، ${user.age} ساله از ${user.province}`;
+    const partnerBadge = `${partnerUser.gender === 'female' ? '👩 دختر' : '👨 پسر'}، ${partnerUser.age} ساله از ${partnerUser.province}`;
+
+    callTgApi('sendMessage', {
+      chat_id: userId,
+      text: `🎉 <b>هم‌صحبت پیدا شد!</b>\n\n🎭 <b>مشخصات طرف مقابل:</b> ${partnerBadge}\n\n💬 می‌توانید پیام متنی، ویس، عکس یا استیکر بفرستید.`,
+      parse_mode: 'HTML',
+      reply_markup: inChatKeyboard
+    }).catch(() => {});
+
+    callTgApi('sendMessage', {
+      chat_id: matchedPartnerId,
+      text: `🎉 <b>هم‌صحبت پیدا شد!</b>\n\n🎭 <b>مشخصات طرف مقابل:</b> ${userBadge}\n\n💬 می‌توانید پیام متنی، ویس، عکس یا استیکر بفرستید.`,
+      parse_mode: 'HTML',
+      reply_markup: inChatKeyboard
+    }).catch(() => {});
+
+    return;
+  }
+
+  // Add to queue
+  waitingQueue.push({ userId, filterType, province: user.province });
+
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: '🔍 <b>در حال جستجوی هم‌فرکانس و هم‌صحبت ناشناس...</b>\n\n' +
-      '⏳ لطفاً چند لحظه صبر کنید تا یک کاربر آنلاین به شما متصل شود.',
+    text: '🔍 <b>در حال جستجوی هم‌صحبت با مشخصات درخواستی...</b>\n\n⏳ لطفاً چند لحظه صبر کنید تا کاربر مناسب به شما متصل شود.',
     parse_mode: 'HTML',
     reply_markup: {
-      keyboard: [[{ text: '🛑 لغو جستجو' }, { text: '🏠 بازگشت به منو' }]],
+      keyboard: [[{ text: '🛑 لغو جستجو' }, { text: '🏠 بازگشت به منوی اصلی' }]],
       resize_keyboard: true
     }
   });
 }
 
-async function stopAnonymousChat(chatId, userId) {
-  // Remove from queue if waiting
-  const qIdx = waitingQueue.indexOf(userId);
+// ----------------------------------------------------
+// 5. IN-CHAT RELAY & ACTIONS
+// ----------------------------------------------------
+async function stopChat(chatId, userId) {
+  const qIdx = waitingQueue.findIndex(w => w.userId === userId);
   if (qIdx > -1) {
     waitingQueue.splice(qIdx, 1);
-    return sendMainMenu(chatId, userId, '✅ جستجوی هم‌صحبت ناشناس لغو شد.');
+    return sendMainDashboard(chatId, userId, '✅ جستجو لغو شد.');
   }
 
-  // Disconnect active partner
   if (activePairs.has(userId)) {
     const partnerId = activePairs.get(userId);
     activePairs.delete(userId);
     activePairs.delete(partnerId);
 
-    const endMsg = '🛑 <b>مکالمه پایان یافت.</b>\nهم‌صحبت شما چت را ترک کرد.';
-    sendMainMenu(partnerId, partnerId, endMsg);
-    return sendMainMenu(chatId, userId, '🛑 <b>شما مکالمه را پایان دادید.</b>');
+    sendMainDashboard(partnerId, partnerId, '🛑 <b>هم‌صحبت شما چت را ترک کرد.</b>');
+    return sendMainDashboard(chatId, userId, '🛑 <b>مکالمه پایان یافت.</b>');
   }
 
-  return sendMainMenu(chatId, userId, 'شما در حال حاضر در چت ناشناس نیستید.');
+  return sendMainDashboard(chatId, userId);
 }
 
-async function nextAnonymousPartner(chatId, userId) {
+async function nextPartner(chatId, userId) {
   if (activePairs.has(userId)) {
     const partnerId = activePairs.get(userId);
     activePairs.delete(userId);
     activePairs.delete(partnerId);
-    sendMainMenu(partnerId, partnerId, '🛑 <b>هم‌صحبت شما چت را ترک کرد و به سراغ فرد دیگری رفت.</b>');
+    sendMainDashboard(partnerId, partnerId, '🛑 <b>هم‌صحبت شما به سراغ فرد دیگری رفت.</b>');
   }
-  return startAnonymousSearch(chatId, userId);
+  return executeMatchSearch(chatId, userId, 'random');
 }
 
-async function shareContactInAnonChat(chatId, userId, msg) {
+async function shareContact(chatId, userId, msg) {
   if (!activePairs.has(userId)) return;
   const partnerId = activePairs.get(userId);
   const username = msg.from.username;
-  const firstName = msg.from.first_name || 'کاربر';
+  const user = usersDb[userId];
 
   if (!username) {
     return callTgApi('sendMessage', {
@@ -240,7 +390,7 @@ async function shareContactInAnonChat(chatId, userId, msg) {
 
   callTgApi('sendMessage', {
     chat_id: partnerId,
-    text: `💖 <b>هم‌صحبت شما آیدی تلگرام خود را با شما به اشتراک گذاشت:</b>\n\n👤 نام: <b>${firstName}</b>\n🆔 آیدی: @${username}`,
+    text: `💖 <b>هم‌صحبت شما آیدی تلگرام خود را با شما به اشتراک گذاشت:</b>\n\n👤 نام: <b>${user?.name || 'کاربر'}</b>\n🆔 آیدی تلگرام: @${username}`,
     parse_mode: 'HTML'
   }).catch(() => {});
 
@@ -250,12 +400,14 @@ async function shareContactInAnonChat(chatId, userId, msg) {
   });
 }
 
-// Relay message between anonymous pair
-async function relayAnonMessage(msg, partnerId) {
+async function relayMessage(msg, partnerId) {
+  const senderUser = usersDb[String(msg.from.id)];
+  const prefix = senderUser?.gender === 'female' ? '👩' : '👨';
+
   if (msg.text) {
     return callTgApi('sendMessage', {
       chat_id: partnerId,
-      text: `🎭 <b>هم‌صحبت ناشناس:</b>\n${msg.text}`,
+      text: `${prefix} <b>هم‌صحبت:</b>\n${msg.text}`,
       parse_mode: 'HTML'
     });
   }
@@ -263,7 +415,7 @@ async function relayAnonMessage(msg, partnerId) {
     return callTgApi('sendVoice', {
       chat_id: partnerId,
       voice: msg.voice.file_id,
-      caption: '🎭 ویس از هم‌صحبت ناشناس'
+      caption: `${prefix} ویس از هم‌صحبت`
     });
   }
   if (msg.photo && msg.photo.length > 0) {
@@ -271,7 +423,7 @@ async function relayAnonMessage(msg, partnerId) {
     return callTgApi('sendPhoto', {
       chat_id: partnerId,
       photo: photoId,
-      caption: msg.caption ? `🎭 <b>هم‌صحبت ناشناس:</b>\n${msg.caption}` : '🎭 عکس از هم‌صحبت ناشناس',
+      caption: msg.caption ? `${prefix} <b>هم‌صحبت:</b>\n${msg.caption}` : `${prefix} عکس از هم‌صحبت`,
       parse_mode: 'HTML'
     });
   }
@@ -284,308 +436,312 @@ async function relayAnonMessage(msg, partnerId) {
 }
 
 // ----------------------------------------------------
-// MAIN MENU (HOLISTIC MULTI-PILLAR ZENOSLIFE)
+// 6. GAMES & STARS MENUS
 // ----------------------------------------------------
-async function sendMainMenu(chatId, userId, prefixText = '') {
-  const user = usersDb[userId] || { coins: 1000, referrals: [] };
-  const botInfo = await getBotInfo();
-  const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
-  const shareText = encodeURIComponent(`🌟 به سیستم عامل زندگی زنوسلایف بپیوندید!\nچت ناشناس، مراقبه، برنامه‌ریزی و بازی‌های آنلاین 🎁\n${refLink}`);
-
-  const welcomeText = (prefixText ? `${prefixText}\n\n` : '') +
-    `👑 <b>سیستم عامل جامع زندگی | ZenOsLife</b> ✨\n\n` +
-    `یک اکوسیستم کامل و همه‌جانبه برای رشد فردی، آرامش ذهن، ارتباطات و سرگرمی:\n\n` +
-    `🎭 <b>ارتباطات و گفتگو:</b>\n` +
-    `• چت ناشناس داخل تلگرام و تالارهای زنده\n` +
-    `• دوستیابی هم‌فرکانس و چت صوتی بلادرنگ\n\n` +
-    `🌿 <b>آرامش و ذهن‌آگاهی:</b>\n` +
-    `• مراقبه‌های هدایت‌شده، فرکانس‌های ۴۳۲Hz و چاکراها\n\n` +
-    `📅 <b>بهره‌وری و برنامه‌ریزی:</b>\n` +
-    `• بخش «امروز من»، ردیاب عادات، تسک‌ها و تایمر پومودورو\n\n` +
-    `🤖 <b>هوش مصنوعی و حکمت:</b>\n` +
-    `• مربی خردمند ذن و تحلیلگر مسیر رشد\n` +
-    `• فال تاروت تعاملی و چارت تولد کیهانی 🔮\n\n` +
-    `🎮 <b>آرکید بازی‌های شاهانه:</b>\n` +
-    `• حکم ۴ نفره، تخته‌نرد، پاستور، منچ، بیلیارد و شطرنج\n\n` +
-    `🪙 <b>موجودی شما:</b> ${(user.coins || 1000).toLocaleString()} سکه | 👥 <b>دعوت‌ها:</b> ${(user.referrals || []).length} نفر`;
+function sendGamesMenu(chatId) {
+  const text = '🎮 <b>آرکید بازی‌های آنلاین و مسابقات دورهمی</b>\n\n' +
+    'بازی مورد نظر خود را انتخاب کنید و با حریفان آنلاین یا دوستانتان مسابقه دهید:';
 
   const inlineKeyboard = {
     inline_keyboard: [
       [
-        { text: '🌟 ورود به مینی‌اپلیکیشن (Mini App)', web_app: { url: CONFIG.WEBAPP_URL } }
+        { text: '👑 بازی حکم ۴ نفره آنلاین', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } }
       ],
       [
-        { text: '🎭 شروع چت ناشناس تلگرامی', callback_data: 'start_anon_chat' },
-        { text: '💬 تالار گفتگو و دوستیابی', web_app: { url: `${CONFIG.WEBAPP_URL}#/chat` } }
+        { text: '🎲 تخته نرد ایرانی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } },
+        { text: '🃏 پاستور (چهاربرگ)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/pasur` } }
       ],
       [
-        { text: '🌿 مراقبه و ذهن‌آگاهی', web_app: { url: `${CONFIG.WEBAPP_URL}#/mindfulness` } },
-        { text: '📅 امروز من و برنامه‌ریزی', web_app: { url: `${CONFIG.WEBAPP_URL}#/myday` } }
+        { text: '🎯 منچ ۴ نفره کلاسیک', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/ludo` } },
+        { text: '🎱 بیلیارد ۸-توپی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/billiards` } }
       ],
       [
-        { text: '🤖 مربی هوش مصنوعی', web_app: { url: `${CONFIG.WEBAPP_URL}#/ai-mentor` } },
-        { text: '🔮 فال تاروت و چارت تولد', web_app: { url: `${CONFIG.WEBAPP_URL}#/chat?tab=tarot` } }
-      ],
-      [
-        { text: '🎮 آرکید بازی‌های آنلاین', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } },
-        { text: '👑 بازی حکم ۴ نفره', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } }
-      ],
-      [
-        { text: '🎁 گردونه شانس روزانه', callback_data: 'spin_wheel' },
-        { text: '⭐ خرید ستاره تلگرام و VIP', callback_data: 'buy_stars' }
-      ],
-      [
-        { text: '👥 دعوت دوستان (۱,۰۰۰ سکه + ۱۰٪ پورسانت)', url: `https://t.me/share/url?url=${refLink}&text=${shareText}` }
+        { text: '🏆 ورود به لابی مسابقات و تورنمنت‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
       ]
     ]
   };
 
-  const replyKeyboard = {
-    keyboard: [
-      [{ text: '🎭 شروع چت ناشناس' }, { text: '🌟 باز کردن اپلیکیشن (Mini App)' }],
-      [{ text: '🌿 ذهن‌آگاهی و مراقبه' }, { text: '📅 امروز من و برنامه‌ریزی' }],
-      [{ text: '🎮 آرکید بازی‌ها' }, { text: '🔮 فال و چارت تولد' }],
-      [{ text: '🎁 گردونه شانس' }, { text: '👥 لینک دعوت و درآمدزایی' }]
-    ],
-    resize_keyboard: true
-  };
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: inlineKeyboard
+  });
+}
+
+function sendBuyStarsMenu(chatId) {
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: '⭐ <b>فروشگاه ستاره‌های تلگرام (Telegram Stars Shop)</b>\n\n' +
+      'سکه و اشتراک VIP را مستقیماً با **Telegram Stars** شارژ کنید و بدون محدودیت جنسیت و شهر چت کنید!',
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🪙 ۱,۰۰۰ سکه (۳۵ ستاره ⭐)', callback_data: 'buy_pkg_bronze' }],
+        [{ text: '💰 ۵,۰۰۰ سکه + هدیه (۱۵۰ ستاره ⭐)', callback_data: 'buy_pkg_silver' }],
+        [{ text: '👑 ۲۰,۰۰۰ سکه + هدیه (۵۰۰ ستاره ⭐)', callback_data: 'buy_pkg_gold' }],
+        [{ text: '💎 ۵۰,۰۰۰ سکه + اشتراک VIP (۱,۰۰۰ ستاره ⭐)', callback_data: 'buy_pkg_vip' }],
+        [{ text: '🌟 باز کردن فروشگاه داخل برنامه', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
+      ]
+    }
+  });
+}
+
+async function sendReferralHub(chatId, userId) {
+  const botInfo = await getBotInfo();
+  const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
+  const shareText = encodeURIComponent(`🙈 بیا با هم چت ناشناس بکنیم و حکم و تخته‌نرد بزنیم!\n۱,۰۰۰ سکه هدیه رایگان بگیر 🎁👇\n${refLink}`);
+  const user = usersDb[userId] || { referrals: [] };
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: welcomeText,
+    text: `👥 <b>سیستم دعوت و درآمدزایی خودکار</b>\n\n` +
+      `🔗 <b>لینک اختصاصی شما:</b>\n<code>${refLink}</code>\n\n` +
+      `🎁 <b>پاداش شما:</b>\n` +
+      `• <b>۱,۰۰۰ سکه هدیه</b> به ازای ورود هر دوست\n` +
+      `• <b>۱۰٪ از تمام خریدهای آینده دوست شما</b> به صورت مادام‌العمر!\n\n` +
+      `👥 تعداد زیرمجموعه‌های شما: <b>${(user.referrals || []).length} نفر</b>`,
     parse_mode: 'HTML',
-    reply_markup: inlineKeyboard
-  }).then(() => {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '👇 از دکمه‌های زیر برای دسترسی سریع استفاده کنید:',
-      reply_markup: replyKeyboard
-    });
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🚀 ارسال فوری برای دوستان و گروه‌ها', url: `https://t.me/share/url?url=${refLink}&text=${shareText}` }]
+      ]
+    }
   });
 }
 
 // ----------------------------------------------------
-// MESSAGE DISPATCHER
+// 7. MESSAGE & CALLBACK DISPATCHER
 // ----------------------------------------------------
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from.id);
   const text = msg.text || '';
-  const firstName = msg.from.first_name || 'کاربر';
-  const username = msg.from.username || '';
 
-  // Register user in DB
-  if (!usersDb[userId]) {
-    usersDb[userId] = {
-      userId,
-      firstName,
-      username,
-      coins: 1000,
-      invitedBy: null,
-      referrals: [],
-      lastWheelSpin: 0,
-      createdAt: Date.now()
-    };
-    saveDb();
-  }
-
-  // 1. If user is in active anonymous chat, handle anon commands or relay message
+  // Check if in active anonymous chat
   if (activePairs.has(userId)) {
     if (text === '🛑 پایان گفتگو' || text === '/stop') {
-      return stopAnonymousChat(chatId, userId);
+      return stopChat(chatId, userId);
     }
     if (text === '⏭️ هم‌صحبت بعدی' || text === '/next') {
-      return nextAnonymousPartner(chatId, userId);
+      return nextPartner(chatId, userId);
     }
-    if (text === '💖 ارسال آیدی تلگرام' || text === '/reveal') {
-      return shareContactInAnonChat(chatId, userId, msg);
+    if (text === '💖 ارسال آیدی تلگرام') {
+      return shareContact(chatId, userId, msg);
     }
-    if (text === '🏠 بازگشت به منوی اصلی' || text === '🏠 منوی اصلی زنوسلایف') {
-      await stopAnonymousChat(chatId, userId);
-      return;
+    if (text === '🎮 دعوت به بازی دونفره') {
+      const partnerId = activePairs.get(userId);
+      callTgApi('sendMessage', {
+        chat_id: partnerId,
+        text: '🎮 <b>هم‌صحبت شما را به بازی آنلاین دعوت کرد!</b>\nبرای ورود روی دکمه زیر بزنید:',
+        reply_markup: {
+          inline_keyboard: [[{ text: '🎲 ورود به میز بازی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]]
+        }
+      });
+      return callTgApi('sendMessage', { chat_id: chatId, text: '✅ دعوت‌نامه بازی برای هم‌صحبت ارسال شد.' });
     }
-    // Relay anonymous message to partner
+    // Relay message
     const partnerId = activePairs.get(userId);
-    return relayAnonMessage(msg, partnerId);
+    return relayMessage(msg, partnerId);
   }
 
-  // 2. If user is waiting in queue
-  if (waitingQueue.includes(userId)) {
-    if (text === '🛑 لغو جستجو' || text === '🏠 بازگشت به منو' || text === '/stop') {
-      return stopAnonymousChat(chatId, userId);
+  // Check if in waiting queue
+  if (waitingQueue.some(w => w.userId === userId)) {
+    if (text === '🛑 لغو جستجو' || text === '🏠 بازگشت به منوی اصلی' || text === '/stop') {
+      return stopChat(chatId, userId);
     }
   }
 
-  // 3. Anonymous Chat Commands
-  if (text === '🎭 شروع چت ناشناس' || text === '/chat') {
-    return startAnonymousSearch(chatId, userId);
+  // Registration step handler for custom name
+  if (registrationSteps.has(userId)) {
+    const reg = registrationSteps.get(userId);
+    if (reg.step === 'name' && text) {
+      reg.tempProfile.name = text.slice(0, 25);
+      reg.step = 'gender';
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: `سلام ${reg.tempProfile.name}! لطفاً جنسیت خود را انتخاب کنید:`,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '👨 پسرم', callback_data: 'reg_gender_male' }, { text: '👩 دخترم', callback_data: 'reg_gender_female' }]
+          ]
+        }
+      });
+    }
   }
 
-  // 4. Start command
+  // Main Commands
   if (text.startsWith('/start')) {
     const parts = text.split(' ');
-    const startParam = parts[1];
-
-    if (startParam && startParam.startsWith('ref_')) {
-      const refId = startParam.replace('ref_', '');
-      if (refId !== userId && !usersDb[userId].invitedBy && usersDb[refId]) {
-        usersDb[userId].invitedBy = refId;
-        usersDb[userId].coins += 1000;
-        usersDb[refId].referrals.push(userId);
-        usersDb[refId].coins += 1000;
-        saveDb();
-
-        callTgApi('sendMessage', {
-          chat_id: refId,
-          text: `🎉 <b>تبریک! دوست جدیدی با لینک شما وارد شد!</b>\n\n👤 کاربر: <b>${firstName}</b>\n🪙 پاداش شما: <b>۱,۰۰۰ سکه هدیه</b> به کیف پولت اضافه شد!`,
-          parse_mode: 'HTML'
-        }).catch(() => {});
-      }
+    const startParam = parts[1] || '';
+    const user = usersDb[userId];
+    if (!user || !user.profileCompleted) {
+      return startRegistration(chatId, userId, startParam);
     }
-    return sendMainMenu(chatId, userId);
+    return sendMainDashboard(chatId, userId);
   }
 
-  // 5. Sections Shortcuts
-  if (text === '🌿 ذهن‌آگاهی و مراقبه' || text === '/mindfulness') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🌿 <b>بخش ذهن‌آگاهی و مراقبه‌های ۴۳۲Hz</b>\n\nآرامش عمیق ذهن، رهاسازی استرس و بالانس چاکراها با موزیک‌های تبتی و تنفس هدایت‌شده.',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🎧 ورود به بخش مراقبه و ذهن‌آگاهی', web_app: { url: `${CONFIG.WEBAPP_URL}#/mindfulness` } }]
-        ]
-      }
-    });
+  if (text === '🙈 به یه ناشناس وصلم کن!' || text === '/chat' || text === '💬 جستجو کاربران (دختر/پسر)') {
+    return sendFilterMenu(chatId, userId);
   }
 
-  if (text === '📅 امروز من و برنامه‌ریزی' || text === '/myday') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '📅 <b>بخش امروز من (My Day)</b>\n\nمدیریت کارهای روزانه، تمرکز عمیق با پومودورو، ثبت روتین‌های روز و عادت‌سازی هوشمند.',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📋 باز کردن پنل برنامه‌ریزی امروز', web_app: { url: `${CONFIG.WEBAPP_URL}#/myday` } }]
-        ]
-      }
-    });
+  if (text === '🛰️ افراد نزدیک (همشهری)') {
+    return executeMatchSearch(chatId, userId, 'province');
   }
 
-  if (text === '🎮 آرکید بازی‌ها' || text === '/games') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🎮 <b>آرکید بازی‌های آنلاین و دورهمی زنوسلایف</b>\n\nحکم ۴ نفره، تخته‌نرد ایرانی، پاستور، منچ، بیلیارد، شطرنج و ده‌ها بازی مهیج دیگر همراه با تورنمنت‌های جایزه‌دار.',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '👑 بازی حکم ۴ نفره', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } }],
-          [{ text: '🎲 تخته نرد ایرانی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }],
-          [{ text: '🎯 ورود به لابی تمام بازی‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
-        ]
-      }
-    });
+  if (text === '🎮 آرکید بازی‌ها و شرط‌بندی' || text === '/games') {
+    return sendGamesMenu(chatId);
   }
 
-  if (text === '🔮 فال و چارت تولد' || text === '/tarot') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🔮 <b>فال تاروت هوشمند و چارت تولد کیهانی</b>\n\nتحلیل انرژی‌های گذشته، حال و آینده با کارت‌های ۳ گانه تاروت و محاسبه طالع‌نما و نشان‌های خورشیدی با هوش مصنوعی.',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '✨ کشیدن کارت‌های تاروت و چارت تولد', web_app: { url: `${CONFIG.WEBAPP_URL}#/chat?tab=tarot` } }]
-        ]
-      }
-    });
-  }
-
-  if (text === '🎁 گردونه شانس' || text === '/wheel') {
-    return handleSpinWheel(chatId, userId);
-  }
-
-  if (text === '⭐ خرید ستاره' || text === '/buy') {
+  if (text === '🪙 موجودی سکه و VIP' || text === '/buy') {
     return sendBuyStarsMenu(chatId);
   }
 
-  if (text === '👥 لینک دعوت و درآمدزایی' || text === '/ref') {
-    const botInfo = await getBotInfo();
-    const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
-    const shareText = encodeURIComponent(`🌟 به سیستم عامل زندگی زنوسلایف بپیوندید!\nچت ناشناس، مراقبه، برنامه‌ریزی و بازی‌های آنلاین 🎁\n${refLink}`);
+  if (text === '🔗 معرفی به دوستان (سکه رایگان)' || text === '/ref') {
+    return sendReferralHub(chatId, userId);
+  }
 
+  if (text === '👤 پروفایل من') {
+    const user = usersDb[userId];
+    if (!user) return startRegistration(chatId, userId);
+    const genderIcon = user.gender === 'female' ? '👩' : '👨';
     return callTgApi('sendMessage', {
       chat_id: chatId,
-      text: `👥 <b>سیستم دعوت و کسب درآمد زنوسلایف</b>\n\n` +
-        `🔗 <b>لینک اختصاصی شما:</b>\n<code>${refLink}</code>\n\n` +
-        `🎁 <b>پاداش شما:</b>\n` +
-        `• <b>۱,۰۰۰ سکه هدیه</b> برای شما و دوستتان\n` +
-        `• <b>۱۰٪ از کل خریدهای آینده دوست شما</b> به عنوان پورسانت مادام‌العمر!\n\n` +
-        `👥 تعداد افراد دعوت‌شده: <b>${(usersDb[userId].referrals || []).length} نفر</b>`,
+      text: `👤 <b>پروفایل شما در زنوسلایف:</b>\n\n` +
+        `• نام: <b>${user.name}</b>\n` +
+        `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
+        `• رده سنی: <b>${user.age}</b>\n` +
+        `• استان: <b>${user.province}</b>\n` +
+        `• موجودی: <b>${(user.coins || 0).toLocaleString()} سکه</b> ${user.isVip ? '👑 VIP' : ''}\n` +
+        `• دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`,
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [
-          [{ text: '🚀 ارسال فوری لینک برای دوستان و گروه‌ها', url: `https://t.me/share/url?url=${refLink}&text=${shareText}` }],
-          [{ text: '🌟 باز کردن زنوسلایف', web_app: { url: CONFIG.WEBAPP_URL } }]
-        ]
+        inline_keyboard: [[{ text: '✏️ ویرایش پروفایل', callback_data: 'edit_profile' }]]
       }
     });
   }
 
-  if (text === '🌟 باز کردن اپلیکیشن (Mini App)') {
+  if (text === '🌟 ورود به فضای جامع زنوسلایف (Mini App)') {
     return callTgApi('sendMessage', {
       chat_id: chatId,
-      text: '🚀 برای ورود به محیط تمام‌صفحه سیستم عامل زندگی، دکمه زیر را لمس کنید:',
+      text: '🚀 <b>ورود به فضای جامع زنوسلایف:</b>\nبرای استفاده از ذهن‌آگاهی، مراقبه، برنامه‌ریزی، فال تاروت و چت‌روم‌ها دکمه زیر را لمس کنید:',
       reply_markup: {
         inline_keyboard: [[{ text: '🌟 ورود به زنوسلایف | Mini App', web_app: { url: CONFIG.WEBAPP_URL } }]]
       }
     });
   }
 
-  // Default fallback -> send Main Menu
-  return sendMainMenu(chatId, userId);
+  // Fallback
+  return sendMainDashboard(chatId, userId);
 }
 
 // ----------------------------------------------------
-// CALLBACK QUERIES
+// 8. CALLBACK QUERY HANDLER
 // ----------------------------------------------------
 async function handleCallbackQuery(cq) {
   const chatId = cq.message.chat.id;
   const userId = String(cq.from.id);
   const data = cq.data;
+  callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
 
-  if (data === 'start_anon_chat') {
-    callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
-    return startAnonymousSearch(chatId, userId);
+  // Registration Steps
+  if (data.startsWith('reg_gender_')) {
+    const gender = data.replace('reg_gender_', '');
+    const reg = registrationSteps.get(userId) || { tempProfile: { userId, coins: 1000, referrals: [] } };
+    reg.tempProfile.gender = gender;
+    reg.tempProfile.name = cq.from.first_name || 'کاربر زنوسلایف';
+    reg.step = 'age';
+    registrationSteps.set(userId, reg);
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '🎂 لطفاً <b>رده سنی</b> خود را انتخاب کنید:',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '۱۸ تا ۲۱ سال', callback_data: 'reg_age_18-21' }, { text: '۲۲ تا ۲۶ سال', callback_data: 'reg_age_22-26' }],
+          [{ text: '۲۷ تا ۳۴ سال', callback_data: 'reg_age_27-34' }, { text: '۳۵ سال به بالا', callback_data: 'reg_age_35+' }]
+        ]
+      }
+    });
   }
 
-  if (data === 'spin_wheel') {
-    callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
-    return handleSpinWheel(chatId, userId);
+  if (data.startsWith('reg_age_')) {
+    const age = data.replace('reg_age_', '');
+    const reg = registrationSteps.get(userId);
+    if (!reg) return startRegistration(chatId, userId);
+    reg.tempProfile.age = age;
+    reg.step = 'province';
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '📍 لطفاً <b>استان سکونت</b> خود را انتخاب کنید:',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'تهران / البرز', callback_data: 'reg_prov_تهران' }, { text: 'اصفهان / یزد', callback_data: 'reg_prov_اصفهان' }],
+          [{ text: 'خراسان / مشهد', callback_data: 'reg_prov_مشهد' }, { text: 'فارس / شیراز', callback_data: 'reg_prov_شیراز' }],
+          [{ text: 'آذربایجان / تبریز', callback_data: 'reg_prov_تبریز' }, { text: 'خوزستان / اهواز', callback_data: 'reg_prov_خوزستان' }],
+          [{ text: 'مازندران / گیلان', callback_data: 'reg_prov_شمال' }, { text: 'سایر استان‌ها', callback_data: 'reg_prov_سایر' }]
+        ]
+      }
+    });
   }
 
-  if (data === 'buy_stars') {
-    callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
-    return sendBuyStarsMenu(chatId);
+  if (data.startsWith('reg_prov_')) {
+    const prov = data.replace('reg_prov_', '');
+    const reg = registrationSteps.get(userId);
+    if (!reg) return startRegistration(chatId, userId);
+    reg.tempProfile.province = prov;
+    reg.tempProfile.profileCompleted = true;
+
+    usersDb[userId] = reg.tempProfile;
+    saveDb();
+    registrationSteps.delete(userId);
+
+    // If invited by someone, reward both
+    if (reg.tempProfile.invitedBy && usersDb[reg.tempProfile.invitedBy]) {
+      const refUser = usersDb[reg.tempProfile.invitedBy];
+      refUser.referrals.push(userId);
+      refUser.coins = (refUser.coins || 0) + 1000;
+      saveDb();
+
+      callTgApi('sendMessage', {
+        chat_id: reg.tempProfile.invitedBy,
+        text: `🎉 <b>تبریک! دوست جدیدی با لینک شما ثبت‌نام کرد!</b>\n🪙 <b>۱,۰۰۰ سکه هدیه</b> به کیف پول شما اضافه شد!`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    }
+
+    return sendMainDashboard(chatId, userId, '🎉 <b>تبریک! پروفایل شما ساخته شد و ۱,۰۰۰ سکه هدیه گرفتید! 🪙</b>');
   }
 
+  if (data === 'edit_profile') {
+    return startRegistration(chatId, userId);
+  }
+
+  // Filter Match Triggers
+  if (data === 'filter_random') return executeMatchSearch(chatId, userId, 'random');
+  if (data === 'filter_female') return executeMatchSearch(chatId, userId, 'female');
+  if (data === 'filter_male') return executeMatchSearch(chatId, userId, 'male');
+  if (data === 'filter_province') return executeMatchSearch(chatId, userId, 'province');
+  if (data === 'buy_stars') return sendBuyStarsMenu(chatId);
+  if (data === 'show_referral') return sendReferralHub(chatId, userId);
+
+  // Stars Package Invoices
   if (data.startsWith('buy_pkg_')) {
     const pkgType = data.replace('buy_pkg_', '');
-    callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
-
     const packages = {
       'bronze': { title: '🪙 ۱,۰۰۰ سکه زنوسلایف', priceStars: 35, coins: 1000 },
       'silver': { title: '💰 ۵,۰۰۰ سکه + ۵۰۰ هدیه', priceStars: 150, coins: 5500 },
       'gold': { title: '👑 ۲۰,۰۰۰ سکه + ۳,۰۰۰ هدیه', priceStars: 500, coins: 23000 },
-      'vip': { title: '💎 ۵۰,۰۰۰ سکه + اشتراک VIP', priceStars: 1000, coins: 50000 }
+      'vip': { title: '💎 ۵۰,۰۰۰ سکه + اشتراک VIP', priceStars: 1000, coins: 50000, isVip: true }
     };
-
     const pkg = packages[pkgType];
     if (pkg) {
       return callTgApi('sendInvoice', {
         chat_id: chatId,
         title: pkg.title,
         description: `شارژ فوری ${pkg.coins.toLocaleString()} سکه در اکانت زنوسلایف شما`,
-        payload: JSON.stringify({ userId, pkgType, coins: pkg.coins }),
+        payload: JSON.stringify({ userId, pkgType, coins: pkg.coins, isVip: !!pkg.isVip }),
         currency: 'XTR',
         prices: [{ label: pkg.title, amount: pkg.priceStars }]
       });
@@ -594,66 +750,10 @@ async function handleCallbackQuery(cq) {
 }
 
 // ----------------------------------------------------
-// LUCKY WHEEL & STARS PAYMENTS
+// 9. STARS PRE-CHECKOUT & PAYMENT
 // ----------------------------------------------------
-async function handleSpinWheel(chatId, userId) {
-  const now = Date.now();
-  const user = usersDb[userId];
-  const cooldown = 24 * 60 * 60 * 1000;
-
-  if (user && user.lastWheelSpin && (now - user.lastWheelSpin < cooldown)) {
-    const remainingHours = Math.ceil((cooldown - (now - user.lastWheelSpin)) / 3600000);
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: `⏳ <b>گردونه شانس در حال شارژ مجدد است!</b>\n\nشما امروز گردونه را چرخانده‌اید. لطفاً <b>${remainingHours} ساعت</b> دیگر مراجعه کنید.`,
-      parse_mode: 'HTML'
-    });
-  }
-
-  const prizes = [100, 250, 500, 1000, 2000, 5000];
-  const wonCoins = prizes[Math.floor(Math.random() * prizes.length)];
-
-  user.coins = (user.coins || 0) + wonCoins;
-  user.lastWheelSpin = now;
-  saveDb();
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: `🎰 <b>گردونه شانس زنوسلایف چرخید!</b>\n\n` +
-      `✨ <b>تبریک! شما برنده ${wonCoins.toLocaleString()} سکه هدیه شدید! 🪙</b>\n\n` +
-      `💰 موجودی کل شما: <b>${user.coins.toLocaleString()}</b> سکه`,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🌟 ورود به اپلیکیشن و خرج کردن سکه‌ها', web_app: { url: CONFIG.WEBAPP_URL } }]
-      ]
-    }
-  });
-}
-
-function sendBuyStarsMenu(chatId) {
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: '⭐ <b>فروشگاه رسمی ستاره تلگرام (Telegram Stars Shop)</b>\n\n' +
-      'سکه و اشتراک طلایی را مستقیماً با **Telegram Stars** خریداری کنید و از امکانات VIP لذت ببرید!',
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🪙 ۱,۰۰۰ سکه (۳۵ ستاره ⭐)', callback_data: 'buy_pkg_bronze' }],
-        [{ text: '💰 ۵,۰۰۰ سکه + هدیه (۱۵۰ ستاره ⭐)', callback_data: 'buy_pkg_silver' }],
-        [{ text: '👑 ۲۰,۰۰۰ سکه + هدیه (۵۰۰ ستاره ⭐)', callback_data: 'buy_pkg_gold' }],
-        [{ text: '💎 ۵۰,۰۰۰ سکه + VIP (۱,۰۰۰ ستاره ⭐)', callback_data: 'buy_pkg_vip' }],
-        [{ text: '🌟 باز کردن فروشگاه داخل برنامه', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
-      ]
-    }
-  });
-}
-
 async function handlePreCheckoutQuery(pcq) {
-  return callTgApi('answerPreCheckoutQuery', {
-    pre_checkout_query_id: pcq.id,
-    ok: true
-  });
+  return callTgApi('answerPreCheckoutQuery', { pre_checkout_query_id: pcq.id, ok: true });
 }
 
 async function handleSuccessfulPayment(msg) {
@@ -663,48 +763,37 @@ async function handleSuccessfulPayment(msg) {
 
   try {
     const payload = JSON.parse(payment.invoice_payload);
-    if (payload.coins && usersDb[userId]) {
-      usersDb[userId].coins += payload.coins;
+    if (usersDb[userId]) {
+      if (payload.coins) usersDb[userId].coins = (usersDb[userId].coins || 0) + payload.coins;
+      if (payload.isVip) usersDb[userId].isVip = true;
       saveDb();
     }
   } catch (_) {}
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: '✅ <b>پرداخت با ستاره‌های تلگرام با موفقیت انجام شد!</b>\n\nسکه و اشتراک به حساب شما اضافه شد.',
+    text: '✅ <b>پرداخت با ستاره‌های تلگرام با موفقیت انجام شد!</b>\nسکه و اشتراک VIP به اکانت شما اضافه شد.',
     parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [[{ text: '🌟 ورود به زنوسلایف', web_app: { url: CONFIG.WEBAPP_URL } }]]
-    }
+    reply_markup: getMainReplyKeyboard()
   });
 }
 
 let cachedBotInfo = null;
 async function getBotInfo() {
-  if (!cachedBotInfo) {
-    cachedBotInfo = await callTgApi('getMe');
-  }
+  if (!cachedBotInfo) cachedBotInfo = await callTgApi('getMe');
   return cachedBotInfo;
 }
 
-// Long Polling Loop
+// Polling loop
 let lastUpdateId = 0;
 async function pollUpdates() {
   try {
-    const updates = await callTgApi('getUpdates', {
-      offset: lastUpdateId + 1,
-      timeout: 25
-    });
-
+    const updates = await callTgApi('getUpdates', { offset: lastUpdateId + 1, timeout: 25 });
     for (const update of updates) {
       lastUpdateId = update.update_id;
-
       if (update.message) {
-        if (update.message.successful_payment) {
-          await handleSuccessfulPayment(update.message);
-        } else {
-          await handleMessage(update.message);
-        }
+        if (update.message.successful_payment) await handleSuccessfulPayment(update.message);
+        else await handleMessage(update.message);
       } else if (update.callback_query) {
         await handleCallbackQuery(update.callback_query);
       } else if (update.pre_checkout_query) {
@@ -717,15 +806,14 @@ async function pollUpdates() {
     }
     await new Promise(r => setTimeout(r, 2000));
   }
-
   setImmediate(pollUpdates);
 }
 
-// Start Bot
-console.log('🚀 ZenOsLife Ecosystem & Anonymous Chat Bot Engine Starting...');
+// Start Engine
+console.log('🚀 ZenOsLife Ultimate Dating & Gaming Bot Engine Starting...');
 initBotSettings().then(() => {
   pollUpdates();
-  console.log('✨ Bot is online with Anonymous Chat and Full Life-OS Ecosystem!');
+  console.log('✨ Bot is online with Profile Onboarding, Gender/City Filters, In-Bot Chat & Games!');
 }).catch(err => {
   console.error('Fatal error starting bot:', err);
 });

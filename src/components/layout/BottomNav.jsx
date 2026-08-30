@@ -34,111 +34,109 @@ export default function BottomNav() {
         style={{ background: 'var(--bg-card)' }}
       >
         <div className="max-w-md mx-auto flex items-center justify-between gap-1">
-          {/* 1. Home */}
+          {/* 1. Chat & Community */}
+          <NavLink
+            to="/chat"
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              clsx(
+                'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
+                isActive
+                  ? 'text-pink-400 font-black'
+                  : 'text-slate-400 hover:text-slate-200'
+              )
+            }
+            title={isRtl ? 'گفتگو و چت‌روم' : 'Chat & Community'}
+          >
+            {({ isActive }) => (
+              <>
+                <MessagesSquare size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[9px] mt-0.5 font-bold">گفتگو</span>
+              </>
+            )}
+          </NavLink>
+
+          {/* 2. Games & Arcade */}
+          <NavLink
+            to="/games"
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              clsx(
+                'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
+                isActive
+                  ? 'text-amber-400 font-black'
+                  : 'text-slate-400 hover:text-slate-200'
+              )
+            }
+            title={isRtl ? 'بازی‌ها و آرکید' : 'Games & Arcade'}
+          >
+            {({ isActive }) => (
+              <>
+                <Gamepad2 size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[9px] mt-0.5 font-bold">بازی‌ها</span>
+              </>
+            )}
+          </NavLink>
+
+          {/* 3. Center Zen Universe (زنوسلایف) */}
           <NavLink
             to="/"
             onClick={handleNavClick}
             className={({ isActive }) =>
               clsx(
-                'flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all flex-1',
-                isActive
-                  ? 'text-[var(--text-primary)] font-bold'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                'flex flex-col items-center justify-center -mt-4 py-2 px-3 rounded-full transition-all bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white shadow-xl shadow-purple-500/40 border-2 border-white/20 active:scale-95',
+                isActive ? 'scale-110 ring-4 ring-purple-400/40' : 'hover:scale-105'
               )
             }
-            title={isRtl ? 'خانه' : 'Home'}
+            title={isRtl ? 'فضای جامع زنوسلایف' : 'ZenOsLife Universe'}
+          >
+            <Flame size={24} strokeWidth={2.5} fill="currentColor" />
+          </NavLink>
+
+          {/* 4. My Day (امروز من) */}
+          <NavLink
+            to="/my-day"
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              clsx(
+                'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
+                isActive
+                  ? 'text-emerald-400 font-black'
+                  : 'text-slate-400 hover:text-slate-200'
+              )
+            }
+            title={isRtl ? 'امروز من' : 'My Day'}
           >
             {({ isActive }) => (
               <>
-                <Home size={24} strokeWidth={isActive ? 2.5 : 2} fill={isActive ? 'currentColor' : 'none'} />
+                <Calendar size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[9px] mt-0.5 font-bold">امروز من</span>
               </>
             )}
           </NavLink>
 
-          {/* 2. Middle Hub (My Day / Games / Chat) */}
-          <button
-            onClick={handleHubClick}
-            className={clsx(
-              'flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all flex-1 relative',
-              isHubActive
-                ? 'text-[var(--text-primary)] font-bold'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            )}
-            title={isRtl ? 'هاب امروز، بازی و چت' : 'My Day & Games Hub'}
+          {/* 5. Profile & Settings */}
+          <NavLink
+            to="/settings"
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              clsx(
+                'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
+                isActive
+                  ? 'text-cyan-400 font-black'
+                  : 'text-slate-400 hover:text-slate-200'
+              )
+            }
+            title={isRtl ? 'پروفایل و سکه‌ها' : 'Profile & Wallet'}
           >
-            <div className={clsx(
-              "p-1 rounded-xl transition-all duration-300", 
-              isHubActive 
-                ? "scale-110 bg-gradient-to-tr from-emerald-500/20 via-rose-500/20 to-cyan-500/20 text-emerald-500 border border-emerald-500/30 shadow-md shadow-emerald-500/10" 
-                : "hover:scale-105"
-            )}>
-              <Flame size={24} strokeWidth={isHubActive ? 2.5 : 2} fill={isHubActive ? 'currentColor' : 'none'} />
-            </div>
-          </button>
-
-        {/* 3. Stroll */}
-        <NavLink
-          to="/stroll"
-          onClick={handleNavClick}
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all flex-1',
-              isActive
-                ? 'text-[var(--text-primary)] font-bold'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            )
-          }
-          title={isRtl ? 'قدم زدن' : 'Stroll'}
-        >
-          {({ isActive }) => (
-            <>
-              <Footprints size={24} strokeWidth={isActive ? 2.5 : 2} fill={isActive ? 'currentColor' : 'none'} />
-            </>
-          )}
-        </NavLink>
-
-        {/* 4. Calendar */}
-        <NavLink
-          to="/calendar"
-          onClick={handleNavClick}
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all flex-1',
-              isActive
-                ? 'text-[var(--text-primary)] font-bold'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            )
-          }
-          title={isRtl ? 'تقویم' : 'Calendar'}
-        >
-          {({ isActive }) => (
-            <>
-              <Calendar size={24} strokeWidth={isActive ? 2.5 : 2} fill={isActive ? 'currentColor' : 'none'} />
-            </>
-          )}
-        </NavLink>
-
-        {/* 5. Settings */}
-        <NavLink
-          to="/settings"
-          onClick={handleNavClick}
-          className={({ isActive }) =>
-            clsx(
-              'flex flex-col items-center justify-center py-2 px-2.5 rounded-2xl transition-all flex-1',
-              isActive
-                ? 'text-[var(--text-primary)] font-bold'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            )
-          }
-          title={isRtl ? 'تنظیمات' : 'Settings'}
-        >
-          {({ isActive }) => (
-            <>
-              <Settings size={24} strokeWidth={isActive ? 2.5 : 2} />
-            </>
-          )}
-        </NavLink>
-      </div>
+            {({ isActive }) => (
+              <>
+                <Settings size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[9px] mt-0.5 font-bold">پروفایل</span>
+              </>
+            )}
+          </NavLink>
+        </div>
     </nav>
 
     {/* 3-Card Interactive Hub Selector */}
