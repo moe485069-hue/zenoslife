@@ -5,7 +5,7 @@ import jalaali from 'jalaali-js';
 import { 
   Sun, Moon, Sparkles, Footprints, Flame, 
   Gamepad2, Calendar as CalendarIcon, Wallet, 
-  Activity, BookOpen, ChevronLeft
+  Activity, BookOpen, ChevronLeft, Edit3, Check, X
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useTasksStore from '../store/tasksStore';
@@ -20,13 +20,17 @@ const JALALI_MONTHS = [
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const { language, theme, userProfile, coins, xp, level } = useAppStore();
+  const { language, theme, userProfile, setUserProfile, coins, xp, level } = useAppStore();
   const { tasks } = useTasksStore();
   const isRtl = language === 'fa';
 
   const [greeting, setGreeting] = useState({ title: '', icon: <Sun /> });
   const [currentDate, setCurrentDate] = useState('');
   const [completedCount, setCompletedCount] = useState(0);
+
+  // Name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(userProfile?.fullName || 'مدیر');
 
   useEffect(() => {
     // Set Time Greeting
@@ -129,23 +133,79 @@ export default function Welcome() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between bg-[var(--bg-card)] p-5 rounded-3xl shadow-sm border border-[var(--border)]"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--bg-card)] p-5 rounded-3xl shadow-sm border border-[var(--border)]"
       >
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <div className="flex items-center flex-wrap gap-2">
             {greeting.icon}
-            <h1 className="text-2xl font-black text-[var(--text-primary)]">
-              {greeting.title}، {userProfile?.fullName?.split(' ')[0] || (isRtl ? 'کاربر' : 'User')}
-            </h1>
+            
+            {isEditingName ? (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (nameInput.trim()) {
+                    setUserProfile({ fullName: nameInput.trim() });
+                    setIsEditingName(false);
+                    soundEngine.playCheckmark?.();
+                    haptics.success?.();
+                  }
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder={isRtl ? 'نام شما...' : 'Your name...'}
+                  autoFocus
+                  className="px-3 py-1 rounded-xl bg-black/20 border border-amber-500/50 text-base font-black text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-amber-400 w-36 sm:w-44"
+                />
+                <button
+                  type="submit"
+                  className="p-1.5 rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 font-bold transition-all shadow-xs"
+                  title={isRtl ? 'ذخیره نام' : 'Save'}
+                >
+                  <Check size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingName(false)}
+                  className="p-1.5 rounded-xl bg-white/10 text-slate-400 hover:text-white transition-all"
+                  title={isRtl ? 'انصراف' : 'Cancel'}
+                >
+                  <X size={16} />
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black text-[var(--text-primary)]">
+                  {greeting.title}، {userProfile?.fullName || (isRtl ? 'مدیر' : 'User')}
+                </h1>
+                <button
+                  onClick={() => {
+                    setNameInput(userProfile?.fullName || 'مدیر');
+                    setIsEditingName(true);
+                    soundEngine.playTap?.();
+                    haptics.tap?.();
+                  }}
+                  className="p-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+                  title={isRtl ? 'ویرایش نام شما' : 'Edit name'}
+                >
+                  <Edit3 size={13} />
+                  <span className="text-[10px] hidden sm:inline">{isRtl ? 'تغییر نام' : 'Edit'}</span>
+                </button>
+              </div>
+            )}
           </div>
-          <p className="text-base text-[var(--text-secondary)] font-medium mt-1">
+
+          <p className="text-sm sm:text-base text-[var(--text-secondary)] font-medium">
             {isRtl ? 'امروز' : 'Today'}: <span className="font-bold text-[var(--text-primary)]">{currentDate}</span>
           </p>
         </div>
         
         {/* User Level/Avatar (Simple) */}
-        <div className="flex flex-col items-center justify-center p-3 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border)]">
-          <span className="text-2xl mb-1">🌟</span>
+        <div className="flex sm:flex-col items-center justify-center gap-2 sm:gap-0 p-3 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border)] self-start sm:self-auto">
+          <span className="text-2xl mb-0.5">🌟</span>
           <span className="text-xs font-black text-[var(--text-primary)]">{isRtl ? 'سطح' : 'Level'} {level}</span>
         </div>
       </motion.div>
