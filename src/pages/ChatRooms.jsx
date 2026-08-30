@@ -592,16 +592,16 @@ export default function ChatRooms() {
                 className="text-start group"
                 title="برای دسترسی به پنل مدیریت ۳ بار کلیک کنید"
               >
-                <h1 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-fuchsia-400 leading-tight group-hover:scale-101 transition-transform flex items-center gap-1.5">
-                  <span>{isRtl ? 'جامعه، چت زنده و دوستیابی' : 'Live Sanctuary & Soul Match'}</span>
-                  {isAdminUnlocked && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">👑 ادمین</span>}
+                <h1 className="text-xs sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-fuchsia-400 leading-tight group-hover:scale-101 transition-transform flex items-center gap-1.5 whitespace-nowrap">
+                  <span>{isRtl ? '💬 گفتگو و دوستیابی' : 'Live Chat & Match'}</span>
+                  {isAdminUnlocked && <span className="text-[9px] px-1 py-0.2 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">👑 ادمین</span>}
                 </h1>
               </button>
 
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                <span className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>{isRtl ? 'شبکه زنده و متصل' : 'Live & Connected'} ({activeRelayCount || 1} سرور)</span>
+                  <span>{isRtl ? 'شبکه زنده' : 'Live'} ({activeRelayCount || 1})</span>
                 </span>
               </div>
             </div>

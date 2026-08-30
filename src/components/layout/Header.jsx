@@ -41,6 +41,7 @@ export default function Header() {
     );
   });
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const isInsideTelegram = typeof window !== 'undefined' && Boolean(window.Telegram?.WebApp?.initData);
 
   useEffect(() => {
     const handleAppInstalled = () => {
@@ -129,30 +130,27 @@ export default function Header() {
                 soundEngine.playTap?.();
                 navigate('/');
               }}
-              className="flex items-center gap-2 min-w-0 cursor-pointer select-none active:scale-95 transition-all group"
+              className="flex items-center gap-1.5 min-w-0 cursor-pointer select-none active:scale-95 transition-all group"
               title={isRtl ? 'بازگشت به صفحه اصلی' : 'Go to Home'}
             >
-              <span className="text-xl sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif] group-hover:brightness-110 transition-all">
+              <span className="text-lg sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif] group-hover:brightness-110 transition-all whitespace-nowrap">
                 {isRtl ? 'زنوسلایف' : 'ZenOsLife'}
-              </span>
-              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-purple-500/15 via-cyan-500/15 to-emerald-500/15 border border-purple-500/30 text-purple-400 dark:text-purple-300 hidden xs:inline not-italic group-hover:border-purple-400/60 transition-all">
-                {isRtl ? 'ZenOsLife' : 'زنوسلایف'}
               </span>
             </div>
           </div>
 
           {/* Right: Actions (Install, Language, Theme) */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             
-            {/* Install App Button (Only visible if NOT yet installed) */}
-            {!isInstalled && (
+            {/* Install App Button (Only visible if NOT yet installed AND NOT inside Telegram) */}
+            {!isInstalled && !isInsideTelegram && (
               <button
                 onClick={handleInstallClick}
-                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30 text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 transition-all animate-pulse"
-                title={isRtl ? 'نصب وب‌اپلیکیشن روی گوشی یا کامپیوتر' : 'Install PWA App'}
+                className="px-2 py-1 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30 text-[10px] font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                title={isRtl ? 'نصب وب‌اپلیکیشن' : 'Install App'}
               >
-                <Download size={13} />
-                <span className="text-[11px]">{isRtl ? 'نصب' : 'Install'}</span>
+                <Download size={12} />
+                <span className="hidden xs:inline">{isRtl ? 'نصب' : 'Install'}</span>
               </button>
             )}
 
