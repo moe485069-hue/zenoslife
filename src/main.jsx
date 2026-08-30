@@ -13,6 +13,33 @@ if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
   } catch (e) {}
 }
 
+// Instant version synchronization with server to bypass Telegram WebView cache
+if (typeof window !== 'undefined') {
+  fetch('/version.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(res => res.json())
+    .then(data => {
+      if (data?.version) {
+        const lastVersion = localStorage.getItem('zenoslife_version');
+        if (lastVersion && lastVersion !== data.version) {
+          console.log(`ZenOsLife: New version detected (${data.version} vs ${lastVersion}). Clearing caches & reloading...`);
+          localStorage.setItem('zenoslife_version', data.version);
+          if ('caches' in window) {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(r => r.unregister());
+            }).catch(() => {});
+          }
+          window.location.reload();
+        } else {
+          localStorage.setItem('zenoslife_version', data.version);
+        }
+      }
+    })
+    .catch(() => {});
+}
+
 // Auto-recover from Vite chunk preload errors when deploying new updates
 window.addEventListener('vite:preloadError', (event) => {
   console.warn('New app version detected or preload error, refreshing...', event);

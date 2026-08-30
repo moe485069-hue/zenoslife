@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useAppStore from '../../store/appStore';
-import { ChevronLeft, Download, Globe, Sparkles, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, Download, Globe, Sparkles, Sun, Moon, RefreshCw } from 'lucide-react';
 import haptics from '../../utils/haptics';
 import soundEngine from '../../utils/audio';
 import InstallGuideModal from '../ui/InstallGuideModal';
@@ -14,6 +14,20 @@ export default function Header() {
 
   const currentPath = location.pathname;
   const isRoot = currentPath === '/' || currentPath === '/welcome';
+
+  const handleForceUpdate = async () => {
+    haptics.success?.();
+    soundEngine.playLevelUp?.();
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    window.location.replace(window.location.origin + window.location.pathname + '?v=' + Date.now() + window.location.hash);
+  };
 
   // PWA Install State
   const [isInstalled, setIsInstalled] = useState(() => {
@@ -161,6 +175,15 @@ export default function Header() {
               title={isRtl ? 'تغییر حالت روشن / تاریک' : 'Toggle Theme'}
             >
               {theme === 'dark' ? <Sun size={15} className="text-amber-300" /> : <Moon size={15} className="text-indigo-400" />}
+            </button>
+
+            {/* Force Update / Clear Cache Button */}
+            <button
+              onClick={handleForceUpdate}
+              className="p-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-amber-500/20 text-slate-300 hover:text-amber-300 transition-colors active:scale-95"
+              title={isRtl ? 'بروزرسانی فوری به آخرین نسخه و پاک‌سازی کش' : 'Instant Update & Clear Cache'}
+            >
+              <RefreshCw size={14} className="hover:rotate-180 transition-transform duration-500" />
             </button>
           </div>
 
