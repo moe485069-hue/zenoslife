@@ -6,8 +6,10 @@ import {
   Flame, CheckCircle2, ChevronRight, Zap, RefreshCw, Smile, Clock,
   Play, Pause, Square, Coffee, Target, Activity, Moon, BookOpen, Edit3, Flag, X, AlignLeft,
   Bell, BellRing, Sparkle, Compass, Layers, ChevronDown, ChevronUp, Footprints, Trash2, ArrowRight,
-  Bookmark, Volume2, Search, Award, BookMarked, Eye, EyeOff, Calendar, Shield, Feather, Brain
+  Bookmark, Volume2, Search, Award, BookMarked, Eye, EyeOff, Calendar, Shield, Feather, Brain,
+  Gamepad2, MessagesSquare
 } from 'lucide-react';
+import HubSelectorModal from '../components/layout/HubSelectorModal';
 import useAppStore from '../store/appStore';
 import useSectionsStore from '../store/sectionsStore';
 import useTasksStore from '../store/tasksStore';
@@ -327,6 +329,83 @@ export default function MyDay() {
   return (
     <div className="page-container flex flex-col gap-6 pb-24 max-w-4xl mx-auto">
       
+      {/* ── 3-CARD MAIN HUB SWITCHER ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Card 1: Games */}
+        <button
+          onClick={() => {
+            soundEngine.playTap?.();
+            haptics.tap?.();
+            navigate('/games');
+          }}
+          className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 via-purple-950/20 to-[var(--bg-card)] border border-rose-500/30 hover:border-rose-400/80 shadow-md hover:shadow-rose-500/10 transition-all flex items-center justify-between text-start group active:scale-95 cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 group-hover:scale-110 transition-transform">
+              <Gamepad2 size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-black text-white group-hover:text-rose-300 block">
+                {isRtl ? 'بازی و سرگرمی' : 'Games & Fun'}
+              </span>
+              <span className="text-[10px] text-slate-300">
+                {isRtl ? 'منچ، تخته‌نرد و آنلاین' : 'Ludo, Chess & Online'}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">
+            {isRtl ? '۱۰+ بازی' : '10+'}
+          </span>
+        </button>
+
+        {/* Card 2: My Day (Active) */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-teal-950/30 to-[var(--bg-card)] border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10 flex items-center justify-between text-start cursor-default">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 shadow-inner">
+              <Flame size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-black text-emerald-300 block">
+                {isRtl ? 'امروز من (فعال)' : 'My Day (Active)'}
+              </span>
+              <span className="text-[10px] text-emerald-400/90">
+                {isRtl ? 'فرماندهی روز و تمرکز' : 'Daily Command Center'}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/50 font-black animate-pulse">
+            {isRtl ? 'صفحه جاری' : 'Current'}
+          </span>
+        </div>
+
+        {/* Card 3: Chat & Dating */}
+        <button
+          onClick={() => {
+            soundEngine.playTap?.();
+            haptics.tap?.();
+            navigate('/chat-rooms');
+          }}
+          className="p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-blue-950/20 to-[var(--bg-card)] border border-cyan-500/30 hover:border-cyan-400/80 shadow-md hover:shadow-cyan-500/10 transition-all flex items-center justify-between text-start group active:scale-95 cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-500/15 text-cyan-400 group-hover:scale-110 transition-transform">
+              <MessagesSquare size={22} />
+            </div>
+            <div>
+              <span className="text-xs font-black text-white group-hover:text-cyan-300 block">
+                {isRtl ? 'چت، گفت‌وگو و دوستیابی' : 'Chat & Community'}
+              </span>
+              <span className="text-[10px] text-slate-300">
+                {isRtl ? 'چت‌روم‌ها و همراهان' : 'Live rooms & Friends'}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">
+            {isRtl ? 'آنلاین' : 'Live'}
+          </span>
+        </button>
+      </div>
+
       {/* 1. HEADER & DAILY PROGRESS RING */}
       <motion.div
         initial={{ opacity: 0, y: -16 }}
