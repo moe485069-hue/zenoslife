@@ -12,6 +12,44 @@ import haptics from '../../utils/haptics';
 import GameMatchSetupModal from '../../components/games/GameMatchSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 
+
+// 3D Dice Face Renderer with Realistic Pips & Number Overlay
+const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
+  const val = Math.max(1, Math.min(6, value || 1));
+  const pips = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8]
+  }[val] || [4];
+
+  const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : size === 'sm' ? 'w-9 h-9' : 'w-11 h-11 sm:w-12 sm:h-12';
+  const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2';
+
+  return (
+    <motion.div
+      animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [0.9, 1.1, 0.95, 1] } : { rotate: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: 'easeInOut' }}
+      className={`${sizeClasses} rounded-2xl bg-gradient-to-b from-[#fffbeb] via-[#fef3c7] to-[#fde68a] border-2 border-[#d97706] shadow-xl p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
+    >
+      <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center">
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
+          <div key={idx} className="w-full h-full flex items-center justify-center">
+            {pips.includes(idx) && (
+              <span className={`${dotSize} rounded-full bg-[#78350f] shadow-inner`} />
+            )}
+          </div>
+        ))}
+      </div>
+      <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-900 text-amber-200 text-[10px] font-black leading-tight border border-amber-500/50 shadow-xs">
+        {val}
+      </span>
+    </motion.div>
+  );
+};
+
 // ----------------------------------------------------
 // THEMES CONFIGURATION
 // ----------------------------------------------------
@@ -121,7 +159,7 @@ export default function Backgammon() {
   const [bar, setBar] = useState({ white: 0, black: 0 });
   const [borneOff, setBorneOff] = useState({ white: 0, black: 0 });
   const [turn, setTurn] = useState('white');
-  const [dice, setDice] = useState([null, null]);
+  const [dice, setDice] = useState([6, 5]);
   const [remainingMoves, setRemainingMoves] = useState([]);
   const [hasRolled, setHasRolled] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState(null);
@@ -469,7 +507,7 @@ export default function Backgammon() {
   const endTurn = (pts = points, curBar = bar, curOff = borneOff, currentActiveTurn = turn) => {
     const nextTurn = currentActiveTurn === 'white' ? 'black' : 'white';
     setTurn(nextTurn);
-    setDice([null, null]);
+    // keep last rolled dice visible
     setRemainingMoves([]);
     setHasRolled(false);
     setSelectedPoint(null);
@@ -947,31 +985,10 @@ export default function Backgammon() {
               }`}
               title={isRtl ? 'برای پرتاب تاس کلیک کنید' : 'Click to roll dice'}
             >
-              {dice[0] !== null && dice[1] !== null ? (
-                <div className="flex items-center gap-2">
-                  <motion.div
-                    initial={{ rotate: -20, scale: 0.8 }}
-                    animate={{ rotate: 0, scale: 1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 flex items-center justify-center text-lg sm:text-xl font-black shadow-lg ${themeConfig.diceBg}`}
-                  >
-                    {dice[0]}
-                  </motion.div>
-                  <motion.div
-                    initial={{ rotate: 20, scale: 0.8 }}
-                    animate={{ rotate: 0, scale: 1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 flex items-center justify-center text-lg sm:text-xl font-black shadow-lg ${themeConfig.diceBg}`}
-                  >
-                    {dice[1]}
-                  </motion.div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 text-xs text-amber-300 font-bold bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/30">
-                  <span>🎲</span>
-                  <span>{isRtl ? 'پرتاب تاس' : 'Roll Dice'}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <RenderDiceFace value={dice[0] || 6} isRolling={isRolling} size="md" />
+                <RenderDiceFace value={dice[1] || 5} isRolling={isRolling} size="md" />
+              </div>
 
               {/* Remaining Moves */}
               {remainingMoves.length > 0 && (

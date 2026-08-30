@@ -12,6 +12,44 @@ import haptics from '../../utils/haptics';
 import GameMatchSetupModal from '../../components/games/GameMatchSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 
+
+// 3D Dice Face Renderer with Realistic Pips & Number Overlay
+const RenderDiceFace = ({ value, isRolling, size = 'lg' }) => {
+  const val = Math.max(1, Math.min(6, value || 6));
+  const pips = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8]
+  }[val] || [4];
+
+  const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : 'w-11 h-11';
+  const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : 'w-2 h-2';
+
+  return (
+    <motion.div
+      animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [0.9, 1.1, 0.95, 1] } : { rotate: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: 'easeInOut' }}
+      className={`${sizeClasses} rounded-2xl bg-gradient-to-b from-[#fffbeb] via-[#fef3c7] to-[#fde68a] border-2 border-[#d97706] shadow-2xl p-2 flex flex-col justify-between items-center relative select-none shrink-0`}
+    >
+      <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center">
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
+          <div key={idx} className="w-full h-full flex items-center justify-center">
+            {pips.includes(idx) && (
+              <span className={`${dotSize} rounded-full bg-[#78350f] shadow-inner`} />
+            )}
+          </div>
+        ))}
+      </div>
+      <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-900 text-amber-200 text-[10px] font-black leading-tight border border-amber-500/50 shadow-xs">
+        {val}
+      </span>
+    </motion.div>
+  );
+};
+
 // ----------------------------------------------------
 // THEMES CONFIGURATION
 // ----------------------------------------------------
@@ -117,7 +155,7 @@ export default function Ludo() {
 
   const [pieces, setPieces] = useState(createInitialPieces);
   const [currentTurnIdx, setCurrentTurnIdx] = useState(0);
-  const [diceRoll, setDiceRoll] = useState(null);
+  const [diceRoll, setDiceRoll] = useState(6);
   const [hasRolled, setHasRolled] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [validPieceIds, setValidPieceIds] = useState([]);
@@ -151,7 +189,7 @@ export default function Ludo() {
         } else if (type === 'PIECES_UPDATE') {
           setPieces(payload.pieces);
           setCurrentTurnIdx(payload.turnIdx);
-          setDiceRoll(null);
+          // keep last rolled dice visible
           setHasRolled(false);
           soundEngine.playCheckmark?.();
         }
@@ -224,10 +262,10 @@ export default function Ludo() {
 
       // If no pieces can move, pass turn
       if (valid.length === 0) {
-        setLastMessage(isRtl ? `تاس: ${roll} — هیچ مهره‌ای قابل حرکت نیست؛ نوبت منتقل شد.` : `Rolled ${roll}. No valid moves.`);
+        setLastMessage(isRtl ? `تاس: ${roll} — برای خروج از خانه نیاز به ۶ دارید؛ نوبت منتقل شد.` : `Rolled ${roll}. Needs a 6 to enter base.`);
         setTimeout(() => {
           passTurn();
-        }, 1200);
+        }, 1600);
       } else if (valid.length === 1 && (gameMode !== 'online' || currentPlayer.id === myOnlineRole)) {
         // Auto-move single piece for convenience
         setTimeout(() => {
@@ -650,19 +688,13 @@ export default function Ludo() {
 
             {/* Interactive 3D Dice */}
             <div className="flex items-center gap-2.5">
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={handleRollDice}
-                disabled={hasRolled || isRolling || (gameMode === 'bot' && currentTurnIdx !== 0) || (gameMode === 'online' && currentPlayer.id !== myOnlineRole)}
-                className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-black shadow-xl transition-all cursor-pointer select-none ${
-                  diceRoll !== null
-                    ? 'bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-yellow-200'
-                    : 'bg-white/10 border-white/20 text-slate-400 hover:border-amber-400'
-                } ${isRolling ? 'animate-spin' : ''}`}
-                title={isRtl ? 'پرتاب تاس' : 'Roll Dice'}
+              <div 
+                onClick={handleRollDice} 
+                className="cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                title={isRtl ? 'برای پرتاب تاس کلیک کنید' : 'Click to roll'}
               >
-                {isRolling ? '🎲' : diceRoll !== null ? diceRoll : '🎲'}
-              </motion.button>
+                <RenderDiceFace value={diceRoll || 6} isRolling={isRolling} size="lg" />
+              </div>
 
               <button
                 onClick={handleRollDice}
