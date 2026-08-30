@@ -914,3 +914,34 @@ input[type='range']:focus { outline: none; }
   border: 1px solid rgba(34, 211, 238, 0.3);
 }
 
+/* 7 Chakra Colors Animated Gradient Wave */
+@keyframes chakraWave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.chakra-wave-text {
+  background: linear-gradient(
+    135deg,
+    #ef4444 0%,
+    #f97316 16.6%,
+    #eab308 33.3%,
+    #10b981 50%,
+    #06b6d4 66.6%,
+    #6366f1 83.3%,
+    #a855f7 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: chakraWave 5s ease-in-out infinite;
+  letter-spacing: -0.02em;
+}
+

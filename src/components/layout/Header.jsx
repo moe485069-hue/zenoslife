@@ -95,8 +95,8 @@ export default function Header() {
       >
         <div className="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between h-14">
           
-          {/* Left: Back Button + App Title (Clean, Upright, Not Italic) */}
-          <div className="flex items-center gap-2 min-w-0">
+          {/* Left: Back Button + App Title (Clean, Upright, Animated 7 Chakra Wave) */}
+          <div className="flex items-center gap-2.5 min-w-0">
             {!isRoot && (
               <button
                 onClick={handleBack}
@@ -107,11 +107,11 @@ export default function Header() {
               </button>
             )}
             
-            <div className="flex items-baseline gap-1.5 min-w-0">
-              <span className="text-base sm:text-lg font-black not-italic tracking-normal bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent select-none">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xl sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif]">
                 {isRtl ? 'زنوسلایف' : 'ZenOsLife'}
               </span>
-              <span className="text-[10px] text-teal-400/80 font-mono font-bold hidden xs:inline not-italic">
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-purple-500/15 via-cyan-500/15 to-emerald-500/15 border border-purple-500/30 text-purple-400 dark:text-purple-300 hidden xs:inline not-italic">
                 {isRtl ? 'ZenOsLife' : 'زنوسلایف'}
               </span>
             </div>
