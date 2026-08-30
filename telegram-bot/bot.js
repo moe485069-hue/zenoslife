@@ -51,6 +51,8 @@ const activePairs = new Map();
 // registrationSteps: Map of userId -> { step: 'name'|'gender'|'age'|'province', tempProfile: {} }
 const registrationSteps = new Map();
 
+const httpsAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+
 // Helper: Telegram API Client
 function callTgApi(method, payload = {}) {
   return new Promise((resolve, reject) => {
@@ -60,6 +62,7 @@ function callTgApi(method, payload = {}) {
       port: 443,
       path: `/bot${CONFIG.BOT_TOKEN}/${method}`,
       method: 'POST',
+      agent: httpsAgent,
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(data)
@@ -89,6 +92,15 @@ function callTgApi(method, payload = {}) {
 // Initialize Menu Button & Commands
 async function initBotSettings() {
   try {
+    // 1. Remove any old webhook to allow getUpdates polling
+    try {
+      await callTgApi('deleteWebhook', { drop_pending_updates: false });
+      console.log('✅ Webhook cleared successfully for Long Polling');
+    } catch (_) {}
+
+    // Verify token
+    const me = await callTgApi('getMe');
+    console.log(`🤖 Connected to Telegram Bot: @${me.username} (ID: ${me.id})`);
     await callTgApi('setChatMenuButton', {
       menu_button: {
         type: 'web_app',
