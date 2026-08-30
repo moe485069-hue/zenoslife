@@ -369,6 +369,9 @@ export default function App() {
             <Route path="/stroll" element={<Stroll />} />
             <Route path="/games" element={<Games />} />
             <Route path="/chat" element={<ChatRooms />} />
+            <Route path="/chat-rooms" element={<ChatRooms />} />
+            <Route path="/chatrooms" element={<ChatRooms />} />
+            <Route path="/dating" element={<ChatRooms />} />
             <Route path="/games/tic-tac-toe" element={<TicTacToe />} />
             <Route path="/games/memory-matrix" element={<MemoryMatrix />} />
             <Route path="/games/wordle" element={<WordlePersian />} />
