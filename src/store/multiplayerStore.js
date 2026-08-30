@@ -8,7 +8,10 @@ import haptics from '../utils/haptics';
 const savedId = localStorage.getItem('life_os_user_id') || ('user_' + Math.random().toString(36).substr(2, 9));
 localStorage.setItem('life_os_user_id', savedId);
 
-const savedName = localStorage.getItem('life_os_user_name') || ('کاربر ' + Math.floor(100 + Math.random() * 900));
+const rawSavedName = localStorage.getItem('life_os_user_name');
+const savedName = (rawSavedName && rawSavedName.length < 30 && !rawSavedName.startsWith('data:image/'))
+  ? rawSavedName
+  : ('کاربر ' + Math.floor(100 + Math.random() * 900));
 const savedAvatar = localStorage.getItem('life_os_user_avatar') || '🌟';
 
 let channel = null;
@@ -535,10 +538,11 @@ const useMultiplayerStore = create((set, get) => {
     },
     
     setUserName: (name) => {
-      localStorage.setItem('life_os_user_name', name);
-      set({ userName: name });
-      realtimeNetwork.updateUser({ name });
-      channel?.postMessage({ type: 'PRESENCE', userId: get().userId, userName: name, avatar: get().userAvatar });
+      const clean = (name && name.length < 30 && !name.startsWith('data:image/')) ? name.trim() : 'کاربر زنوسلایف';
+      localStorage.setItem('life_os_user_name', clean);
+      set({ userName: clean });
+      realtimeNetwork.updateUser({ name: clean });
+      channel?.postMessage({ type: 'PRESENCE', userId: get().userId, userName: clean, avatar: get().userAvatar });
     },
 
     setUserAvatar: (avatar) => {
