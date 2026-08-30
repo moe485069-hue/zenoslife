@@ -12,6 +12,7 @@ import haptics from '../utils/haptics';
 import gameRoomsService from '../services/gameRoomsService';
 
 const GAME_DEFS = [
+  { id: 'hokm', titleFa: 'حکم ۴ نفره شاهانه', icon: '👑', path: '/games/hokm', category: 'board', maxPlayers: 4, color: 'from-amber-700/30 to-yellow-900/60 border-amber-400/50 ring-1 ring-amber-400/30', descFa: 'بازی اصیل حکم ۴ نفره با هوش مصنوعی و امکان شرط‌بندی سکه.', level: 'شاهانه 👑' },
   { id: 'backgammon', titleFa: 'تخته نرد شاهانه', icon: '🎲', path: '/games/backgammon', category: 'board', maxPlayers: 2, color: 'from-amber-600/30 to-yellow-900/60 border-amber-500/50', descFa: 'بازی اصیل تخته نرد با ۳ تم زیبا. ربات، دونفره، آنلاین.', level: 'شاهانه 👑' },
   { id: 'ludo', titleFa: 'منچ کلاسیک', icon: '🎯', path: '/games/ludo', category: 'board', maxPlayers: 4, color: 'from-rose-600/30 to-amber-900/60 border-rose-500/50', descFa: 'منچ ۲ تا ۴ نفره با ربات یا آنلاین.', level: 'هیجان‌انگیز 🔥' },
   { id: 'pasur', titleFa: 'پاستور فارسی', icon: '🃏', path: '/games/pasur', category: 'board', maxPlayers: 2, color: 'from-green-700/30 to-emerald-900/60 border-green-500/50', descFa: 'بازی کارتی اصیل ایرانی. جمع کن، امتیاز بگیر، قهرمان شو!', level: 'ایرانی 🇮🇷' },
@@ -27,7 +28,7 @@ const GAME_DEFS = [
   { id: 'memory_matrix', titleFa: 'ماتریس حافظه', icon: '🧠', path: '/games/memory-matrix', category: 'puzzle', maxPlayers: 1, color: 'from-fuchsia-600/20 to-purple-900/50 border-fuchsia-500/40', descFa: 'حافظه فعال و تمرکز ذهن را تقویت کن.', level: 'حافظه 🧠' },
 ];
 
-const MULTIPLAYER_IDS = ['backgammon','ludo','pasur','billiards','cosmic_chess','tic_tac_toe','cosmic_pong'];
+const MULTIPLAYER_IDS = ['hokm','backgammon','ludo','pasur','billiards','cosmic_chess','tic_tac_toe','cosmic_pong'];
 const CATEGORIES = [
   { id: 'all', labelFa: 'همه', icon: '🎮' },
   { id: 'board', labelFa: 'تخته', icon: '🎲' },

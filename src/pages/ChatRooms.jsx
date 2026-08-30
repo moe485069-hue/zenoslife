@@ -14,6 +14,13 @@ import useMultiplayerStore from '../store/multiplayerStore';
 import { COMPANION_PERSONAS } from '../services/companionAI';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
+import TriviaBotWidget from '../components/chat/TriviaBotWidget';
+import SyncRadioWidget from '../components/chat/SyncRadioWidget';
+import SuperGiftingModal from '../components/chat/SuperGiftingModal';
+import SoulBondModal from '../components/chat/SoulBondModal';
+import BlindChatModal from '../components/chat/BlindChatModal';
+import ZenStoreModal from '../components/chat/ZenStoreModal';
+
 
 const FLASH_EMOJIS = ['🔥', '❤️', '👏', '🌟', '💎', '🚀', '👑', '🧘', '🌸', '⚔️', '💯', '✨', '☕', '💡', '🏆', '🎯'];
 
@@ -178,6 +185,18 @@ export default function ChatRooms() {
 
   // New Forum Thread
   const [isNewThreadModalOpen, setIsNewThreadModalOpen] = useState(false);
+  // New Ecosystem Modals
+  const [isGiftingModalOpen, setIsGiftingModalOpen] = useState(false);
+  const [giftTargetUser, setGiftTargetUser] = useState(null);
+  const [isSoulBondModalOpen, setIsSoulBondModalOpen] = useState(false);
+  const [isBlindChatModalOpen, setIsBlindChatModalOpen] = useState(false);
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [showRadioWidget, setShowRadioWidget] = useState(true);
+  const [showTriviaWidget, setShowTriviaWidget] = useState(true);
+  
+  const { activeGiftAnimation, activeSoulBond } = useMultiplayerStore();
+  const { equippedFrame, equippedNameColor } = useAppStore();
+
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadCategory, setNewThreadCategory] = useState('philosophy');
 
@@ -588,6 +607,37 @@ export default function ChatRooms() {
                 <span className="hidden sm:inline">پنل مدیریت</span>
               </button>
             )}
+
+            
+            {/* VIP Store Button */}
+            <button
+              onClick={() => { setIsStoreModalOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
+              title="فروشگاه اقلام VIP"
+            >
+              <span>🛍️</span>
+              <span className="hidden sm:inline">فروشگاه</span>
+            </button>
+
+            {/* Blind Speed Chat Button */}
+            <button
+              onClick={() => { setIsBlindChatModalOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
+              title="قرار ناشناس ۳ دقیقه‌ای"
+            >
+              <span>🎭</span>
+              <span className="hidden sm:inline">قرار ناشناس</span>
+            </button>
+
+            {/* Soul Bond Partner Button */}
+            <button
+              onClick={() => { setIsSoulBondModalOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-2 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
+              title="پارتنر و پیوند"
+            >
+              <span>💍</span>
+              {activeSoulBond && <span className="hidden sm:inline font-black text-white">{activeSoulBond.name}</span>}
+            </button>
 
             {/* Mobile Online Users Toggle Button */}
             <button

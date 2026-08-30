@@ -57,8 +57,11 @@ const useAppStore = create((set, get) => ({
   soundEnabled: true,
   xp: 45,
   level: 1,
-  streak: 3,
-  coins: 350, // Life Coins
+  coins: parseInt(localStorage.getItem('user_coins') || '350', 10), // Life Coins
+  purchasedItems: JSON.parse(localStorage.getItem('lifeos_purchased_items') || '["default_frame", "default_color"]'),
+  equippedFrame: localStorage.getItem('lifeos_equipped_frame') || 'none',
+  equippedNameColor: localStorage.getItem('lifeos_equipped_name_color') || 'default',
+  equippedBubble: localStorage.getItem('lifeos_equipped_bubble') || 'default',
   badges: ['first_step', 'streak_3'],
   todayScore: 65,
   showInstallPrompt: false,
@@ -244,6 +247,35 @@ const useAppStore = create((set, get) => ({
     localStorage.setItem('user_coins', String(newCoins));
     set({ coins: newCoins });
     return true;
+  },
+
+  buyStoreItem: (item) => {
+    const { coins, purchasedItems, spendCoins } = get();
+    if (purchasedItems.includes(item.id)) return { success: true, message: 'قبلاً خریداری شده است' };
+    if ((coins || 0) < item.price) return { success: false, message: 'موجودی سکه کافی نیست!' };
+    
+    if (spendCoins(item.price)) {
+      const updated = [...purchasedItems, item.id];
+      localStorage.setItem('lifeos_purchased_items', JSON.stringify(updated));
+      set({ purchasedItems: updated });
+      soundEngine.playLevelUp?.();
+      return { success: true, message: 'با موفقیت خریداری شد 🎉' };
+    }
+    return { success: false, message: 'خطا در خرید' };
+  },
+
+  setEquippedItem: (type, id) => {
+    if (type === 'frame') {
+      localStorage.setItem('lifeos_equipped_frame', id);
+      set({ equippedFrame: id });
+    } else if (type === 'nameColor') {
+      localStorage.setItem('lifeos_equipped_name_color', id);
+      set({ equippedNameColor: id });
+    } else if (type === 'bubble') {
+      localStorage.setItem('lifeos_equipped_bubble', id);
+      set({ equippedBubble: id });
+    }
+    soundEngine.playTap?.();
   },
 
   addXP: (amount, reason = '') => {

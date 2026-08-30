@@ -235,6 +235,47 @@ const useMultiplayerStore = create((set, get) => {
           mutedUserIds: [...new Set([...state.mutedUserIds, data.targetUserId])]
         }));
       }
+    
+    } else if (data.type === 'ANIMATED_GIFT') {
+      if (data.gift) {
+        set({ activeGiftAnimation: data.gift });
+        setTimeout(() => {
+          set({ activeGiftAnimation: null });
+        }, 3500);
+      }
+    } else if (data.type === 'SOUL_BOND_REQUEST') {
+      if (data.targetUserId === get().userId) {
+        set({
+          incomingSoulBondRequest: {
+            senderId: data.senderId,
+            senderName: data.senderName,
+            senderAvatar: data.senderAvatar
+          }
+        });
+      }
+    } else if (data.type === 'SOUL_BOND_ACCEPTED') {
+      if (data.targetUserId === get().userId || data.senderId === get().userId) {
+        const partner = data.senderId === get().userId 
+          ? { id: data.targetUserId, name: data.targetUserName, avatar: data.targetUserAvatar }
+          : { id: data.senderId, name: data.senderName, avatar: data.senderAvatar };
+        localStorage.setItem('zen_soul_bond', JSON.stringify(partner));
+        set({ activeSoulBond: partner, incomingSoulBondRequest: null });
+      }
+    } else if (data.type === 'TRIVIA_QUESTION') {
+      if (data.trivia) {
+        set({ activeTrivia: data.trivia });
+      }
+    } else if (data.type === 'TRIVIA_ANSWER') {
+      if (data.winner) {
+        set(state => ({
+          activeTrivia: state.activeTrivia ? { ...state.activeTrivia, answered: true, winner: data.winner } : null
+        }));
+      }
+    } else if (data.type === 'INGAME_REACTION') {
+      if (data.reaction) {
+        set({ activeGameReaction: data.reaction });
+        setTimeout(() => set({ activeGameReaction: null }), 2500);
+      }
     } else if (data.type === 'ADMIN_BAN_USER') {
       if (data.targetUserId) {
         set(state => ({
@@ -283,6 +324,27 @@ const useMultiplayerStore = create((set, get) => {
     userBadges: loadSavedBadges(),
     mutedUserIds: [],
     bannedUserIds: [],
+    // Animated Gifts & Gifting
+    activeGiftAnimation: null,
+    
+    // Soul Bonds / Virtual Partners
+    activeSoulBond: JSON.parse(localStorage.getItem('zen_soul_bond') || 'null'),
+    incomingSoulBondRequest: null,
+
+    // Trivia Bot
+    activeTrivia: null,
+
+    // In-game Reactions
+    activeGameReaction: null,
+
+    // Blind Speed Chat
+    blindChatState: {
+      status: 'idle', // 'idle' | 'searching' | 'chatting' | 'deciding' | 'matched'
+      partner: null,
+      timeLeft: 180,
+      messages: []
+    },
+
 
     onlineUsers: [...DEFAULT_MENTORS],
 
@@ -658,6 +720,120 @@ const useMultiplayerStore = create((set, get) => {
       });
     },
     
+    
+    sendAnimatedGift: (gift, targetUser) => {
+      const payload = {
+        type: 'ANIMATED_GIFT',
+        gift: {
+          id: 'gift_' + Date.now(),
+          giftId: gift.id,
+          giftIcon: gift.icon,
+          giftName: gift.nameFa,
+          senderId: get().userId,
+          senderName: get().userName,
+          senderAvatar: get().userAvatar,
+          targetId: targetUser.id,
+          targetName: targetUser.name || targetUser.fullName,
+          targetAvatar: targetUser.avatar
+        }
+      };
+      set({ activeGiftAnimation: payload.gift });
+      setTimeout(() => set({ activeGiftAnimation: null }), 3500);
+      channel?.postMessage(payload);
+      realtimeNetwork.publish(payload);
+    },
+
+    sendSoulBondRequest: (targetUser) => {
+      const payload = {
+        type: 'SOUL_BOND_REQUEST',
+        senderId: get().userId,
+        senderName: get().userName,
+        senderAvatar: get().userAvatar,
+        targetUserId: targetUser.id
+      };
+      channel?.postMessage(payload);
+      realtimeNetwork.publish(payload);
+    },
+
+    acceptSoulBond: (request) => {
+      const partner = { id: request.senderId, name: request.senderName, avatar: request.senderAvatar };
+      localStorage.setItem('zen_soul_bond', JSON.stringify(partner));
+      set({ activeSoulBond: partner, incomingSoulBondRequest: null });
+      const payload = {
+        type: 'SOUL_BOND_ACCEPTED',
+        senderId: request.senderId,
+        senderName: request.senderName,
+        senderAvatar: request.senderAvatar,
+        targetUserId: get().userId,
+        targetUserName: get().userName,
+        targetUserAvatar: get().userAvatar
+      };
+      channel?.postMessage(payload);
+      realtimeNetwork.publish(payload);
+    },
+
+    rejectSoulBond: () => set({ incomingSoulBondRequest: null }),
+    removeSoulBond: () => {
+      localStorage.removeItem('zen_soul_bond');
+      set({ activeSoulBond: null });
+    },
+
+    publishTriviaQuestion: (triviaData) => {
+      const payload = {
+        type: 'TRIVIA_QUESTION',
+        trivia: {
+          id: 'trivia_' + Date.now(),
+          ...triviaData,
+          answered: false,
+          winner: null
+        }
+      };
+      set({ activeTrivia: payload.trivia });
+      channel?.postMessage(payload);
+      realtimeNetwork.publish(payload);
+    },
+
+    answerTrivia: (selectedIdx) => {
+      const trivia = get().activeTrivia;
+      if (!trivia || trivia.answered) return false;
+      const isCorrect = selectedIdx === trivia.correctIndex;
+      if (isCorrect) {
+        const payload = {
+          type: 'TRIVIA_ANSWER',
+          triviaId: trivia.id,
+          winner: {
+            id: get().userId,
+            name: get().userName,
+            avatar: get().userAvatar,
+            points: trivia.points || 50
+          }
+        };
+        set(state => ({
+          activeTrivia: state.activeTrivia ? { ...state.activeTrivia, answered: true, winner: payload.winner } : null
+        }));
+        channel?.postMessage(payload);
+        realtimeNetwork.publish(payload);
+        return true;
+      }
+      return false;
+    },
+
+    sendInGameReaction: (reaction) => {
+      const payload = {
+        type: 'INGAME_REACTION',
+        reaction: {
+          ...reaction,
+          senderName: get().userName,
+          senderAvatar: get().userAvatar,
+          timestamp: Date.now()
+        }
+      };
+      set({ activeGameReaction: payload.reaction });
+      setTimeout(() => set({ activeGameReaction: null }), 2500);
+      channel?.postMessage(payload);
+      realtimeNetwork.publish(payload);
+    },
+
     leaveGame: () => {
       set({ activeGameId: null, gameState: null });
     }

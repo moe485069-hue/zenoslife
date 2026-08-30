@@ -85,6 +85,7 @@ const Backgammon = lazyRetry(() => import('./pages/games/Backgammon'));
 const Ludo = lazyRetry(() => import('./pages/games/Ludo'));
 const Pasur = lazyRetry(() => import('./pages/games/Pasur'));
 const Billiards = lazyRetry(() => import('./pages/games/Billiards'));
+const Hokm = lazyRetry(() => import('./pages/games/Hokm'));
 const ChatRooms = lazyRetry(() => import('./pages/ChatRooms'));
 
 // Loading spinner component
@@ -387,6 +388,7 @@ export default function App() {
             <Route path="/games/ludo" element={<Ludo />} />
             <Route path="/games/pasur" element={<Pasur />} />
             <Route path="/games/billiards" element={<Billiards />} />
+            <Route path="/games/hokm" element={<Hokm />} />
             <Route path="/dashboard" element={<Home />} />
             <Route path="/home" element={<Home />} />
             <Route path="/mindfulness" element={<Mindfulness />} />
