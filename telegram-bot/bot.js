@@ -16,7 +16,7 @@ const path = require('path');
 
 // Configuration
 const CONFIG = {
-  BOT_TOKEN: process.env.BOT_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN_HERE',
+  BOT_TOKEN: process.env.BOT_TOKEN || '8887477989:AAFVHgDFJOLiLruG7d_zIY-5LKAcg50oYC4',
   WEBAPP_URL: process.env.WEBAPP_URL || 'https://zen.moeid.net',
   CHANNEL_USERNAME: process.env.CHANNEL_USERNAME || '@zenoslife_official',
   ADMIN_IDS: (process.env.ADMIN_IDS || '123456789').split(',').map(id => id.trim()),
