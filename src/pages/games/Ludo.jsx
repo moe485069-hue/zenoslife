@@ -305,11 +305,21 @@ export default function Ludo() {
   // MOVE PIECE LOGIC
   // ----------------------------------------------------
   const handlePieceClick = (playerId, pieceId) => {
-    if (!hasRolled || isRolling) return;
-    if (playerId !== currentPlayer.id) return;
-    if (!validPieceIds.includes(pieceId)) return;
+    if (isRolling) return;
     if (gameMode === 'bot' && currentTurnIdx !== 0) return;
     if (gameMode === 'online' && playerId !== myOnlineRole) return;
+
+    // If user hasn't rolled yet, roll dice automatically on piece tap!
+    if (!hasRolled) {
+      rollDiceAction();
+      return;
+    }
+
+    if (playerId !== currentPlayer.id) return;
+    if (!validPieceIds.includes(pieceId)) {
+      setLastMessage(isRtl ? 'این مهره با تاس فعلی امکان حرکت ندارد.' : 'This piece cannot move with current roll.');
+      return;
+    }
 
     movePiece(playerId, pieceId, diceRoll);
   };

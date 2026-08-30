@@ -404,39 +404,82 @@ export default function Backgammon() {
   // EXECUTE MOVE
   // ----------------------------------------------------
   const handlePointClick = (pointIdx) => {
-    if (!hasRolled || isRolling) return;
+    if (isRolling) return;
     if (gameMode === 'bot' && turn === 'black') return;
     if (gameMode === 'online' && turn !== myOnlineRole) return;
 
-    if (bar[turn] > 0 && selectedPoint !== 'bar') {
-      setSelectedPoint('bar');
-      playSfx(soundEngine.playTap);
+    // If user hasn't rolled yet, roll dice automatically!
+    if (!hasRolled || remainingMoves.length === 0) {
+      rollDiceAction();
       return;
     }
 
+    // If player has checkers on bar, force bar selection
+    if (bar[turn] > 0 && selectedPoint !== 'bar') {
+      const barMoves = getValidMovesForPoint('bar', points, bar, remainingMoves, turn);
+      if (barMoves.length === 1) {
+        executeMove('bar', barMoves[0].target, barMoves[0].dieUsed);
+      } else {
+        setSelectedPoint('bar');
+        playSfx(soundEngine.playTap);
+      }
+      return;
+    }
+
+    // If no point selected yet
     if (selectedPoint === null) {
       if (pointIdx === 'bar') {
-        if (bar[turn] > 0) setSelectedPoint('bar');
+        if (bar[turn] > 0) {
+          const barMoves = getValidMovesForPoint('bar', points, bar, remainingMoves, turn);
+          if (barMoves.length === 1) {
+            executeMove('bar', barMoves[0].target, barMoves[0].dieUsed);
+          } else {
+            setSelectedPoint('bar');
+            playSfx(soundEngine.playTap);
+          }
+        }
         return;
       }
+
       if (pointIdx >= 1 && pointIdx <= 24 && points[pointIdx].player === turn && points[pointIdx].count > 0) {
+        const moves = getValidMovesForPoint(pointIdx, points, bar, remainingMoves, turn);
+        if (moves.length === 0) {
+          setLastMoveMsg(isRtl ? 'این مهره با تاس‌های فعلی حرکت مجازی ندارد.' : 'No legal moves for this checker.');
+          playSfx(soundEngine.playTap);
+          return;
+        }
+
+        // Single-tap auto-move if only 1 destination!
+        if (moves.length === 1) {
+          executeMove(pointIdx, moves[0].target, moves[0].dieUsed);
+          return;
+        }
+
         setSelectedPoint(pointIdx);
         playSfx(soundEngine.playTap);
       }
       return;
     }
 
+    // Tapping the same point again -> unselect
     if (selectedPoint === pointIdx) {
       setSelectedPoint(null);
       return;
     }
 
+    // Tapping another friendly checker -> select that one
     if (pointIdx !== 'bar' && pointIdx !== 'off' && points[pointIdx].player === turn && points[pointIdx].count > 0) {
+      const moves = getValidMovesForPoint(pointIdx, points, bar, remainingMoves, turn);
+      if (moves.length === 1) {
+        executeMove(pointIdx, moves[0].target, moves[0].dieUsed);
+        return;
+      }
       setSelectedPoint(pointIdx);
       playSfx(soundEngine.playTap);
       return;
     }
 
+    // Check if target is valid move
     const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
     const matchedMove = validMoves.find(m => m.target === pointIdx);
 
