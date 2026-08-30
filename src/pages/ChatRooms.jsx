@@ -5,10 +5,11 @@ import {
   ChevronLeft, MessageSquare, Users, Globe, Hash, Shield, Lock, 
   Send, UserPlus, Zap, Activity, Heart, Coins, MoreVertical, X, 
   MessagesSquare, FileText, PlusCircle, Smile, Reply, CornerDownRight, 
-  Sparkles, AtSign, Eye, EyeOff, Check, UserCheck, Flame, Volume2
+  Sparkles, AtSign, Eye, EyeOff, Check, UserCheck, Flame, Volume2, Gamepad2
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
+import { COMPANION_PERSONAS } from '../services/companionAI';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
 
@@ -33,78 +34,14 @@ const QUICK_PHRASES = [
   'دمت گرم رفیق، موفق باشی 👏'
 ];
 
-export const MATCH_COMPANIONS = [
-  {
-    id: 'companion_sara',
-    name: 'سارا (آناهیتا)',
-    avatar: '🌸',
-    age: 26,
-    city: 'تهران / آنلاین',
-    bio: 'عاشق مراقبه‌های سحرگاهی، پیاده‌روی در طبیعت و کتاب‌های کوانتومی و رشد فردی. به دنبال هم‌افزایی و تبادل انرژی مثبت.',
-    chakra: '💚 چاکرای قلب (عشق و صلح)',
-    lookingFor: 'همراه رشد و مراقبه',
-    interests: ['مدیتیشن', 'کتابخوانی', 'طبیعت‌گردی', 'یوگا', 'هنر'],
-    matchScore: 98,
-    status: '🟢 آنلاین • آماده گفتگو',
-    category: 'mindfulness'
-  },
-  {
-    id: 'companion_arash',
-    name: 'آرش کیهان',
-    avatar: '🚀',
-    age: 29,
-    city: 'اصفهان / آنلاین',
-    bio: 'کارآفرین تکنولوژی، مشتاق انضباط فردی، بازارهای مالی و بازی‌های استراتژیک تخته‌نرد و شطرنج. اهل بحث‌های عمیق و سازنده.',
-    chakra: '👁️ چاکرای چشم سوم (شهود و بینش)',
-    lookingFor: 'پارتنر بیزینس و بازی',
-    interests: ['سرمایه‌گذاری', 'شطرنج', 'تخته‌نرد', 'هوش مصنوعی', 'ورزش'],
-    matchScore: 95,
-    status: '🎮 آماده بازی و رقابت',
-    category: 'business'
-  },
-  {
-    id: 'companion_niloofar',
-    name: 'نیلوفر زاد',
-    avatar: '🧘',
-    age: 24,
-    city: 'شیراز / آنلاین',
-    bio: 'مربی مایندفولنس و آرامش ذهن. عاشق موسیقی اصیل، شعر مولانا و تمرین‌های تنفسی. بیا فضای آرامی برای مکالمه بسازیم.',
-    chakra: '💙 چاکرای گلو (بیان حقیقت)',
-    lookingFor: 'دوستی عمیق و حال خوب',
-    interests: ['مراقبه', 'موسیقی', 'روانشناسی', 'شعر', 'پادکست'],
-    matchScore: 92,
-    status: '🟢 آنلاین • در حال مطالعه',
-    category: 'mindfulness'
-  },
-  {
-    id: 'companion_reza',
-    name: 'رضا فیتنس',
-    avatar: '🔥',
-    age: 28,
-    city: 'مشهد / آنلاین',
-    bio: 'تمرکز ۱۰۰٪ روی روتین ۵ صبح، بدنسازی، تغذیه پاک و ساخت عادت‌های فولادی. اگر دنبال انگیزه و چالش ورزشی هستی پایه‌ام!',
-    chakra: '☀️ چاکرای خورشیدی (اراده و قدرت)',
-    lookingFor: 'پارتنر تمرین و چالش عادت',
-    interests: ['بدنسازی', 'روتین صبحگاهی', 'پومودورو', 'دوش آب سرد', 'دویدن'],
-    matchScore: 89,
-    status: '🏃 در حال روتین ورزشی',
-    category: 'fitness'
-  },
-  {
-    id: 'companion_diana',
-    name: 'دیانا ستاره',
-    avatar: '💎',
-    age: 27,
-    city: 'تبریز / آنلاین',
-    bio: 'طراح خلاق و علاقمند به فلسفه شرق، تائوئیسم و بازی‌های فکری. دنبال دوستان هم‌فرکانس برای گپ‌های شبانه و تخته‌نرد.',
-    chakra: '👑 چاکرای تاج (آگاهی کیهانی)',
-    lookingFor: 'همراه فکری و بازی',
-    interests: ['فلسفه', 'تخته‌نرد', 'طراحی', 'نوروفیدبک', 'تتریس'],
-    matchScore: 96,
-    status: '🟢 آنلاین • آماده چت',
-    category: 'gaming'
-  }
+const QUICK_DM_PROMPTS = [
+  'سلام دوست عزیزم! روزت چطور می‌گذره؟ 🌸',
+  'پایه‌ای یک دست تخته‌نرد یا منچ آنلاین بازی کنیم؟ 🎲',
+  'امروز روی چه عاداتی تمرکز داری؟ 🧘',
+  'چه کتاب یا پادکست خوبی رو پیشنهاد می‌کنی؟ 💡'
 ];
+
+export const MATCH_COMPANIONS = Object.values(COMPANION_PERSONAS);
 
 export default function ChatRooms() {
   const { language, coins, addCoins } = useAppStore();
@@ -115,6 +52,7 @@ export default function ChatRooms() {
     networkStatus, activeRelayCount,
     onlineUsers, globalChat, forumThreads,
     directMessages, activeDmUserId, setActiveDmUserId, sendDirectMessage,
+    isCompanionTyping,
     pingUsers, sendGlobalMessage, likeMessage, tipMessage, addForumThread 
   } = useMultiplayerStore();
 
@@ -132,8 +70,9 @@ export default function ChatRooms() {
   });
   const [isMyProfileModalOpen, setIsMyProfileModalOpen] = useState(false);
   const [myMatchBio, setMyMatchBio] = useState(() => localStorage.getItem('zen_my_match_bio') || 'علاقه‌مند به خودشناسی، مراقبه، ورزش و گفت‌وگوهای پرانرژی');
-  const [myMatchChakra, setMyMatchChakra] = useState(() => localStorage.getItem('zen_my_match_chakra') || '💚 چاکرای قلب');
-  const [myMatchGoal, setMyMatchGoal] = useState(() => localStorage.getItem('zen_my_match_goal') || 'همراه رشد و یادگیری');
+  const [myMatchChakra, setMyMatchChakra] = useState(() => localStorage.getItem('zen_my_match_chakra') || '💚 چاکرای قلب (عشق و تعادل)');
+  const [myMatchGoal, setMyMatchGoal] = useState(() => localStorage.getItem('zen_my_match_goal') || 'همراه رشد و مراقبه');
+  const [hasRegisteredProfile, setHasRegisteredProfile] = useState(() => !!localStorage.getItem('zen_my_match_bio'));
   
   const [chatInput, setChatInput] = useState('');
   const [dmInput, setDmInput] = useState('');
@@ -155,6 +94,7 @@ export default function ChatRooms() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isNewThreadModalOpen, setIsNewThreadModalOpen] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
+  const [newThreadCategory, setNewThreadCategory] = useState('philosophy');
 
   const chatEndRef = useRef(null);
   const dmEndRef = useRef(null);
@@ -170,6 +110,12 @@ export default function ChatRooms() {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [globalChat, activeRoom, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'dm') {
+      dmEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [directMessages, activeDmUserId, activeTab, isCompanionTyping]);
 
   const handleSaveName = () => {
     if (tempName.trim().length > 1) {
@@ -210,7 +156,7 @@ export default function ChatRooms() {
     if (e) e.preventDefault();
     if (!dmInput.trim() || !activeDmUserId) return;
     
-    const targetUser = onlineUsers.find(u => u.id === activeDmUserId) || { id: activeDmUserId, name: 'کاربر' };
+    const targetUser = onlineUsers.find(u => u.id === activeDmUserId) || { id: activeDmUserId, name: 'همراه' };
     sendDirectMessage(activeDmUserId, targetUser.name, dmInput.trim());
     setDmInput('');
     soundEngine.playTap?.();
@@ -225,7 +171,7 @@ export default function ChatRooms() {
       const next = isAlready ? prev.filter(id => id !== companion.id) : [...prev, companion.id];
       localStorage.setItem('zen_connected_companions', JSON.stringify(next));
       if (!isAlready) {
-        sendGlobalMessage(isRtl ? `❤️ ${userName} با ${companion.name} (${companion.matchScore}٪ هم‌فرکانس) پیوند همراهی برقرار کرد!` : `❤️ ${userName} connected with ${companion.name}!`, activeRoom, true);
+        sendGlobalMessage(isRtl ? `❤️ ${userName} با ${companion.name} (${companion.matchScore || 95}٪ هم‌فرکانس) پیوند همراهی برقرار کرد!` : `❤️ ${userName} connected with ${companion.name}!`, activeRoom, true);
       }
       return next;
     });
@@ -241,7 +187,8 @@ export default function ChatRooms() {
   const handleInviteToGame = (companion) => {
     soundEngine.playCheckmark?.();
     haptics.tap?.();
-    navigate(`/games/backgammon?room=${encodeURIComponent('SOUL-' + companion.name)}&mode=online`);
+    const cleanName = (companion.name || 'SOUL').replace(/\s+/g, '-');
+    navigate(`/games/backgammon?room=${encodeURIComponent('SOUL-' + cleanName)}&mode=online`);
   };
 
   const handleSaveMyMatchProfile = (e) => {
@@ -249,8 +196,10 @@ export default function ChatRooms() {
     localStorage.setItem('zen_my_match_bio', myMatchBio);
     localStorage.setItem('zen_my_match_chakra', myMatchChakra);
     localStorage.setItem('zen_my_match_goal', myMatchGoal);
+    setHasRegisteredProfile(true);
     setIsMyProfileModalOpen(false);
-    soundEngine.playCheckmark?.();
+    sendGlobalMessage(isRtl ? `✨ ${userName} پروفایل هم‌فرکانسی و دوستیابی خود را فعال کرد!` : `✨ ${userName} published their soul match profile!`, 'general', true);
+    soundEngine.playLevelUp?.();
     haptics.success?.();
   };
 
@@ -307,7 +256,7 @@ export default function ChatRooms() {
     addForumThread({
       title: newThreadTitle.trim(),
       author: userName,
-      category: activeRoom
+      category: newThreadCategory
     });
     setNewThreadTitle('');
     setIsNewThreadModalOpen(false);
@@ -319,7 +268,6 @@ export default function ChatRooms() {
   const roomMessages = globalChat.filter(m => {
     const isThisRoom = m.roomId === activeRoom || m.text.startsWith(`[${activeRoom}]`);
     if (!isThisRoom) return false;
-    // Whisper filter: only show if public, or if current user is sender or target
     if (m.isWhisper) {
       return m.userId === userId || m.whisperTargetId === userId;
     }
@@ -332,6 +280,15 @@ export default function ChatRooms() {
     return d.toLocaleTimeString(isRtl ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const activePeer = onlineUsers.find(u => u.id === activeDmUserId) || MATCH_COMPANIONS.find(c => c.id === activeDmUserId) || { id: activeDmUserId, name: 'همراه', avatar: '🌸' };
+
+  // Filtered companions
+  const filteredCompanions = MATCH_COMPANIONS.filter(c => {
+    if (matchCategory === 'connected') return connectedUserIds.includes(c.id);
+    if (matchCategory === 'all') return true;
+    return c.category === matchCategory;
+  });
+
   return (
     <div className="w-full h-[calc(100dvh-75px)] relative overflow-hidden bg-[var(--bg-primary)] flex flex-col" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Background Graphic */}
@@ -340,7 +297,8 @@ export default function ChatRooms() {
       </div>
 
       <div className="relative z-10 px-2 sm:px-4 pt-2 sm:pt-4 max-w-6xl w-full mx-auto flex flex-col h-full min-h-0">
-{/* Top Header Bar */}
+        
+        {/* Top Header Bar */}
         <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
           <div className="flex items-center gap-2">
             <button 
@@ -352,18 +310,18 @@ export default function ChatRooms() {
             </button>
             <div>
               <h1 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-fuchsia-400 leading-tight">
-                {isRtl ? 'چت‌روم زنده و جامعه' : 'Live Community'}
+                {isRtl ? 'جامعه، چت زنده و دوستیابی' : 'Live Sanctuary & Soul Match'}
               </h1>
               <div className="flex items-center gap-1.5 mt-0.5">
                 {networkStatus === 'connected' ? (
                   <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>{isRtl ? 'شبکه زنده جهانی' : 'Live Net'}</span>
+                    <span>{isRtl ? 'شبکه زنده و متصل' : 'Live & Connected'} ({activeRelayCount || 4} سرور)</span>
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] text-amber-400 font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <span>{isRtl ? 'در حال اتصال...' : 'Connecting...'}</span>
+                  <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{isRtl ? 'شبکه فعال جهانی' : 'Global Net Active'}</span>
                   </span>
                 )}
               </div>
@@ -441,36 +399,35 @@ export default function ChatRooms() {
           </div>
         </div>
 
-        
-{/* Mobile Horizontal Channels Strip */}
-        <div className="flex md:hidden items-center gap-1 overflow-x-auto no-scrollbar py-1 shrink-0 mb-1">
-          {ROOMS.map(room => (
-            <button
-              key={room.id}
-              onClick={() => !room.locked && setActiveRoom(room.id)}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all ${
-                activeRoom === room.id
-                  ? 'bg-purple-600 text-white border-purple-500 shadow-sm scale-102'
-                  : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)]'
-              } ${room.locked ? 'opacity-40 pointer-events-none' : ''}`}
-            >
-              <span>{room.icon}</span>
-              <span>{isRtl ? room.nameFa : room.nameEn}</span>
-            </button>
-          ))}
-        </div>
+        {/* Mobile Horizontal Channels Strip (Shown only in Chat Tab) */}
+        {activeTab === 'chat' && (
+          <div className="flex md:hidden items-center gap-1 overflow-x-auto no-scrollbar py-1 shrink-0 mb-1">
+            {ROOMS.map(room => (
+              <button
+                key={room.id}
+                onClick={() => !room.locked && setActiveRoom(room.id)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap flex items-center gap-1.5 shrink-0 transition-all ${
+                  activeRoom === room.id
+                    ? 'bg-purple-600 text-white border-purple-500 shadow-sm scale-102'
+                    : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)]'
+                } ${room.locked ? 'opacity-40' : ''}`}
+              >
+                {room.icon}
+                <span>{isRtl ? room.nameFa : room.nameEn}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-        
         {/* Main Workspace Layout */}
         <div className="flex-1 flex flex-col md:flex-row gap-3 min-h-0 relative pb-1">
-{/* Desktop Left Sidebar: Rooms & Online Users */}
-          <div className="hidden md:flex w-60 shrink-0 flex-col gap-3 overflow-y-auto no-scrollbar pb-2">
-            <h3 className="text-[10px] font-black text-[var(--text-secondary)] px-1 uppercase tracking-wider flex items-center gap-1.5">
-              <Globe size={12} />
-              {isRtl ? 'کانال‌های گفتگو' : 'Channels'}
-            </h3>
-            
-            <div className="space-y-1.5">
+          
+          {/* Desktop Left Sidebar: Rooms & Online Users (Visible on Desktop) */}
+          <div className="hidden md:flex w-60 flex-col gap-2 shrink-0 h-full overflow-hidden">
+            <div className="p-2.5 rounded-3xl border border-[var(--border)] bg-[var(--bg-card)] space-y-1 shadow-sm">
+              <div className="text-[10px] font-black text-[var(--text-secondary)] px-2 py-1 uppercase">
+                {isRtl ? 'اتاق‌های گفتگوی زنده' : 'Live Channels'}
+              </div>
               {ROOMS.map(room => (
                 <button
                   key={room.id}
@@ -498,7 +455,7 @@ export default function ChatRooms() {
                 <h4 className="text-xs font-bold text-emerald-400 flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>{isRtl ? 'کاربران آنلاین' : 'Online Users'}</span>
+                    <span>{isRtl ? 'همراهان آنلاین' : 'Online Companions'}</span>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30">
                     {onlineUsers.length + 1}
@@ -522,7 +479,7 @@ export default function ChatRooms() {
                     >
                       <span>{u.avatar || '👤'}</span>
                       <span>{u.name}</span>
-                      {u.isReal && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     </button>
                   ))}
                 </div>
@@ -530,13 +487,13 @@ export default function ChatRooms() {
             </div>
           </div>
 
-          
-          {/* Main Chat/Forum Area */}
+          {/* Main Content Area (4 Tabs: Live Rooms, Soul Match, DM, Forums) */}
           <div className="flex-1 flex flex-col bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl overflow-hidden shadow-2xl min-h-0 relative">
-            {/* Top Bar Navigation Tabs (4 Pillars: Chat, Soul Match, DM, Forums) */}
+            
+            {/* Top Bar Navigation Tabs */}
             <div className="flex items-center border-b border-[var(--border)] bg-[var(--bg-secondary)] shrink-0 overflow-x-auto no-scrollbar">
               <button 
-                onClick={() => setActiveTab('chat')}
+                onClick={() => { setActiveTab('chat'); soundEngine.playTap?.(); }}
                 className={`flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'chat' ? 'border-purple-500 text-purple-500 bg-purple-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
@@ -546,8 +503,8 @@ export default function ChatRooms() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('match')}
-                className={`flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
+                onClick={() => { setActiveTab('match'); soundEngine.playTap?.(); }}
+                className={`flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
                   activeTab === 'match' ? 'border-rose-500 text-rose-500 bg-rose-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
@@ -557,8 +514,8 @@ export default function ChatRooms() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('dm')}
-                className={`flex-1 min-w-[100px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
+                onClick={() => { setActiveTab('dm'); soundEngine.playTap?.(); }}
+                className={`flex-1 min-w-[105px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap relative ${
                   activeTab === 'dm' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
@@ -568,8 +525,8 @@ export default function ChatRooms() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('forum')}
-                className={`flex-1 min-w-[90px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap ${
+                onClick={() => { setActiveTab('forum'); soundEngine.playTap?.(); }}
+                className={`flex-1 min-w-[95px] flex items-center justify-center gap-1.5 py-2.5 sm:py-3 text-xs sm:text-sm font-black transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'forum' ? 'border-sky-500 text-sky-400 bg-sky-500/10' : 'border-transparent text-[var(--text-secondary)] hover:bg-white/5'
                 }`}
               >
@@ -577,225 +534,161 @@ export default function ChatRooms() {
                 <span>{isRtl ? 'انجمن و مباحث' : 'Forums'}</span>
               </button>
             </div>
-{/* TAB CONTENT: CHAT */}
+
+            {/* TAB CONTENT: CHAT */}
             {activeTab === 'chat' && (
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Messages List Area */}
-                <div className="flex-1 p-3 sm:p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth no-scrollbar">
-                  {roomMessages.length === 0 ? (
-                    <div className="m-auto flex flex-col items-center justify-center text-center opacity-60 space-y-2 py-8">
-                      <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
-                        <MessageSquare size={28} />
-                      </div>
-                      <h3 className="text-sm font-bold text-[var(--text-primary)]">{isRtl ? 'آغازگر این اتاق باشید!' : 'Start the room conversation!'}</h3>
-                      <p className="text-xs text-[var(--text-secondary)] max-w-xs">{isRtl ? 'پیامی ارسال کنید تا سایر کاربران آنلاین پاسخ دهند.' : 'Send a message to connect with others.'}</p>
+                {/* Active Room Title Bar */}
+                <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    {ROOMS.find(r => r.id === activeRoom)?.icon}
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-black text-[var(--text-primary)]">
+                        {isRtl ? ROOMS.find(r => r.id === activeRoom)?.nameFa : ROOMS.find(r => r.id === activeRoom)?.nameEn}
+                      </h3>
                     </div>
-                  ) : (
-                    roomMessages.map(msg => {
-                      const isMe = msg.userName === userName;
-                      const isWhisper = msg.isWhisper;
+                  </div>
 
-                      return (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          key={msg.id} 
-                          className={`flex gap-2.5 max-w-[92%] sm:max-w-[85%] ${msg.isSystem ? 'mx-auto' : (isMe ? 'self-end flex-row-reverse' : 'self-start')}`}
-                        >
-                          {msg.isSystem ? (
-                            <div className="px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-bold text-center">
-                              {msg.text}
+                  <div className="flex items-center gap-2">
+                    {whisperTarget && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-fuchsia-600/20 text-fuchsia-300 border border-fuchsia-500/30 text-xs font-bold">
+                        <Lock size={12} />
+                        <span>{isRtl ? `نجوا به: ${whisperTarget.name}` : `Whisper: ${whisperTarget.name}`}</span>
+                        <button onClick={() => setWhisperTarget(null)} className="hover:text-white mr-1"><X size={12} /></button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Messages Timeline */}
+                <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 no-scrollbar">
+                  {roomMessages.map(msg => {
+                    const isMe = msg.userId === userId;
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col gap-1 max-w-[90%] sm:max-w-[80%] ${isMe ? 'self-end mr-auto items-end' : 'self-start ml-auto items-start'}`}
+                      >
+                        {/* Sender info */}
+                        {!isMe && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] px-1">
+                            <span className="text-sm">{msg.userAvatar || '👤'}</span>
+                            <span className="font-black text-[var(--text-primary)]">{msg.userName}</span>
+                            <span className="text-[9px] opacity-70">{formatTime(msg.timestamp)}</span>
+                          </div>
+                        )}
+
+                        {/* Bubble */}
+                        <div className={`p-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm relative group ${
+                          isMe 
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tr-sm' 
+                            : msg.isWhisper
+                            ? 'bg-fuchsia-950/40 border border-fuchsia-500/40 text-fuchsia-200 rounded-tl-sm'
+                            : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm'
+                        }`}>
+                          {msg.replyTo && (
+                            <div className="p-1.5 mb-1.5 rounded-xl bg-black/20 text-[10px] border-r-2 border-amber-400 opacity-90 truncate">
+                              <span className="font-bold">{msg.replyTo.userName}: </span>
+                              <span>{msg.replyTo.text}</span>
                             </div>
-                          ) : (
-                            <>
-                              {/* Avatar */}
-                              <button
-                                onClick={() => setSelectedUser({ id: msg.userId, name: msg.userName, avatar: msg.userAvatar })}
-                                className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-black text-white shadow-xs ${
-                                  isMe 
-                                    ? 'bg-gradient-to-br from-purple-600 to-indigo-600' 
-                                    : (isWhisper ? 'bg-gradient-to-br from-fuchsia-600 to-purple-800 border border-fuchsia-400' : 'bg-slate-800 border border-slate-700')
-                                }`}
-                              >
-                                {msg.userAvatar || (isMe ? userAvatar : (msg.userName?.charAt(0).toUpperCase() || '👤'))}
-                              </button>
-
-                              {/* Bubble Content */}
-                              <div className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                                <div className="flex items-center gap-1.5 px-1">
-                                  <span className={`text-[11px] font-bold ${isMe ? 'text-purple-400 font-black' : 'text-[var(--text-secondary)]'}`}>
-                                    {msg.userName} {isMe && <span className="text-[9px] opacity-75">(شما)</span>}
-                                  </span>
-
-                                  {/* Whisper Tag */}
-                                  {isWhisper && (
-                                    <span className="px-1.5 py-0.2 rounded-md bg-fuchsia-500/20 text-fuchsia-300 text-[9px] font-black border border-fuchsia-500/40 flex items-center gap-0.5">
-                                      <Lock size={9} />
-                                      <span>{isMe ? `نجوا به ${msg.whisperTargetName}` : `نجوا از ${msg.userName}`}</span>
-                                    </span>
-                                  )}
-
-                                  <span className="text-[9px] text-[var(--text-secondary)] opacity-60">• {formatTime(msg.timestamp)}</span>
-                                </div>
-
-                                {/* Quoted Reply if any */}
-                                {msg.replyTo && (
-                                  <div className="px-3 py-1.5 rounded-xl bg-black/20 border-r-2 border-purple-500 text-[10px] text-[var(--text-secondary)] max-w-full truncate flex items-center gap-1">
-                                    <CornerDownRight size={10} className="text-purple-400 shrink-0" />
-                                    <span className="font-bold text-purple-300">{msg.replyTo.userName}:</span>
-                                    <span className="truncate">{msg.replyTo.text}</span>
-                                  </div>
-                                )}
-
-                                <div className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm break-words max-w-full ${
-                                  isWhisper
-                                    ? 'bg-gradient-to-r from-fuchsia-950/80 to-purple-950/80 border border-fuchsia-500/50 text-fuchsia-100'
-                                    : (isMe 
-                                      ? 'bg-purple-600 text-white rounded-tr-sm' 
-                                      : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm')
-                                }`}>
-                                  {msg.text.replace(`[${activeRoom}] `, '')}
-                                </div>
-
-                                {/* Quick Reactions & Actions */}
-                                <div className="flex items-center gap-2 px-1 text-[10px] text-[var(--text-secondary)]">
-                                  <button 
-                                    onClick={() => handleLike(msg.id)} 
-                                    className="flex items-center gap-1 hover:text-rose-400 transition-colors"
-                                  >
-                                    <Heart size={11} className={msg.likes > 0 ? "fill-rose-500 text-rose-500" : ""} />
-                                    <span>{msg.likes || 0}</span>
-                                  </button>
-
-                                  <button 
-                                    onClick={() => handleTip(msg.id)} 
-                                    className="flex items-center gap-0.5 text-amber-400 hover:text-amber-300 transition-colors font-bold"
-                                  >
-                                    <span>🪙</span>
-                                    <span>{msg.tips ? `+${msg.tips}` : 'پاداش'}</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      setReplyingTo({ id: msg.id, userName: msg.userName, text: msg.text });
-                                      soundEngine.playTap?.();
-                                    }}
-                                    className="hover:text-purple-400 transition-colors flex items-center gap-0.5"
-                                  >
-                                    <Reply size={11} />
-                                    <span>{isRtl ? 'پاسخ' : 'Reply'}</span>
-                                  </button>
-
-                                  {!isMe && (
-                                    <button
-                                      onClick={() => handleStartWhisper({ id: msg.userId, name: msg.userName, avatar: msg.userAvatar })}
-                                      className="hover:text-fuchsia-400 transition-colors flex items-center gap-0.5 text-fuchsia-400/80"
-                                      title={isRtl ? 'ارسال نجوای خصوصی' : 'Whisper'}
-                                    >
-                                      <Lock size={10} />
-                                      <span>{isRtl ? 'نجوا' : 'Whisper'}</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </>
                           )}
-                        </motion.div>
-                      );
-                    })
-                  )}
+
+                          {msg.isWhisper && (
+                            <div className="flex items-center gap-1 text-[10px] text-fuchsia-300 font-bold mb-1">
+                              <Lock size={10} />
+                              <span>{isRtl ? 'پیام نجوا (خصوصی)' : 'Private Whisper'}</span>
+                            </div>
+                          )}
+
+                          <p>{msg.text}</p>
+
+                          {/* Quick interactions */}
+                          <div className="flex items-center justify-between gap-3 pt-1.5 mt-1 border-t border-white/10 text-[10px]">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleLike(msg.id)} className="flex items-center gap-1 opacity-80 hover:opacity-100 hover:scale-110 transition-all">
+                                <span>❤️</span>
+                                <span>{msg.likes || 0}</span>
+                              </button>
+                              {msg.tips > 0 && (
+                                <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                                  <span>🪙</span>
+                                  <span>{msg.tips}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 opacity-80">
+                              <button onClick={() => setReplyingTo(msg)} className="hover:text-amber-300" title="پاسخ">
+                                <Reply size={12} />
+                              </button>
+                              <button onClick={() => handleTip(msg.id)} className="hover:text-amber-300" title="اهدای ۵ سکه">
+                                🪙
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Reply Banner / Whisper Active Banner */}
-                <div className="shrink-0 px-3 bg-[var(--bg-secondary)]/90 border-t border-[var(--border)]">
-                  {replyingTo && (
-                    <div className="py-1.5 flex items-center justify-between text-xs text-purple-400">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Reply size={13} className="shrink-0" />
-                        <span>{isRtl ? `در حال پاسخ به @${replyingTo.userName}:` : `Replying to @${replyingTo.userName}:`}</span>
-                        <span className="text-[var(--text-secondary)] truncate">"{replyingTo.text.slice(0, 40)}..."</span>
-                      </div>
-                      <button onClick={() => setReplyingTo(null)} className="p-1 hover:text-rose-400">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
-
-                  {whisperTarget && (
-                    <div className="py-1.5 flex items-center justify-between text-xs text-fuchsia-400 border-t border-fuchsia-500/20">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Lock size={13} className="shrink-0" />
-                        <span>{isRtl ? `🔒 در حال ارسال نجوای خصوصی به @${whisperTarget.name}` : `Whispering to @${whisperTarget.name}`}</span>
-                      </div>
-                      <button onClick={() => setWhisperTarget(null)} className="p-1 hover:text-rose-400">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Emoji Reaction Bar */}
-                <div className="shrink-0 px-3 py-1.5 bg-[var(--bg-card)] border-t border-[var(--border)] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                  {FLASH_EMOJIS.map(emoji => (
+                {/* Quick Phrases bar */}
+                <div className="px-2 sm:px-4 py-1.5 border-t border-[var(--border)] bg-[var(--bg-secondary)] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                  {QUICK_PHRASES.map((phrase, idx) => (
                     <button
-                      key={emoji}
-                      onClick={() => handleSendQuickEmoji(emoji)}
-                      className="w-7 h-7 rounded-lg bg-[var(--bg-secondary)] hover:bg-purple-600/20 flex items-center justify-center text-sm active:scale-125 transition-transform shrink-0"
+                      key={idx}
+                      onClick={() => handleSendQuickPhrase(phrase)}
+                      className="px-2.5 py-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-purple-500 text-[11px] text-[var(--text-secondary)] whitespace-nowrap shrink-0 transition-all"
                     >
-                      {emoji}
+                      {phrase}
                     </button>
                   ))}
-                  <button
-                    onClick={() => setIsEmojiPickerOpen(o => !o)}
-                    className="px-2.5 py-1 rounded-lg bg-purple-600/15 border border-purple-500/30 text-[10px] font-bold text-purple-400 hover:bg-purple-600/30 shrink-0 flex items-center gap-1"
-                  >
-                    <Smile size={12} />
-                    <span>{isRtl ? 'بیشتر...' : 'More'}</span>
-                  </button>
                 </div>
 
-                {/* Full Emoji & Quick Phrases Dropup Modal */}
-                {isEmojiPickerOpen && (
-                  <div className="p-3 bg-[var(--bg-card)] border-t border-[var(--border)] shadow-xl shrink-0 space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-[var(--text-secondary)]">{isRtl ? 'عبارت‌های سریع و آماده' : 'Quick Wisdom Phrases'}</span>
-                      <button onClick={() => setIsEmojiPickerOpen(false)} className="text-[var(--text-secondary)]"><X size={14} /></button>
+                {/* Reply Indicator */}
+                {replyingTo && (
+                  <div className="px-4 py-1.5 bg-purple-950/40 border-t border-purple-500/30 flex items-center justify-between text-xs text-purple-300 shrink-0">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <CornerDownRight size={13} />
+                      <span>{isRtl ? `پاسخ به ${replyingTo.userName}: ${replyingTo.text.slice(0, 40)}...` : `Replying to ${replyingTo.userName}`}</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                      {QUICK_PHRASES.map(p => (
-                        <button
-                          key={p}
-                          onClick={() => handleSendQuickPhrase(p)}
-                          className="p-2 rounded-xl bg-[var(--bg-secondary)] hover:bg-purple-600/15 border border-[var(--border)] text-xs text-start text-[var(--text-primary)] font-medium transition-colors"
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
+                    <button onClick={() => setReplyingTo(null)} className="hover:text-white"><X size={14} /></button>
                   </div>
                 )}
 
-                {/* Chat Input Bar */}
-                <form onSubmit={handleSend} className="p-2 sm:p-3 bg-[var(--bg-card)] border-t border-[var(--border)] flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsEmojiPickerOpen(o => !o)}
-                    className="p-2 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-purple-400 transition-colors shrink-0"
-                    title={isRtl ? 'اموجی‌ها و استیکرها' : 'Emojis'}
-                  >
-                    <Smile size={18} />
-                  </button>
+                {/* Input Bar */}
+                <form onSubmit={handleSend} className="p-2 sm:p-3 bg-[var(--bg-card)] border-t border-[var(--border)] flex items-center gap-2 shrink-0 relative">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsEmojiPickerOpen(o => !o)}
+                      className="p-2 rounded-xl text-[var(--text-secondary)] hover:text-amber-400 transition-colors"
+                    >
+                      <Smile size={20} />
+                    </button>
+                    {isEmojiPickerOpen && (
+                      <div className="absolute bottom-12 right-0 z-50 p-2.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl grid grid-cols-4 gap-2 w-48 backdrop-blur-xl">
+                        {FLASH_EMOJIS.map(em => (
+                          <button
+                            key={em}
+                            type="button"
+                            onClick={() => handleSendQuickEmoji(em)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:scale-125 transition-transform"
+                          >
+                            {em}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <input
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder={
-                      whisperTarget 
-                        ? (isRtl ? `پیام خصوصی (نجوا) به ${whisperTarget.name}...` : `Whisper to ${whisperTarget.name}...`)
-                        : (isRtl ? `پیام در #${ROOMS.find(r=>r.id===activeRoom)?.nameFa || 'اتاق'}...` : `Message #${activeRoom}...`)
-                    }
+                    placeholder={isRtl ? `پیام در ${ROOMS.find(r => r.id === activeRoom)?.nameFa}...` : 'Type a message...'}
                     className="flex-1 px-3.5 py-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:border-purple-500 font-medium"
                   />
 
@@ -810,8 +703,7 @@ export default function ChatRooms() {
               </div>
             )}
 
-            
-{/* TAB CONTENT: SOUL MATCH & CONSCIOUS DATING / FRIENDSHIP */}
+            {/* TAB CONTENT: SOUL MATCH & CONSCIOUS DATING / FRIENDSHIP */}
             {activeTab === 'match' && (
               <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-3 sm:p-5 space-y-4">
                 
@@ -836,21 +728,22 @@ export default function ChatRooms() {
 
                   <button
                     onClick={() => setIsMyProfileModalOpen(true)}
-                    className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-rose-600 to-purple-600 text-white text-xs font-black shadow-md flex items-center gap-1.5 shrink-0 active:scale-95 transition-all"
+                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-purple-600 text-white text-xs font-black shadow-md flex items-center gap-1.5 shrink-0 active:scale-95 transition-all"
                   >
-                    <Sparkles size={14} />
-                    <span>{isRtl ? 'پروفایل هم‌فرکانسی من' : 'My Match Profile'}</span>
+                    <Sparkles size={15} />
+                    <span>{hasRegisteredProfile ? (isRtl ? 'ویرایش پروفایل من ✨' : 'Edit Profile ✨') : (isRtl ? 'ثبت پروفایل هم‌فرکانسی ✨' : 'Register Profile ✨')}</span>
                   </button>
                 </div>
 
-                {/* Filter Pills */}
+                {/* Category Filter Pills */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 shrink-0">
                   {[
                     { id: 'all', labelFa: 'همه همراهان', labelEn: 'All', icon: '🌟' },
-                    { id: 'mindfulness', labelFa: 'مراقبه و خودشناسی', labelEn: 'Mindfulness', icon: '🧘' },
+                    { id: 'connected', labelFa: `همراهان من (${connectedUserIds.length})`, labelEn: 'Connected', icon: '❤️' },
+                    { id: 'mindfulness', labelFa: 'مراقبه و آرامش', labelEn: 'Mindfulness', icon: '🧘' },
                     { id: 'business', labelFa: 'کسب‌وکار و ثروت', labelEn: 'Business', icon: '💼' },
-                    { id: 'fitness', labelFa: 'ورزش و سلامتی', labelEn: 'Fitness', icon: '🏃' },
-                    { id: 'gaming', labelFa: 'بازی و رقابت', labelEn: 'Games & Play', icon: '🎮' }
+                    { id: 'fitness', labelFa: 'ورزش و عادات', labelEn: 'Fitness', icon: '🏃' },
+                    { id: 'gaming', labelFa: 'بازی و سرگرمی', labelEn: 'Games', icon: '🎮' }
                   ].map(f => (
                     <button
                       key={f.id}
@@ -873,7 +766,7 @@ export default function ChatRooms() {
 
                 {/* Companions Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pb-2">
-                  {MATCH_COMPANIONS.filter(c => matchCategory === 'all' || c.category === matchCategory).map(companion => {
+                  {filteredCompanions.map(companion => {
                     const isConnected = connectedUserIds.includes(companion.id);
 
                     return (
@@ -892,17 +785,17 @@ export default function ChatRooms() {
                             <div>
                               <h4 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-1.5">
                                 <span>{companion.name}</span>
-                                <span className="text-[10px] text-[var(--text-secondary)] font-normal">({companion.age} ساله • {companion.city})</span>
+                                {companion.age && <span className="text-[10px] text-[var(--text-secondary)] font-normal">({companion.age} ساله • {companion.city})</span>}
                               </h4>
                               <span className="text-[11px] text-rose-400 font-bold block mt-0.5">
-                                {companion.lookingFor}
+                                {companion.lookingFor || companion.role}
                               </span>
                             </div>
                           </div>
 
                           {/* Match Score Badge */}
                           <div className="px-2.5 py-1 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black shrink-0 text-center shadow-inner">
-                            <div>{companion.matchScore}٪</div>
+                            <div>{companion.matchScore || 95}٪</div>
                             <div className="text-[8px] opacity-80">{isRtl ? 'هم‌فرکانس' : 'Match'}</div>
                           </div>
                         </div>
@@ -919,7 +812,7 @@ export default function ChatRooms() {
 
                         {/* Interest Tags */}
                         <div className="flex flex-wrap gap-1">
-                          {companion.interests.map((tag, idx) => (
+                          {(companion.interests || []).map((tag, idx) => (
                             <span
                               key={idx}
                               className="px-2 py-0.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[10px] font-medium text-[var(--text-secondary)]"
@@ -930,8 +823,9 @@ export default function ChatRooms() {
                         </div>
 
                         {/* Status indicator */}
-                        <div className="text-[10px] font-bold text-slate-400">
-                          {companion.status}
+                        <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>{companion.status || '🟢 آنلاین و آماده مصاحبت'}</span>
                         </div>
 
                         {/* Action Buttons */}
@@ -941,31 +835,30 @@ export default function ChatRooms() {
                             className="flex-1 py-2 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                           >
                             <MessageSquare size={13} />
-                            <span>{isRtl ? 'گفت‌وگوی مستقیم' : 'Direct Message'}</span>
+                            <span>{isRtl ? 'گفت‌وگو 💬' : 'Direct Msg'}</span>
                           </button>
 
                           <button
                             onClick={() => handleToggleConnect(companion)}
                             className={`py-2 px-3 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 transition-all border ${
                               isConnected
-                                ? 'bg-rose-500/25 border-rose-400 text-rose-300 shadow-sm'
-                                : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)] hover:text-rose-400 hover:border-rose-400'
+                                ? 'bg-rose-600/20 text-rose-400 border-rose-500/50 shadow-inner'
+                                : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)] hover:text-rose-400'
                             }`}
-                            title={isConnected ? (isRtl ? 'پیوند برقرار است' : 'Connected') : (isRtl ? 'درخواست اتصال' : 'Connect')}
                           >
-                            <Heart size={14} className={isConnected ? 'fill-rose-500 text-rose-500' : ''} />
-                            <span>{isConnected ? (isRtl ? 'متصل ✓' : 'Linked') : (isRtl ? 'اتصال ❤️' : 'Connect')}</span>
+                            <Heart size={13} className={isConnected ? 'fill-rose-500 text-rose-500' : ''} />
+                            <span>{isConnected ? (isRtl ? 'همراه شما ❤️' : 'Connected') : (isRtl ? 'پیوند همراهی' : 'Connect')}</span>
                           </button>
 
                           <button
                             onClick={() => handleInviteToGame(companion)}
-                            className="p-2 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 transition-all"
-                            title={isRtl ? 'دعوت به بازی تخته‌نرد' : 'Invite to Game'}
+                            className="py-2 px-3 rounded-2xl bg-purple-600/20 text-purple-300 border border-purple-500/30 hover:bg-purple-600/30 text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-all"
+                            title={isRtl ? 'دعوت به بازی تخته‌نرد' : 'Play Game'}
                           >
-                            <Flame size={14} />
+                            <Gamepad2 size={13} />
+                            <span>{isRtl ? 'بازی 🎲' : 'Play'}</span>
                           </button>
                         </div>
-
                       </motion.div>
                     );
                   })}
@@ -974,14 +867,13 @@ export default function ChatRooms() {
               </div>
             )}
 
-            
-{/* TAB CONTENT: DIRECT MESSAGES (DMs) */}
+            {/* TAB CONTENT: DIRECT MESSAGES (DMs) */}
             {activeTab === 'dm' && (
               <div className="flex-1 flex flex-col md:flex-row min-h-0">
                 {/* DM Peers Sidebar */}
-                <div className="w-full md:w-52 border-b md:border-b-0 md:border-l border-[var(--border)] bg-[var(--bg-secondary)]/50 p-2 overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-1.5 shrink-0">
+                <div className="w-full md:w-56 border-b md:border-b-0 md:border-l border-[var(--border)] bg-[var(--bg-secondary)]/50 p-2 overflow-x-auto md:overflow-y-auto no-scrollbar flex md:flex-col gap-1.5 shrink-0">
                   <div className="text-[10px] font-black text-[var(--text-secondary)] px-2 py-1 uppercase hidden md:block">
-                    {isRtl ? 'مخاطبین و مربیان' : 'Contacts'}
+                    {isRtl ? 'مخاطبین و همراهان' : 'Contacts'}
                   </div>
                   {onlineUsers.map(peer => {
                     const isCurrent = activeDmUserId === peer.id;
@@ -992,18 +884,18 @@ export default function ChatRooms() {
                           setActiveDmUserId(peer.id);
                           soundEngine.playTap?.();
                         }}
-                        className={`p-2 rounded-2xl border flex items-center gap-2 transition-all whitespace-nowrap md:whitespace-normal shrink-0 ${
+                        className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all whitespace-nowrap md:whitespace-normal shrink-0 ${
                           isCurrent 
                             ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300 font-bold shadow-xs' 
                             : 'bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                         }`}
                       >
-                        <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-xs shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm shrink-0 shadow-sm">
                           {peer.avatar || '👤'}
                         </div>
                         <div className="text-start">
                           <div className="text-xs font-bold leading-tight">{peer.name}</div>
-                          <span className="text-[9px] text-[var(--text-secondary)] opacity-70 hidden md:block truncate">{peer.role}</span>
+                          <span className="text-[9px] text-[var(--text-secondary)] opacity-75 hidden md:block truncate">{peer.role || peer.chakra}</span>
                         </div>
                       </button>
                     );
@@ -1014,28 +906,30 @@ export default function ChatRooms() {
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* DM Header */}
                   <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-secondary)] flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold">
-                        {onlineUsers.find(u => u.id === activeDmUserId)?.avatar || '👤'}
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-base font-bold shadow-xs">
+                        {activePeer?.avatar || '👤'}
                       </div>
                       <div>
                         <h4 className="text-xs sm:text-sm font-black text-[var(--text-primary)]">
-                          {onlineUsers.find(u => u.id === activeDmUserId)?.name || 'گفتگوی خصوصی'}
+                          {activePeer?.name || 'گفتگوی خصوصی'}
                         </h4>
                         <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          {isRtl ? 'آنلاین و آماده گفتگو' : 'Online'}
+                          {isRtl ? 'آنلاین • پاسخگوی هم‌فرکانس' : 'Online & Active'}
                         </span>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleStartWhisper(onlineUsers.find(u => u.id === activeDmUserId))}
-                      className="px-3 py-1.5 rounded-xl bg-purple-600/15 border border-purple-500/30 text-purple-300 font-bold text-xs flex items-center gap-1 hover:bg-purple-600/25"
-                    >
-                      <Lock size={12} />
-                      <span>{isRtl ? 'نجوا در چت عمومی' : 'Whisper'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleInviteToGame(activePeer)}
+                        className="px-3 py-1.5 rounded-xl bg-purple-600/15 border border-purple-500/30 text-purple-300 font-bold text-xs flex items-center gap-1 hover:bg-purple-600/25 active:scale-95"
+                      >
+                        <Gamepad2 size={13} />
+                        <span>{isRtl ? 'دعوت به بازی 🎲' : 'Invite to Game'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Messages Timeline */}
@@ -1047,7 +941,7 @@ export default function ChatRooms() {
                       >
                         <div className={`p-3 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-sm ${
                           msg.isMe 
-                            ? 'bg-indigo-600 text-white rounded-tr-sm' 
+                            ? 'bg-indigo-600 text-white rounded-tr-sm font-medium' 
                             : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)] rounded-tl-sm'
                         }`}>
                           <p>{msg.text}</p>
@@ -1055,7 +949,32 @@ export default function ChatRooms() {
                         </div>
                       </div>
                     ))}
+
+                    {/* Companion Typing Indicator */}
+                    {isCompanionTyping && (
+                      <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] w-fit text-xs text-indigo-400 font-bold animate-pulse">
+                        <Sparkles size={14} className="animate-spin" />
+                        <span>{activePeer?.name || 'همراه'} در حال نوشتن پاسخ... ✨</span>
+                      </div>
+                    )}
+
                     <div ref={dmEndRef} />
+                  </div>
+
+                  {/* Quick Starter Prompts for DMs */}
+                  <div className="px-3 py-1.5 border-t border-[var(--border)] bg-[var(--bg-secondary)] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                    {QUICK_DM_PROMPTS.map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setDmInput(prompt);
+                          soundEngine.playTap?.();
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-indigo-500 text-[11px] text-[var(--text-secondary)] whitespace-nowrap shrink-0 transition-all"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
                   </div>
 
                   {/* DM Input Bar */}
@@ -1064,13 +983,13 @@ export default function ChatRooms() {
                       type="text"
                       value={dmInput}
                       onChange={(e) => setDmInput(e.target.value)}
-                      placeholder={isRtl ? `پیام خصوصی به ${onlineUsers.find(u => u.id === activeDmUserId)?.name || 'کاربر'}...` : 'Type private message...'}
+                      placeholder={isRtl ? `پیام خصوصی به ${activePeer?.name || 'همراه'}...` : 'Type private message...'}
                       className="flex-1 px-3.5 py-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--text-primary)] outline-none focus:border-indigo-500 font-medium"
                     />
                     <button
                       type="submit"
                       disabled={!dmInput.trim()}
-                      className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-md active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
+                      className="p-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
                     >
                       <Send size={16} className={isRtl ? 'rotate-180' : ''} />
                     </button>
@@ -1079,8 +998,7 @@ export default function ChatRooms() {
               </div>
             )}
 
-            
-{/* TAB CONTENT: FORUMS */}
+            {/* TAB CONTENT: FORUMS */}
             {activeTab === 'forum' && (
               <div className="flex-1 flex flex-col min-h-0 p-4 overflow-y-auto no-scrollbar space-y-3">
                 <div className="flex items-center justify-between mb-2">
@@ -1113,7 +1031,16 @@ export default function ChatRooms() {
                       <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] pt-2 border-t border-[var(--border)]">
                         <span className="font-bold">{isRtl ? `نویسنده: ${thread.author}` : `By: ${thread.author}`}</span>
                         <div className="flex items-center gap-3">
-                          <span>❤️ {thread.likes || 0}</span>
+                          <button 
+                            onClick={() => {
+                              thread.likes = (thread.likes || 0) + 1;
+                              soundEngine.playTap?.();
+                              haptics.tap?.();
+                            }}
+                            className="hover:scale-110 transition-transform"
+                          >
+                            ❤️ {thread.likes || 0}
+                          </button>
                           <span>💬 {thread.replies || 0} پاسخ</span>
                         </div>
                       </div>
@@ -1122,11 +1049,12 @@ export default function ChatRooms() {
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
 
-{/* Mobile Online Users Drawer (Slide from Bottom / Sheet) */}
+      {/* Mobile Online Users Drawer */}
       <AnimatePresence>
         {isMobileUsersOpen && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:hidden">
@@ -1139,7 +1067,7 @@ export default function ChatRooms() {
               <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
                   <Users size={16} className="text-emerald-400" />
-                  <span>{isRtl ? 'کاربران و مربیان آنلاین' : 'Online Members'} ({onlineUsers.length + 1})</span>
+                  <span>{isRtl ? 'کاربران و همراهان آنلاین' : 'Online Members'} ({onlineUsers.length + 1})</span>
                 </h3>
                 <button onClick={() => setIsMobileUsersOpen(false)} className="p-1 text-[var(--text-secondary)]">
                   <X size={18} />
@@ -1165,7 +1093,7 @@ export default function ChatRooms() {
                       <span className="text-base">{u.avatar || '👤'}</span>
                       <div>
                         <div className="text-xs font-bold text-[var(--text-primary)]">{u.name}</div>
-                        <span className="text-[9px] text-[var(--text-secondary)]">{u.role}</span>
+                        <span className="text-[9px] text-[var(--text-secondary)]">{u.role || u.chakra}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1194,8 +1122,7 @@ export default function ChatRooms() {
         )}
       </AnimatePresence>
 
-      
-{/* User Action Modal (Whisper, DM, Mention, Add Friend) */}
+      {/* User Action Modal */}
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
@@ -1207,36 +1134,36 @@ export default function ChatRooms() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center text-xl shadow-md">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-600/30 flex items-center justify-center text-xl">
                     {selectedUser.avatar || '👤'}
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-[var(--text-primary)]">{selectedUser.name}</h3>
-                    <span className="text-[10px] text-[var(--text-secondary)]">{selectedUser.role || 'کاربر زندگی‌ساز'}</span>
+                    <span className="text-[10px] text-[var(--text-secondary)]">{selectedUser.role || selectedUser.chakra}</span>
                   </div>
                 </div>
-                <button onClick={() => setSelectedUser(null)} className="p-1 text-[var(--text-secondary)]"><X size={18} /></button>
+                <button onClick={() => setSelectedUser(null)} className="text-[var(--text-secondary)]"><X size={18} /></button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  onClick={() => handleStartWhisper(selectedUser)}
-                  className="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
-                >
-                  <Lock size={13} />
-                  <span>{isRtl ? 'ارسال نجوای خصوصی' : 'Whisper'}</span>
-                </button>
-
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border)]">
                 <button
                   onClick={() => {
                     setActiveTab('dm');
                     setActiveDmUserId(selectedUser.id);
                     setSelectedUser(null);
                   }}
-                  className="py-2.5 px-3 rounded-2xl bg-indigo-600 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
+                  className="py-2.5 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md"
                 >
                   <MessageSquare size={13} />
-                  <span>{isRtl ? 'پیام دایرکت' : 'Direct Message'}</span>
+                  <span>{isRtl ? 'گفتگوی خصوصی' : 'Direct Message'}</span>
+                </button>
+
+                <button
+                  onClick={() => handleStartWhisper(selectedUser)}
+                  className="py-2.5 px-3 rounded-2xl bg-fuchsia-600/20 text-fuchsia-300 border border-fuchsia-500/40 font-bold text-xs flex items-center justify-center gap-1.5"
+                >
+                  <Lock size={13} />
+                  <span>{isRtl ? 'ارسال نجوا' : 'Whisper'}</span>
                 </button>
 
                 <button
@@ -1264,8 +1191,7 @@ export default function ChatRooms() {
         )}
       </AnimatePresence>
 
-      
-{/* New Forum Thread Modal */}
+      {/* New Forum Thread Modal */}
       <AnimatePresence>
         {isNewThreadModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
@@ -1293,6 +1219,17 @@ export default function ChatRooms() {
                   className="w-full px-3.5 py-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] outline-none focus:border-sky-500 font-medium"
                 />
 
+                <select
+                  value={newThreadCategory}
+                  onChange={e => setNewThreadCategory(e.target.value)}
+                  className="w-full p-2.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] outline-none font-bold"
+                >
+                  <option value="philosophy">فلسفه و خودشناسی 🧘</option>
+                  <option value="business">کسب‌وکار و ثروت 💼</option>
+                  <option value="fitness">ورزش و سلامت 🏃</option>
+                  <option value="tech">فناوری و مهارت 💻</option>
+                </select>
+
                 <button
                   type="submit"
                   className="w-full py-3 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-black text-xs shadow-md active:scale-98 transition-all"
@@ -1305,8 +1242,7 @@ export default function ChatRooms() {
         )}
       </AnimatePresence>
 
-      
-{/* My Match Profile Customizer Modal */}
+      {/* My Match Profile Customizer Modal */}
       <AnimatePresence>
         {isMyProfileModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
@@ -1389,7 +1325,7 @@ export default function ChatRooms() {
                     type="submit"
                     className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 text-white font-black text-xs shadow-lg active:scale-98 transition-all"
                   >
-                    {isRtl ? 'ذخیره پروفایل هم‌فرکانسی ✨' : 'Save Match Profile ✨'}
+                    {isRtl ? 'ذخیره و فعال‌سازی پروفایل هم‌فرکانسی ✨' : 'Save & Activate Profile ✨'}
                   </button>
                 </div>
               </form>
@@ -1397,7 +1333,6 @@ export default function ChatRooms() {
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
