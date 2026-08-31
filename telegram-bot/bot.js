@@ -609,7 +609,7 @@ const I18N = {
     // Chat
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
     filterRandom: '🎲 جستجوی شانسی (رایگان)',
-    filterSameLang: '🇮🇷 چت هم‌زبان (فارسی‌زبانان)',
+    filterSameLang: '💬 چت هم‌زبان (فارسی‌زبانان)',
     filterGlobal: '🌍 چت بین‌المللی (Global)',
     filterFemale: '👩 اتصال به دختر (۵۰ سکه)',
     filterMale: '👨 اتصال به پسر (۵۰ سکه)',
@@ -723,7 +723,7 @@ const I18N = {
     // Chat
     filterTitle: '🙈 <b>Who would you like to connect with?</b> 👇',
     filterRandom: '🎲 Random Match (Free)',
-    filterSameLang: '🇬🇧 English Speakers Match',
+    filterSameLang: '💬 Same Language Match',
     filterGlobal: '🌍 Global Discovery (All Countries)',
     filterFemale: '👩 Connect to Girl (50 Coins)',
     filterMale: '👨 Connect to Boy (50 Coins)',
@@ -1184,11 +1184,12 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
   for (let i = 0; i < waitingQueue.length; i++) {
     const cand = waitingQueue[i];
     if (cand.userId === userId) continue;
-    if (user.blocked && user.blocked.includes(cand.userId)) continue;
-    if (candUser.blocked && candUser.blocked.includes(userId)) continue;
 
     const candUser = db.users[cand.userId];
     if (!candUser) continue;
+
+    if (user.blocked && user.blocked.includes(cand.userId)) continue;
+    if (candUser.blocked && candUser.blocked.includes(userId)) continue;
 
     let isMatch = true;
     if (filterType === 'female' && candUser.gender !== 'female') isMatch = false;
