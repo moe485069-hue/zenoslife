@@ -29,6 +29,20 @@ export const initTelegramMiniApp = (appStore) => {
       tg.setBackgroundColor('#090412');
     }
 
+        // Auto sync language with Bot / Telegram
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryLang = urlParams.get('lang');
+      if (queryLang && ['fa', 'en'].includes(queryLang) && appStore?.setLanguage) {
+        appStore.setLanguage(queryLang);
+      } else if (tgUser?.language_code && appStore?.setLanguage) {
+        const defaultLang = tgUser.language_code.startsWith('fa') ? 'fa' : 'en';
+        if (!localStorage.getItem('lifeos_language')) {
+          appStore.setLanguage(defaultLang);
+        }
+      }
+    } catch (_) {}
+
     // 3. Auto sync Telegram User Profile if available
     const tgUser = tg.initDataUnsafe?.user;
     if (tgUser && appStore?.setUserProfile) {

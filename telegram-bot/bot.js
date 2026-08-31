@@ -1,5 +1,279 @@
 
 // ----------------------------------------------------
+// IN-CHAT 1v1 LIVE MULTIPLAYER DUEL SYSTEM
+// ----------------------------------------------------
+async function promptInChatDuelChoice(chatId, userId) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
+
+  if ((user?.coins || 0) < 50) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'lowCoinsNotice', { cost: 50, coins: user?.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: isEn ? '⚔️ <b>Select a 1v1 Duel for your chat partner (50 Coins Wager):</b>' : '⚔️ <b>یک بازی را برای دوئل دونفره با هم‌صحبتت انتخاب کن (شرط ۵۰ سکه):</b>',
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'duel_invite_rps' }],
+        [{ text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس متحرک', callback_data: 'duel_invite_dice' }]
+      ]
+    }
+  });
+}
+
+async function sendDuelInviteToPartner(fromUserId, gameType) {
+  if (!activePairs.has(fromUserId)) return;
+  const partnerId = activePairs.get(fromUserId);
+  const fromUser = db.users[fromUserId];
+  const partnerUser = db.users[partnerId];
+  const isEn = partnerUser?.lang === 'en';
+
+  const gameName = gameType === 'rps' 
+    ? (isEn ? 'Rock-Paper-Scissors' : 'سنگ، کاغذ، قیچی')
+    : (isEn ? 'Animated Dice Duel' : 'دوئل رولت تاس');
+
+  const inviteText = isEn
+    ? `⚔️ <b>${fromUser?.name || 'Partner'} challenged you to a 1v1 ${gameName}!</b>\n🪙 Wager: <b>50 Coins</b> (Winner takes 90 Coins!)`
+    : `⚔️ <b>هم‌صحبت شما را به دوئل «${gameName}» دعوت کرد!</b>\n🪙 شرط مسابقه: <b>۵۰ سکه</b> (برنده ۹۰ سکه دریافت می‌کند!)`;
+
+  // Send invite to partner
+  callTgApi('sendMessage', {
+    chat_id: partnerId,
+    text: inviteText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isEn ? '⚔️ Accept Challenge!' : '⚔️ قبول چالش و شروع بازی!', callback_data: `duel_accept_${gameType}_${fromUserId}` },
+          { text: isEn ? '❌ Decline' : '❌ رد دعوت', callback_data: `duel_decline_${fromUserId}` }
+        ]
+      ]
+    }
+  }).catch(() => {});
+
+  const sentNotice = fromUser?.lang === 'en'
+    ? '⏳ Challenge invite sent to your partner. Waiting for acceptance...'
+    : '⏳ دعوت‌نامه دوئل برای هم‌صحبت ارسال شد. منتظر تایید او باشید...';
+
+  callTgApi('sendMessage', { chat_id: fromUserId, text: sentNotice });
+}
+
+async function startLiveInChatRps(p1Id, p2Id) {
+  const u1 = db.users[p1Id];
+  const u2 = db.users[p2Id];
+
+  if ((u1?.coins || 0) < 50 || (u2?.coins || 0) < 50) {
+    callTgApi('sendMessage', { chat_id: p1Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
+    callTgApi('sendMessage', { chat_id: p2Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
+    return;
+  }
+
+  u1.coins -= 50;
+  u2.coins -= 50;
+  saveDb();
+
+  const duelId = 'duel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  activeGames.set(duelId, {
+    id: duelId,
+    p1: p1Id,
+    p2: p2Id,
+    p1Move: null,
+    p2Move: null,
+    wager: 50
+  });
+
+  const prompt1 = u1?.lang === 'en'
+    ? '🪨📄✂️ <b>1v1 Duel Started! Make your move secretly:</b>'
+    : '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>';
+
+  const prompt2 = u2?.lang === 'en'
+    ? '🪨📄✂️ <b>1v1 Duel Started! Make your move secretly:</b>'
+    : '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>';
+
+  const rpsKeyboard1 = {
+    inline_keyboard: [
+      [
+        { text: '🪨 ' + (u1?.lang === 'en' ? 'Rock' : 'سنگ'), callback_data: `live_rps_${duelId}_rock` },
+        { text: '📄 ' + (u1?.lang === 'en' ? 'Paper' : 'کاغذ'), callback_data: `live_rps_${duelId}_paper` },
+        { text: '✂️ ' + (u1?.lang === 'en' ? 'Scissors' : 'قیچی'), callback_data: `live_rps_${duelId}_scissors` }
+      ]
+    ]
+  };
+
+  const rpsKeyboard2 = {
+    inline_keyboard: [
+      [
+        { text: '🪨 ' + (u2?.lang === 'en' ? 'Rock' : 'سنگ'), callback_data: `live_rps_${duelId}_rock` },
+        { text: '📄 ' + (u2?.lang === 'en' ? 'Paper' : 'کاغذ'), callback_data: `live_rps_${duelId}_paper` },
+        { text: '✂️ ' + (u2?.lang === 'en' ? 'Scissors' : 'قیچی'), callback_data: `live_rps_${duelId}_scissors` }
+      ]
+    ]
+  };
+
+  callTgApi('sendMessage', { chat_id: p1Id, text: prompt1, parse_mode: 'HTML', reply_markup: rpsKeyboard1 }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: p2Id, text: prompt2, parse_mode: 'HTML', reply_markup: rpsKeyboard2 }).catch(() => {});
+}
+
+async function handleLiveRpsMove(userId, duelId, move) {
+  const game = activeGames.get(duelId);
+  if (!game) return;
+
+  if (game.p1 === userId) game.p1Move = move;
+  else if (game.p2 === userId) game.p2Move = move;
+
+  const opponentId = game.p1 === userId ? game.p2 : game.p1;
+  const user = db.users[userId];
+  const opp = db.users[opponentId];
+
+  callTgApi('sendMessage', {
+    chat_id: userId,
+    text: user?.lang === 'en' ? '✅ Your move is locked in! Waiting for opponent...' : '✅ حرکت شما قفل شد! منتظر انتخاب هم‌صحبت...'
+  }).catch(() => {});
+
+  callTgApi('sendMessage', {
+    chat_id: opponentId,
+    text: opp?.lang === 'en' ? '⚡ Opponent has made their move! Choose yours now:' : '⚡ هم‌صحبت حرکت خود را انتخاب کرد! نوبت شماست:'
+  }).catch(() => {});
+
+  // Both have chosen
+  if (game.p1Move && game.p2Move) {
+    activeGames.delete(duelId);
+    resolveLiveRpsDuel(game);
+  }
+}
+
+async function resolveLiveRpsDuel(game) {
+  const { p1, p2, p1Move, p2Move } = game;
+  const u1 = db.users[p1];
+  const u2 = db.users[p2];
+
+  const moveIcons = { rock: '🪨', paper: '📄', scissors: '✂️' };
+  const moveNamesFa = { rock: 'سنگ', paper: 'کاغذ', scissors: 'قیچی' };
+  const moveNamesEn = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors' };
+
+  let winner = null; // null for tie, 1 for p1, 2 for p2
+  if (p1Move === p2Move) {
+    winner = null;
+  } else if (
+    (p1Move === 'rock' && p2Move === 'scissors') ||
+    (p1Move === 'paper' && p2Move === 'rock') ||
+    (p1Move === 'scissors' && p2Move === 'paper')
+  ) {
+    winner = 1;
+  } else {
+    winner = 2;
+  }
+
+  db.stats.totalMatchesPlayed++;
+
+  if (winner === null) {
+    u1.coins = (u1.coins || 0) + 50;
+    u2.coins = (u2.coins || 0) + 50;
+    saveDb();
+
+    const res1 = u1.lang === 'en'
+      ? `🤝 <b>Duel is a Tie!</b>\nYou: ${moveIcons[p1Move]} | Partner: ${moveIcons[p2Move]}\n🪙 50 Coins returned.`
+      : `🤝 <b>دوئل مساوی شد!</b>\nشما: ${moveIcons[p1Move]} ${moveNamesFa[p1Move]} | هم‌صحبت: ${moveIcons[p2Move]} ${moveNamesFa[p2Move]}\n🪙 ۵۰ سکه برگشت داده شد.`;
+
+    const res2 = u2.lang === 'en'
+      ? `🤝 <b>Duel is a Tie!</b>\nYou: ${moveIcons[p2Move]} | Partner: ${moveIcons[p1Move]}\n🪙 50 Coins returned.`
+      : `🤝 <b>دوئل مساوی شد!</b>\nشما: ${moveIcons[p2Move]} ${moveNamesFa[p2Move]} | هم‌صحبت: ${moveIcons[p1Move]} ${moveNamesFa[p1Move]}\n🪙 ۵۰ سکه برگشت داده شد.`;
+
+    callTgApi('sendMessage', { chat_id: p1, text: res1, parse_mode: 'HTML' }).catch(() => {});
+    callTgApi('sendMessage', { chat_id: p2, text: res2, parse_mode: 'HTML' }).catch(() => {});
+    return;
+  }
+
+  const winId = winner === 1 ? p1 : p2;
+  const loseId = winner === 1 ? p2 : p1;
+  const winUser = db.users[winId];
+  const loseUser = db.users[loseId];
+
+  winUser.coins = (winUser.coins || 0) + 90;
+  addXp(winId, 30);
+  addXp(loseId, 10);
+  saveDb();
+
+  const winMove = winner === 1 ? p1Move : p2Move;
+  const loseMove = winner === 1 ? p2Move : p1Move;
+
+  const winMsg = winUser.lang === 'en'
+    ? `🏆 <b>VICTORY! You won the 1v1 Duel!</b>\n${moveIcons[winMove]} Beats ${moveIcons[loseMove]}\n💰 <b>+90 Coins & +30 XP</b>\n🪙 Balance: <b>${winUser.coins.toLocaleString()}</b> Coins`
+    : `🏆 <b>پیروزی شاهانه! شما دوئل را بردید!</b>\n${moveIcons[winMove]} شکست داد ${moveIcons[loseMove]}\n💰 <b>+۹۰ سکه و +۳۰ XP</b>\n🪙 موجودی: <b>${winUser.coins.toLocaleString()}</b> سکه`;
+
+  const loseMsg = loseUser.lang === 'en'
+    ? `😢 <b>DEFEAT! Partner won the 1v1 Duel!</b>\n${moveIcons[loseMove]} Lost to ${moveIcons[winMove]}\n⭐ <b>+10 XP</b>\n🪙 Balance: <b>${loseUser.coins.toLocaleString()}</b> Coins`
+    : `😢 <b>شکست در دوئل! هم‌صحبت برنده شد.</b>\n${moveIcons[loseMove]} باخت به ${moveIcons[winMove]}\n⭐ <b>+۱۰ XP</b>\n🪙 موجودی: <b>${loseUser.coins.toLocaleString()}</b> سکه`;
+
+  callTgApi('sendMessage', { chat_id: winId, text: winMsg, parse_mode: 'HTML' }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: loseId, text: loseMsg, parse_mode: 'HTML' }).catch(() => {});
+}
+
+async function startLiveInChatDice(p1Id, p2Id) {
+  const u1 = db.users[p1Id];
+  const u2 = db.users[p2Id];
+
+  if ((u1?.coins || 0) < 50 || (u2?.coins || 0) < 50) {
+    callTgApi('sendMessage', { chat_id: p1Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
+    callTgApi('sendMessage', { chat_id: p2Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
+    return;
+  }
+
+  u1.coins -= 50;
+  u2.coins -= 50;
+  saveDb();
+
+  callTgApi('sendMessage', { chat_id: p1Id, text: '🎲 <b>پرتاب تاس بازیکن اول...</b>', parse_mode: 'HTML' });
+  callTgApi('sendMessage', { chat_id: p2Id, text: '🎲 <b>پرتاب تاس بازیکن اول...</b>', parse_mode: 'HTML' });
+
+  const diceMsg1 = await callTgApi('sendDice', { chat_id: p1Id, emoji: '🎲' });
+  await callTgApi('sendDice', { chat_id: p2Id, emoji: '🎲' });
+  const val1 = diceMsg1?.dice?.value || 3;
+
+  setTimeout(async () => {
+    callTgApi('sendMessage', { chat_id: p1Id, text: '🎲 <b>پرتاب تاس بازیکن دوم...</b>', parse_mode: 'HTML' });
+    callTgApi('sendMessage', { chat_id: p2Id, text: '🎲 <b>پرتاب تاس بازیکن دوم...</b>', parse_mode: 'HTML' });
+
+    const diceMsg2 = await callTgApi('sendDice', { chat_id: p1Id, emoji: '🎲' });
+    await callTgApi('sendDice', { chat_id: p2Id, emoji: '🎲' });
+    const val2 = diceMsg2?.dice?.value || 3;
+
+    setTimeout(() => {
+      db.stats.totalMatchesPlayed++;
+      if (val1 === val2) {
+        u1.coins += 50;
+        u2.coins += 50;
+        saveDb();
+        callTgApi('sendMessage', { chat_id: p1Id, text: `🤝 <b>مساوی شد (${val1} = ${val2})! ۵۰ سکه بازگشت.</b>`, parse_mode: 'HTML' });
+        callTgApi('sendMessage', { chat_id: p2Id, text: `🤝 <b>مساوی شد (${val1} = ${val2})! ۵۰ سکه بازگشت.</b>`, parse_mode: 'HTML' });
+      } else if (val1 > val2) {
+        u1.coins += 90;
+        addXp(p1Id, 30);
+        addXp(p2Id, 10);
+        saveDb();
+        callTgApi('sendMessage', { chat_id: p1Id, text: `🏆 <b>شما برنده شدید (${val1} در برابر ${val2})! (+۹۰ سکه و +۳۰ XP)</b>`, parse_mode: 'HTML' });
+        callTgApi('sendMessage', { chat_id: p2Id, text: `😢 <b>هم‌صحبت برنده شد (${val1} در برابر ${val2})! (+۱۰ XP)</b>`, parse_mode: 'HTML' });
+      } else {
+        u2.coins += 90;
+        addXp(p2Id, 30);
+        addXp(p1Id, 10);
+        saveDb();
+        callTgApi('sendMessage', { chat_id: p2Id, text: `🏆 <b>شما برنده شدید (${val2} در برابر ${val1})! (+۹۰ سکه و +۳۰ XP)</b>`, parse_mode: 'HTML' });
+        callTgApi('sendMessage', { chat_id: p1Id, text: `😢 <b>هم‌صحبت برنده شد (${val2} در برابر ${val1})! (+۱۰ XP)</b>`, parse_mode: 'HTML' });
+      }
+    }, 2500);
+  }, 2000);
+}
+
+// ----------------------------------------------------
 // FULL INTERACTIVE PROFILE EDITOR
 // ----------------------------------------------------
 async function sendProfileEditMenu(chatId, userId) {
@@ -1203,8 +1477,8 @@ async function handleMessage(msg) {
     if (text === t(userId, 'inChatShareId')) {
       return shareContact(chatId, userId, msg);
     }
-    if (text === t(userId, 'inChatDuel')) {
-      return sendGamesMenu(chatId, userId);
+    if (text === t(userId, 'inChatDuel') || text === '/duel') {
+      return promptInChatDuelChoice(chatId, userId);
     }
     if (text === t(userId, 'inChatReport')) {
       await stopChat(chatId, userId);
@@ -1588,6 +1862,34 @@ async function handleCallbackQuery(cq) {
       text: isEn ? '✅ Language changed to English!' : '✅ زبان به فارسی تغییر یافت!'
     });
     return sendProfileCard(chatId, userId);
+  }
+
+
+  // In-Chat 1v1 Duel Callbacks
+  if (data === 'duel_invite_rps') return sendDuelInviteToPartner(userId, 'rps');
+  if (data === 'duel_invite_dice') return sendDuelInviteToPartner(userId, 'dice');
+
+  if (data.startsWith('duel_accept_rps_')) {
+    const challengerId = data.replace('duel_accept_rps_', '');
+    return startLiveInChatRps(challengerId, userId);
+  }
+
+  if (data.startsWith('duel_accept_dice_')) {
+    const challengerId = data.replace('duel_accept_dice_', '');
+    return startLiveInChatDice(challengerId, userId);
+  }
+
+  if (data.startsWith('duel_decline_')) {
+    const challengerId = data.replace('duel_decline_', '');
+    callTgApi('sendMessage', { chat_id: challengerId, text: '❌ هم‌صحبت دعوت به دوئل را رد کرد.' }).catch(() => {});
+    return callTgApi('sendMessage', { chat_id: userId, text: '✅ دعوت به دوئل رد شد.' });
+  }
+
+  if (data.startsWith('live_rps_')) {
+    const parts = data.replace('live_rps_', '').split('_');
+    const duelId = parts.slice(0, 3).join('_');
+    const move = parts[3];
+    return handleLiveRpsMove(userId, duelId, move);
   }
 
   // Games Triggers
