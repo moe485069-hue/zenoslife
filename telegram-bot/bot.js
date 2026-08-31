@@ -1,3 +1,187 @@
+
+// ----------------------------------------------------
+// VIRTUAL GIFTS & ICEBREAKERS ENGINE
+// ----------------------------------------------------
+const ICEBREAKER_QUESTIONS = [
+  '💭 اگر قرار بود فقط یک آرزوت برآورده شه، الان چی می‌خواستی؟',
+  '🎢 بزرگ‌ترین کار هیجان‌انگیز یا دیوونه‌بازی که تا حالا تو زندگیت کردی چی بوده؟',
+  '✨ چه ویژگی اخلاقی تو آدما فوراً جذبت می‌کنه و به دلت می‌شینه؟',
+  '🎵 یک آهنگی که این روزا مدام گوش می‌دی و قفلشی رو به هم‌صحبتت معرفی کن!',
+  '☕ تعطیلات رویاییت چطوریه؟ ساحل و آرامش یا کوه و آدرنالین؟',
+  '🍕 اگر تا آخر عمر فقط بتونی یک غذا بخوری، انتخابت چیه؟',
+  '🎬 بهترین فیلم یا سریالی که اخیراً دیدی و پیشنهاد می‌کنی چیه؟',
+  '🚀 اگر می‌تونستی به هر نقطه از زمان سفر کنی، می‌رفتی گذشته یا آینده؟'
+];
+
+async function sendInChatGiftsMenu(chatId, userId) {
+  if (!activePairs.has(userId)) return;
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const text = isEn
+    ? '🎁 <b>Send a Virtual Gift to your chat partner:</b>\n<i>(50% of the gift coins are transferred to your partner!)</i>'
+    : '🎁 <b>ارسال هدیه دیجیتال برای هم‌صحبت:</b>\n<i>(۵۰٪ از ارزش سکه هدیه مستقیماً به موجودی هم‌صحبت شما واریز می‌شود!)</i>';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '🌹 شاخه گل رز (۱۰ سکه)', callback_data: 'send_gift_rose' },
+          { text: '🍫 شکلات لوکس (۳۰ سکه)', callback_data: 'send_gift_chocolate' }
+        ],
+        [
+          { text: '💎 الماس سلطنتی (۱۰۰ سکه)', callback_data: 'send_gift_diamond' },
+          { text: '👑 تاج رویال VIP (۳۰۰ سکه)', callback_data: 'send_gift_crown' }
+        ]
+      ]
+    }
+  });
+}
+
+async function handleSendGift(userId, giftType) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const sender = db.users[userId];
+  const receiver = db.users[partnerId];
+
+  const giftCatalog = {
+    'rose': { nameFa: '🌹 شاخه گل رز', nameEn: '🌹 Red Rose', cost: 10, reward: 5 },
+    'chocolate': { nameFa: '🍫 جعبه شکلات لوکس', nameEn: '🍫 Luxury Chocolate', cost: 30, reward: 15 },
+    'diamond': { nameFa: '💎 الماس درخشان', nameEn: '💎 Sparkling Diamond', cost: 100, reward: 50 },
+    'crown': { nameFa: '👑 تاج طلایی شاهانه', nameEn: '👑 Royal Crown', cost: 300, reward: 150 }
+  };
+
+  const gift = giftCatalog[giftType];
+  if (!gift) return;
+
+  if ((sender.coins || 0) < gift.cost) {
+    return callTgApi('sendMessage', {
+      chat_id: userId,
+      text: t(userId, 'lowCoinsNotice', { cost: gift.cost, coins: sender.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  sender.coins -= gift.cost;
+  receiver.coins = (receiver.coins || 0) + gift.reward;
+  addXp(userId, Math.round(gift.cost / 2));
+  saveDb();
+
+  const isSenderEn = sender.lang === 'en';
+  const isReceiverEn = receiver.lang === 'en';
+
+  const senderNotice = isSenderEn
+    ? `🎁 You sent <b>${gift.nameEn}</b> to your partner! (- ${gift.cost} Coins)`
+    : `🎁 شما یک <b>${gift.nameFa}</b> برای هم‌صحبت ارسال کردید! (- ${gift.cost} سکه)`;
+
+  const receiverNotice = isReceiverEn
+    ? `💖 <b>${sender.name} sent you a ${gift.nameEn}!</b>\n💰 <b>+${gift.reward} Coins added to your balance!</b>`
+    : `💖 <b>هم‌صحبت شما یک «${gift.nameFa}» به شما هدیه داد!</b>\n💰 <b>+${gift.reward} سکه به موجودی شما افزوده شد!</b>`;
+
+  callTgApi('sendMessage', { chat_id: userId, text: senderNotice, parse_mode: 'HTML' }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: partnerId, text: receiverNotice, parse_mode: 'HTML' }).catch(() => {});
+}
+
+async function triggerIcebreakerQuestion(userId) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
+
+  const promptText = `🎲 <b>سوال یخ‌شکن و چالش دو‌نفره:</b>\n\n<i>${randomQ}</i>\n\n💬 <i>هر دو نفر نظرتان را در چت بگویید!</i>`;
+
+  callTgApi('sendMessage', { chat_id: userId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: partnerId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
+}
+
+// ----------------------------------------------------
+// DAILY LUCKY WHEEL ENGINE (IN-BOT)
+// ----------------------------------------------------
+async function sendLuckyWheelPrompt(chatId, userId) {
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isFree = user?.last_wheel_date !== todayStr;
+
+  const text = isEn
+    ? `🎡 <b>ZenOsLife Daily Lucky Spin Wheel</b>\n\n` +
+      (isFree ? '🎁 <b>Your Daily Spin is 100% FREE!</b>\n\n' : '🪙 Spin cost: <b>20 Coins</b>\n\n') +
+      'Prizes include: 50, 100, 250, 500 Coins, +50 XP or 1-Day VIP Pass!'
+    : `🎡 <b>گردونه شانس روزانه زنوسلایف</b>\n\n` +
+      (isFree ? '🎁 <b>چرخش امروز شما کاملاً رایگان است!</b>\n\n' : '🪙 هزینه هر چرخش مجدد: <b>۲۰ سکه</b>\n\n') +
+      'جوایز گردونه: ۵۰، ۱۰۰، ۲۵۰ و ۵۰۰ سکه، +۵۰ XP یا اشتراک VIP!';
+
+  const btnText = isFree
+    ? (isEn ? '🎰 Spin Free Now!' : '🎰 چرخش رایگان گردونه!')
+    : (isEn ? '🎰 Spin for 20 Coins' : '🎰 چرخش با ۲۰ سکه');
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: btnText, callback_data: 'spin_wheel_action' }],
+        [{ text: isEn ? '🌟 Open 3D Wheel in Mini App' : '🌟 گردونه متحرک در مینی‌اپلیکیشن', web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${user?.lang || 'fa'}` } }]
+      ]
+    }
+  });
+}
+
+async function handleSpinWheel(chatId, userId) {
+  const user = db.users[userId];
+  if (!user) return;
+  const isEn = user.lang === 'en';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isFree = user.last_wheel_date !== todayStr;
+
+  if (!isFree && (user.coins || 0) < 20) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'lowCoinsNotice', { cost: 20, coins: user.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  if (!isFree) user.coins -= 20;
+  user.last_wheel_date = todayStr;
+
+  const wheelPrizes = [
+    { labelFa: '۵۰ سکه 🪙', coins: 50, xp: 10 },
+    { labelFa: '۱۰۰ سکه 💰', coins: 100, xp: 20 },
+    { labelFa: '۳۰ XP ⚡', coins: 20, xp: 30 },
+    { labelFa: '۲۵۰ سکه 💎', coins: 250, xp: 50 },
+    { labelFa: '۵۰۰ سکه 👑', coins: 500, xp: 100 },
+    { labelFa: '۱ روز اشتراک VIP 🌟', coins: 100, xp: 50, isVip: true }
+  ];
+
+  const won = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)];
+  user.coins = (user.coins || 0) + won.coins;
+  addXp(userId, won.xp);
+
+  if (won.isVip) {
+    user.is_vip = true;
+    const currentExp = (user.vip_expires_at && user.vip_expires_at > Date.now()) ? user.vip_expires_at : Date.now();
+    user.vip_expires_at = currentExp + 86400000;
+  }
+  saveDb();
+
+  const winMsg = isEn
+    ? `🎉 <b>Congratulations! The Wheel Stopped at: ${won.labelFa}</b>\n🪙 Balance: <b>${user.coins.toLocaleString()}</b> Coins`
+    : `🎉 <b>تبریک! عقربه گردونه روی «${won.labelFa}» متوقف شد!</b>\n🪙 موجودی جدید: <b>${user.coins.toLocaleString()}</b> سکه`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: winMsg,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔄 ' + (isEn ? 'Spin Again (20 Coins)' : 'چرخش مجدد (۲۰ سکه)'), callback_data: 'spin_wheel_action' }]
+      ]
+    }
+  });
+}
 /**
  * ============================================================================
  * 👑 ZenOsLife #1 - Complete Enterprise Bilingual Engine & Royal Ecosystem
@@ -137,7 +321,10 @@ const I18N = {
     btnSettings: '⚙️ تنظیمات و زبان 🌐',
     btnMiniApp: '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
     btnSearch: '🔍 جستجوی کاربران و چت مستقیم',
+    btnWheel: '🎡 گردونه شانس روزانه',
     inChatProfile: '🪪 مشخصات هم‌صحبت',
+    inChatGift: '🎁 ارسال هدیه',
+    inChatIcebreaker: '🎲 سوال یخ‌شکن',
 
     // Chat
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
@@ -745,6 +932,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
       keyboard: [
         [{ text: t(userId, 'inChatNext') }, { text: t(userId, 'inChatStop') }],
         [{ text: t(userId, 'inChatProfile') }, { text: t(userId, 'inChatDuel') }],
+        [{ text: t(userId, 'inChatGift') }, { text: t(userId, 'inChatIcebreaker') }],
         [{ text: t(userId, 'inChatShareId') }]
       ],
       resize_keyboard: true
@@ -754,6 +942,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
       keyboard: [
         [{ text: t(partnerId, 'inChatNext') }, { text: t(partnerId, 'inChatStop') }],
         [{ text: t(partnerId, 'inChatProfile') }, { text: t(partnerId, 'inChatDuel') }],
+        [{ text: t(partnerId, 'inChatGift') }, { text: t(partnerId, 'inChatIcebreaker') }],
         [{ text: t(partnerId, 'inChatShareId') }]
       ],
       resize_keyboard: true
@@ -1703,6 +1892,12 @@ async function handleMessage(msg) {
     if (text === t(userId, 'inChatProfile') || text === '/partner') {
       return inspectPartnerProfile(chatId, userId);
     }
+    if (text === t(userId, 'inChatGift') || text === '/gift') {
+      return sendInChatGiftsMenu(chatId, userId);
+    }
+    if (text === t(userId, 'inChatIcebreaker') || text === '/icebreaker') {
+      return triggerIcebreakerQuestion(userId);
+    }
     if (text === t(userId, 'inChatDuel') || text === '/duel') {
       return promptInChatDuelChoice(chatId, userId);
     }
@@ -1832,6 +2027,7 @@ async function handleMessage(msg) {
 
   if (text === '/admin') return sendAdminPanel(chatId, userId);
   if (text === '/search' || text === t(userId, 'btnSearch')) return sendUserSearchMenu(chatId, userId);
+  if (text === '/wheel' || text === '🎡 گردونه شانس روزانه' || text === '🎡 Lucky Wheel') return sendLuckyWheelPrompt(chatId, userId);
   if (text === '/lang') return startLanguageChoice(chatId, userId);
   if (text === '/vip') return sendVipPlansMenu(chatId, userId);
   if (text === '/buy') return sendBuyStarsMenu(chatId, userId);
@@ -2150,6 +2346,13 @@ async function handleCallbackQuery(cq) {
     const senderId = data.replace('decline_chat_req_', '');
     callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
     return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
+  }
+
+  // Gifts & Wheel Callbacks
+  if (data === 'spin_wheel_action') return handleSpinWheel(chatId, userId);
+  if (data.startsWith('send_gift_')) {
+    const giftType = data.replace('send_gift_', '');
+    return handleSendGift(userId, giftType);
   }
 
   // In-Chat Duels
