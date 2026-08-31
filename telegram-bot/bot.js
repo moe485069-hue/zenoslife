@@ -1,5 +1,133 @@
 
 // ----------------------------------------------------
+// VIP ANONYMOUS GROUP CHAT LOUNGE MODULE
+// ----------------------------------------------------
+const vipLoungeMembers = new Set(); // Active userIds currently inside VIP Lounge
+
+async function enterVipLounge(chatId, userId) {
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
+
+  if (!user?.is_vip) {
+    const lockText = isEn
+      ? '🔒 <b>Royal VIP Anonymous Group Chat Lounge</b>\n\n' +
+        '👑 This exclusive lounge is reserved for VIP members!\n\n' +
+        '<b>VIP Lounge Perks:</b>\n' +
+        '• Chat anonymously with top VIP members in a real-time group room\n' +
+        '• Send voice notes, photos & stickers with your Royal Badge\n' +
+        '• Meet verified, high-quality friends\n\n' +
+        '⭐ <i>Upgrade to VIP now to unlock instant access!</i>'
+      : '🔒 <b>تالار گفتگوی گروهی ناشناس ویژه اعضای VIP (Royal Lounge)</b>\n\n' +
+        '👑 این بخش اختصاصی فقط مخصوص اعضای دارای اشتراک VIP است!\n\n' +
+        '<b>مزایای تالار گروهی VIP:</b>\n' +
+        '• چت گروهی ناشناس و زنده با دیگر اعضای VIP\n' +
+        '• ارسال ویس، عکس و استیکر با نشان تاج طلایی و کارمای بالا\n' +
+        '• محیط دوستانه، باکلاس و بدون اسپم\n\n' +
+        '⭐ <i>همین حالا با تهیه اشتراک VIP قفل این بخش را باز کنید!</i>';
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: lockText,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '👑 Get VIP Pass with Stars' : '👑 خرید اشتراک VIP با ستاره ⭐', callback_data: 'buy_vip_plans' }],
+          [{ text: isEn ? '🔙 Back to Menu' : '🔙 بازگشت به منوی اصلی', callback_data: 'back_to_dashboard' }]
+        ]
+      }
+    });
+  }
+
+  // Join Lounge
+  vipLoungeMembers.add(userId);
+
+  const welcomeText = isEn
+    ? `👑 <b>Welcome to the Royal VIP Lounge, ${user.name}!</b>\n\n` +
+      `👥 Online Members in Lounge: <b>${vipLoungeMembers.size}</b>\n` +
+      `💬 Every message, voice note or sticker you send will be broadcasted to all VIPs in this lounge.\n\n` +
+      `<i>Type your message below or tap Exit to leave.</i>`
+    : `👑 <b>به تالار گفتگوی گروهی ناشناس VIP خوش آمدید، ${user.name} عزیز!</b>\n\n` +
+      `👥 تعداد اعضای آنلاین در تالار: <b>${vipLoungeMembers.size} نفر</b>\n` +
+      `💬 هر پیامی که ارسال کنید (متن، ویس، عکس، استیکر) برای تمام اعضای آنلاین در این تالار ارسال می‌شود.\n\n` +
+      `<i>پیام خود را تایپ و ارسال کنید:</i>`;
+
+  const loungeKeyboard = {
+    keyboard: [
+      [{ text: isEn ? '🛑 Exit VIP Lounge' : '🛑 خروج از تالار VIP' }, { text: isEn ? '👥 Online VIPs' : '👥 اعضای آنلاین تالار' }],
+      [{ text: isEn ? '⭐ Buy/Renew VIP' : '⭐ تمدید اشتراک VIP' }]
+    ],
+    resize_keyboard: true
+  };
+
+  // Announce to other members
+  for (const mid of vipLoungeMembers) {
+    if (mid !== userId) {
+      callTgApi('sendMessage', {
+        chat_id: mid,
+        text: isEn ? `👑 <i>${user.name} entered the VIP Lounge.</i>` : `👑 <i>کاربر VIP «${user.name}» وارد تالار شد.</i>`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    }
+  }
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: welcomeText,
+    parse_mode: 'HTML',
+    reply_markup: loungeKeyboard
+  });
+}
+
+async function leaveVipLounge(chatId, userId) {
+  vipLoungeMembers.delete(userId);
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
+
+  for (const mid of vipLoungeMembers) {
+    callTgApi('sendMessage', {
+      chat_id: mid,
+      text: isEn ? `🚪 <i>${user?.name || 'A VIP member'} left the VIP Lounge.</i>` : `🚪 <i>«${user?.name || 'یک کاربر VIP'}» از تالار خارج شد.</i>`,
+      parse_mode: 'HTML'
+    }).catch(() => {});
+  }
+
+  return sendMainDashboard(chatId, userId, isEn ? '🛑 You left the VIP Lounge.' : '🛑 شما از تالار گروهی VIP خارج شدید.');
+}
+
+async function broadcastToVipLounge(msg, senderId) {
+  const sender = db.users[senderId];
+  if (!sender) return;
+  const genderIcon = sender.gender === 'female' ? '👩' : '👨';
+  const prefix = `👑 <b>${genderIcon} ${sender.name} (${sender.province}):</b>`;
+
+  for (const targetId of vipLoungeMembers) {
+    if (targetId === senderId) continue;
+
+    if (msg.text) {
+      callTgApi('sendMessage', {
+        chat_id: targetId,
+        text: `${prefix}\n${msg.text}`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    } else if (msg.voice) {
+      callTgApi('sendVoice', { chat_id: targetId, voice: msg.voice.file_id, caption: prefix, parse_mode: 'HTML' }).catch(() => {});
+    } else if (msg.photo && msg.photo.length > 0) {
+      const photoId = msg.photo[msg.photo.length - 1].file_id;
+      callTgApi('sendPhoto', {
+        chat_id: targetId,
+        photo: photoId,
+        caption: msg.caption ? `${prefix}\n${msg.caption}` : prefix,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    } else if (msg.sticker) {
+      callTgApi('sendSticker', { chat_id: targetId, sticker: msg.sticker.file_id }).catch(() => {});
+    } else if (msg.video_note) {
+      callTgApi('sendVideoNote', { chat_id: targetId, video_note: msg.video_note.file_id }).catch(() => {});
+    }
+  }
+}
+
+// ----------------------------------------------------
 // IN-CHAT PARTNER PROFILE INSPECTION
 // ----------------------------------------------------
 async function inspectPartnerProfile(chatId, userId) {
@@ -748,6 +876,7 @@ const I18N = {
     btnGames: '🎮 بازی‌ها و دوئل‌های 1v1 🎲',
     btnCoins: '🪙 کیف پول و خرید ستاره ⭐',
     btnVip: '👑 عضویت و پلن‌های VIP',
+    btnVipChat: '👑 چت‌روم گروهی VIP',
     btnProfile: '👤 پروفایل و دستاوردها 🏅',
     btnReferral: '🎁 دعوت دوستان و درآمد',
     btnLeaderboard: '🏆 رتبه‌بندی و برترین‌ها',
@@ -859,6 +988,7 @@ const I18N = {
     btnGames: '🎮 1v1 Games & Duels 🎲',
     btnCoins: '🪙 Wallet & Telegram Stars ⭐',
     btnVip: '👑 VIP Plans & Membership',
+    btnVipChat: '👑 VIP Group Lounge',
     btnProfile: '👤 My Profile & Badges 🏅',
     btnReferral: '🎁 Invite Friends & Earn',
     btnLeaderboard: '🏆 Leaderboards & Ranks',
@@ -1224,6 +1354,7 @@ async function sendFilterMenu(chatId, userId) {
     inline_keyboard: [
       [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
       [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
+      [{ text: t(userId, 'btnVipChat'), callback_data: 'enter_vip_lounge' }],
       [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
       [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }],
       [{ text: t(userId, 'btnSearch'), callback_data: 'open_user_search' }]
@@ -1743,19 +1874,27 @@ async function sendLeaderboard(chatId, userId) {
 async function sendAdminPanel(chatId, userId) {
   if (!CONFIG.ADMIN_IDS.includes(userId)) return;
 
-  const totalUsers = Object.keys(db.users).length;
+  const allUsers = Object.values(db.users);
+  const totalUsers = allUsers.length;
+  const totalVips = allUsers.filter(u => u.is_vip).length;
   const totalMatches = db.stats.totalMatchesPlayed || 0;
   const totalChats = db.stats.totalChatsCompleted || 0;
   const totalRevenue = db.stats.totalStarsRevenue || 0;
   const activeChatPairs = activePairs.size / 2;
 
   const adminText = `📊 <b>ZenOsLife Master Admin Control Panel</b>\n\n` +
-    `👥 Total Users: <b>${totalUsers.toLocaleString()}</b>\n` +
-    `💬 Active Chat Pairs: <b>${activeChatPairs}</b>\n` +
-    `⏳ In Queue: <b>${waitingQueue.length}</b>\n` +
-    `🎮 Matches Played: <b>${totalMatches.toLocaleString()}</b>\n` +
+    `👥 Total Registered Users: <b>${totalUsers.toLocaleString()}</b>\n` +
+    `👑 Active VIP Users: <b>${totalVips.toLocaleString()}</b>\n` +
+    `💬 Active Anonymous Chat Pairs: <b>${activeChatPairs}</b>\n` +
+    `👑 Active in VIP Lounge: <b>${vipLoungeMembers.size}</b>\n` +
+    `⏳ In Matchmaking Queue: <b>${waitingQueue.length}</b>\n` +
+    `🎮 1v1 Matches Played: <b>${totalMatches.toLocaleString()}</b>\n` +
     `⭐ Total Stars Revenue: <b>${totalRevenue.toLocaleString()} Stars</b>\n\n` +
-    `📢 To broadcast: <code>/broadcast your message here</code>`;
+    `<b>🛠️ Admin Quick Commands:</b>\n` +
+    `• <code>/grantvip &lt;userId&gt; &lt;days&gt;</code> - Grant VIP status\n` +
+    `• <code>/revokevip &lt;userId&gt;</code> - Revoke VIP status\n` +
+    `• <code>/setcoins &lt;userId&gt; &lt;amount&gt;</code> - Set coin balance\n` +
+    `• <code>/broadcast &lt;message&gt;</code> - Send message to all users`;
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
@@ -1771,6 +1910,26 @@ async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from.id);
   const text = msg.text || '';
+
+  // 0. VIP Lounge Handling
+  if (vipLoungeMembers.has(userId)) {
+    if (text === '🛑 خروج از تالار VIP' || text === '🛑 Exit VIP Lounge' || text === '/exit') {
+      return leaveVipLounge(chatId, userId);
+    }
+    if (text === '👥 اعضای آنلاین تالار' || text === '👥 Online VIPs') {
+      const isEn = db.users[userId]?.lang === 'en';
+      const names = Array.from(vipLoungeMembers).map(uid => db.users[uid]?.name || 'VIP Member').join(', ');
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: isEn ? `👥 <b>VIP Members in Lounge (${vipLoungeMembers.size}):</b>\n${names}` : `👥 <b>اعضای آنلاین در تالار VIP (${vipLoungeMembers.size} نفر):</b>\n${names}`,
+        parse_mode: 'HTML'
+      });
+    }
+    if (text === '⭐ تمدید اشتراک VIP' || text === '⭐ Buy/Renew VIP') {
+      return sendVipPlansMenu(chatId, userId);
+    }
+    return broadcastToVipLounge(msg, userId);
+  }
 
   // 1. Active Chat Relay & Controls
   if (activePairs.has(userId)) {
@@ -1863,6 +2022,56 @@ async function handleMessage(msg) {
   if (text === '/buy') return sendBuyStarsMenu(chatId, userId);
   if (text === '/rank') return sendLeaderboard(chatId, userId);
   if (text === '/ref') return sendReferralHub(chatId, userId);
+
+  // Admin Commands: /grantvip, /revokevip, /setcoins
+  if (CONFIG.ADMIN_IDS.includes(userId)) {
+    if (text.startsWith('/grantvip')) {
+      const parts = text.split(' ');
+      const targetUid = parts[1];
+      const days = parseInt(parts[2] || '30', 10);
+      if (!targetUid || !db.users[targetUid]) {
+        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ User ID not found in database. Usage: /grantvip <userId> <days>' });
+      }
+      const targetUser = db.users[targetUid];
+      targetUser.is_vip = true;
+      targetUser.vip_expires_at = Date.now() + days * 86400000;
+      saveDb();
+
+      callTgApi('sendMessage', {
+        chat_id: targetUid,
+        text: targetUser.lang === 'en'
+          ? `👑 <b>Congratulations! You have been granted ${days} Days of Royal VIP Membership by Admin!</b>`
+          : `👑 <b>تبریک! اشتراک ویژه VIP زنوسلایف به مدت ${days} روز توسط مدیریت برای شما فعال شد!</b>`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+
+      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ VIP granted to ${targetUser.name} (${targetUid}) for ${days} days!` });
+    }
+
+    if (text.startsWith('/revokevip')) {
+      const parts = text.split(' ');
+      const targetUid = parts[1];
+      if (!targetUid || !db.users[targetUid]) {
+        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ User ID not found. Usage: /revokevip <userId>' });
+      }
+      db.users[targetUid].is_vip = false;
+      db.users[targetUid].vip_expires_at = null;
+      saveDb();
+      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ VIP revoked for user ${targetUid}.` });
+    }
+
+    if (text.startsWith('/setcoins')) {
+      const parts = text.split(' ');
+      const targetUid = parts[1];
+      const amount = parseInt(parts[2] || '1000', 10);
+      if (!targetUid || !db.users[targetUid]) {
+        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ User ID not found. Usage: /setcoins <userId> <amount>' });
+      }
+      db.users[targetUid].coins = amount;
+      saveDb();
+      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ Coins set to ${amount.toLocaleString()} for user ${targetUid}.` });
+    }
+  }
 
   // Admin Broadcast
   if (text.startsWith('/broadcast') && CONFIG.ADMIN_IDS.includes(userId)) {
@@ -2228,6 +2437,10 @@ async function handleCallbackQuery(cq) {
     callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
     return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
   }
+
+  if (data === 'enter_vip_lounge') return enterVipLounge(chatId, userId);
+  if (data === 'buy_vip_plans') return sendVipPlansMenu(chatId, userId);
+  if (data === 'back_to_dashboard') return sendMainDashboard(chatId, userId);
 
   // In-Chat 1v1 Duel Callbacks
   if (data === 'duel_invite_rps') return sendDuelInviteToPartner(userId, 'rps');
