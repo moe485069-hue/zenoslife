@@ -1,3 +1,72 @@
+
+// ----------------------------------------------------
+// FULL INTERACTIVE PROFILE EDITOR
+// ----------------------------------------------------
+async function sendProfileEditMenu(chatId, userId) {
+  const user = db.users[userId];
+  if (!user) return startLanguageChoice(chatId, userId);
+  const isEn = user.lang === 'en';
+
+  const text = isEn
+    ? '⚙️ <b>Edit Your Profile:</b>\nSelect which field you would like to update:'
+    : '⚙️ <b>ویرایش مشخصات کاربری:</b>\nلطفاً بخشی که مایل به تغییر آن هستید را انتخاب کنید:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: isEn ? '✏️ Edit Name' : '✏️ تغییر نام', callback_data: 'edit_field_name' }],
+        [
+          { text: isEn ? '👤 Change Gender' : '👤 تغییر جنسیت', callback_data: 'edit_field_gender' },
+          { text: isEn ? '🎂 Change Age' : '🎂 تغییر رده سنی', callback_data: 'edit_field_age' }
+        ],
+        [{ text: isEn ? '📍 Change Region' : '📍 تغییر استان / منطقه', callback_data: 'edit_field_prov' }],
+        [{ text: isEn ? '🌐 Change Language' : '🌐 تغییر زبان', callback_data: 'edit_field_lang' }],
+        [{ text: isEn ? '🔙 Back to Profile' : '🔙 بازگشت به پروفایل', callback_data: 'view_profile_full' }]
+      ]
+    }
+  });
+}
+
+async function sendProfileCard(chatId, userId) {
+  const user = db.users[userId];
+  if (!user) return startLanguageChoice(chatId, userId);
+  const genderIcon = user.gender === 'female' ? '👩' : '👨';
+  const isEn = user.lang === 'en';
+
+  const profText = isEn
+    ? `👤 <b>ZenOsLife Social Profile:</b>\n\n` +
+      `• Name: <b>${user.name}</b>\n` +
+      `• Gender: <b>${genderIcon} ${user.gender}</b>\n` +
+      `• Age Range: <b>${user.age}</b>\n` +
+      `• Region: <b>${user.province}</b>\n` +
+      `• Level: <b>Level ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
+      `• Karma & Ethics: <b>⭐ ${user.karma || 100} pts</b>\n` +
+      `• Balance: <b>🪙 ${(user.coins || 0).toLocaleString()} Coins</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
+      `• Daily Streak: <b>🔥 ${user.streak_days || 1} Days</b>\n` +
+      `• Referrals: <b>${(user.referrals || []).length} Friends</b>`
+    : `👤 <b>پروفایل کاربری شما در زنوسلایف:</b>\n\n` +
+      `• نام: <b>${user.name}</b>\n` +
+      `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
+      `• رده سنی: <b>${user.age}</b>\n` +
+      `• استان: <b>${user.province}</b>\n` +
+      `• سطح و پیشرفت: <b>سطح ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
+      `• امتیاز کارما و ادب: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
+      `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
+      `• استریک روزانه: <b>🔥 ${user.streak_days || 1} روز مداوم</b>\n` +
+      `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: profText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
+    }
+  });
+}
 /**
  * ============================================================================
  * ZenOsLife #1 - Enterprise Telegram Bot Engine
@@ -1151,9 +1220,24 @@ async function handleMessage(msg) {
     }
   }
 
-  // 3. Registration step
+  // 3. Registration or Name Editing step
   if (registrationSteps.has(userId)) {
     const reg = registrationSteps.get(userId);
+    if (reg.step === 'editing_name' && text) {
+      registrationSteps.delete(userId);
+      if (db.users[userId]) {
+        db.users[userId].name = text.slice(0, 25);
+        saveDb();
+      }
+      const isEn = db.users[userId]?.lang === 'en';
+      await callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: isEn ? `✅ Name changed to: <b>${text.slice(0, 25)}</b>` : `✅ نام شما با موفقیت به <b>«${text.slice(0, 25)}»</b> تغییر یافت.`,
+        parse_mode: 'HTML'
+      });
+      return sendProfileCard(chatId, userId);
+    }
+
     if (reg.step === 'name' && text) {
       reg.tempProfile.name = text.slice(0, 25);
       reg.step = 'gender';
@@ -1205,41 +1289,7 @@ async function handleMessage(msg) {
   if (text === t(userId, 'btnSettings')) return startLanguageChoice(chatId, userId);
 
   if (text === t(userId, 'btnProfile')) {
-    const user = db.users[userId];
-    if (!user) return startLanguageChoice(chatId, userId);
-    const genderIcon = user.gender === 'female' ? '👩' : '👨';
-    const isEn = user.lang === 'en';
-
-    const profText = isEn
-      ? `👤 <b>ZenOsLife Social Profile:</b>\n\n` +
-        `• Name: <b>${user.name}</b>\n` +
-        `• Gender: <b>${genderIcon} ${user.gender}</b>\n` +
-        `• Age Range: <b>${user.age}</b>\n` +
-        `• Region: <b>${user.province}</b>\n` +
-        `• Level: <b>Level ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
-        `• Karma & Ethics: <b>⭐ ${user.karma || 100} pts</b>\n` +
-        `• Balance: <b>🪙 ${(user.coins || 0).toLocaleString()} Coins</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
-        `• Daily Streak: <b>🔥 ${user.streak_days || 1} Days</b>\n` +
-        `• Referrals: <b>${(user.referrals || []).length} Friends</b>`
-      : `👤 <b>پروفایل کاربری شما در زنوسلایف:</b>\n\n` +
-        `• نام: <b>${user.name}</b>\n` +
-        `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
-        `• رده سنی: <b>${user.age}</b>\n` +
-        `• استان: <b>${user.province}</b>\n` +
-        `• سطح و پیشرفت: <b>سطح ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
-        `• امتیاز کارما و ادب: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
-        `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
-        `• استریک روزانه: <b>🔥 ${user.streak_days || 1} روز مداوم</b>\n` +
-        `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
-
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: profText,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
-      }
-    });
+    return sendProfileCard(chatId, userId);
   }
 
   if (text === t(userId, 'btnMiniApp')) {
@@ -1410,7 +1460,135 @@ async function handleCallbackQuery(cq) {
   if (data === 'filter_province') return executeMatchSearch(chatId, userId, 'province');
   if (data === 'buy_stars') return sendBuyStarsMenu(chatId, userId);
   if (data === 'show_referral') return sendReferralHub(chatId, userId);
-  if (data === 'edit_profile') return startLanguageChoice(chatId, userId);
+  if (data === 'edit_profile') return sendProfileEditMenu(chatId, userId);
+  if (data === 'view_profile_full') return sendProfileCard(chatId, userId);
+
+  // Field Edit Triggers
+  if (data === 'edit_field_name') {
+    registrationSteps.set(userId, { step: 'editing_name' });
+    const isEn = db.users[userId]?.lang === 'en';
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '✏️ Please type and send your <b>new name</b> in chat:' : '✏️ لطفاً <b>نام جدید</b> خود را در چت ارسال کنید:',
+      parse_mode: 'HTML'
+    });
+  }
+
+  if (data === 'edit_field_gender') {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'chooseGender'),
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(userId, 'male'), callback_data: 'save_edit_gender_male' }, { text: t(userId, 'female'), callback_data: 'save_edit_gender_female' }],
+          [{ text: '🔙', callback_data: 'edit_profile' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('save_edit_gender_')) {
+    const newGender = data.replace('save_edit_gender_', '');
+    if (db.users[userId]) {
+      db.users[userId].gender = newGender;
+      saveDb();
+    }
+    const isEn = db.users[userId]?.lang === 'en';
+    await callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '✅ Gender updated successfully!' : '✅ جنسیت با موفقیت به‌روزرسانی شد!'
+    });
+    return sendProfileCard(chatId, userId);
+  }
+
+  if (data === 'edit_field_age') {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'chooseAge'),
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(userId, 'age1'), callback_data: 'save_edit_age_18-21' }, { text: t(userId, 'age2'), callback_data: 'save_edit_age_22-26' }],
+          [{ text: t(userId, 'age3'), callback_data: 'save_edit_age_27-34' }, { text: t(userId, 'age4'), callback_data: 'save_edit_age_35+' }],
+          [{ text: '🔙', callback_data: 'edit_profile' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('save_edit_age_')) {
+    const newAge = data.replace('save_edit_age_', '');
+    if (db.users[userId]) {
+      db.users[userId].age = newAge;
+      saveDb();
+    }
+    const isEn = db.users[userId]?.lang === 'en';
+    await callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '✅ Age range updated successfully!' : '✅ رده سنی با موفقیت به‌روزرسانی شد!'
+    });
+    return sendProfileCard(chatId, userId);
+  }
+
+  if (data === 'edit_field_prov') {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'chooseProv'),
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(userId, 'provTeh'), callback_data: 'save_edit_prov_Tehran' }, { text: t(userId, 'provIsf'), callback_data: 'save_edit_prov_Isfahan' }],
+          [{ text: t(userId, 'provMsh'), callback_data: 'save_edit_prov_Mashhad' }, { text: t(userId, 'provShr'), callback_data: 'save_edit_prov_Shiraz' }],
+          [{ text: t(userId, 'provTab'), callback_data: 'save_edit_prov_Tabriz' }, { text: t(userId, 'provAhv'), callback_data: 'save_edit_prov_Ahvaz' }],
+          [{ text: t(userId, 'provNrt'), callback_data: 'save_edit_prov_North' }, { text: t(userId, 'provOth'), callback_data: 'save_edit_prov_Global' }],
+          [{ text: '🔙', callback_data: 'edit_profile' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('save_edit_prov_')) {
+    const newProv = data.replace('save_edit_prov_', '');
+    if (db.users[userId]) {
+      db.users[userId].province = newProv;
+      saveDb();
+    }
+    const isEn = db.users[userId]?.lang === 'en';
+    await callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '✅ Region updated successfully!' : '✅ استان سکونت با موفقیت به‌روزرسانی شد!'
+    });
+    return sendProfileCard(chatId, userId);
+  }
+
+  if (data === 'edit_field_lang') {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '🌐 <b>لطفاً زبان جدید را انتخاب کنید / Please select new language:</b>',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'فارسی (Persian)', callback_data: 'save_edit_lang_fa' }, { text: 'English', callback_data: 'save_edit_lang_en' }],
+          [{ text: '🔙', callback_data: 'edit_profile' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('save_edit_lang_')) {
+    const newLang = data.replace('save_edit_lang_', '');
+    if (db.users[userId]) {
+      db.users[userId].lang = newLang;
+      saveDb();
+    }
+    const isEn = newLang === 'en';
+    await callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '✅ Language changed to English!' : '✅ زبان به فارسی تغییر یافت!'
+    });
+    return sendProfileCard(chatId, userId);
+  }
 
   // Games Triggers
   if (data === 'game_rps_start') return startRpsGame(chatId, userId);
