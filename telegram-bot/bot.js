@@ -1,5 +1,290 @@
 
 // ----------------------------------------------------
+// IN-CHAT PARTNER PROFILE INSPECTION
+// ----------------------------------------------------
+async function inspectPartnerProfile(chatId, userId) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const partnerUser = db.users[partnerId];
+  if (!partnerUser) return;
+
+  const isEn = db.users[userId]?.lang === 'en';
+  const genderIcon = partnerUser.gender === 'female' ? '👩' : '👨';
+  const avatar = getUserAvatar(partnerUser);
+
+  const caption = isEn
+    ? `🪪 <b>Your Partner's Profile:</b>\n\n` +
+      `• Name: <b>${partnerUser.name}</b>\n` +
+      `• Gender: <b>${genderIcon} ${partnerUser.gender}</b>\n` +
+      `• Age: <b>${partnerUser.age}</b>\n` +
+      `• Region: <b>${partnerUser.province}</b>\n` +
+      `• Level: <b>Level ${partnerUser.level || 1} (${partnerUser.xp || 0} XP)</b>\n` +
+      `• Karma: <b>⭐ ${partnerUser.karma || 100} pts</b> ${partnerUser.is_vip ? '👑 VIP' : ''}`
+    : `🪪 <b>مشخصات هم‌صحبت شما:</b>\n\n` +
+      `• نام: <b>${partnerUser.name}</b>\n` +
+      `• جنسیت: <b>${genderIcon} ${partnerUser.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
+      `• رده سنی: <b>${partnerUser.age}</b>\n` +
+      `• استان: <b>${partnerUser.province}</b>\n` +
+      `• سطح: <b>سطح ${partnerUser.level || 1} (${partnerUser.xp || 0} XP)</b>\n` +
+      `• امتیاز کارما: <b>⭐ ${partnerUser.karma || 100} امتیاز</b> ${partnerUser.is_vip ? '👑 VIP' : ''}`;
+
+  try {
+    return await callTgApi('sendPhoto', {
+      chat_id: chatId,
+      photo: avatar,
+      caption: caption,
+      parse_mode: 'HTML'
+    });
+  } catch (_) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: caption,
+      parse_mode: 'HTML'
+    });
+  }
+}
+
+// ----------------------------------------------------
+// ADVANCED USER SEARCH & DIRECT CHAT REQUEST SYSTEM
+// ----------------------------------------------------
+async function sendUserSearchMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const text = isEn
+    ? '🔍 <b>ZenOsLife Advanced User Directory & Direct Chat:</b>\n\n' +
+      'Find active users and send them direct chat requests!\n' +
+      '🪙 <b>Pricing:</b> 10 Coins deposit to send request. If accepted, +40 Coins deducted (50 Coins total for connected chat). If declined, you only spend 10 Coins!'
+    : '🔍 <b>جستجوی پیشرفته کاربران زنوسلایف و درخواست چت مستقیم:</b>\n\n' +
+      'کاربران فعال را پیدا کنید و مستقیماً به آن‌ها درخواست گفتگو بفرستید!\n' +
+      '🪙 <b>هزینه:</b> ۱۰ سکه بیعانه برای ارسال درخواست. در صورت قبول طرف مقابل، ۴۰ سکه دیگر کسر می‌شود (مجموعاً ۵۰ سکه برای اتصال موفق). در صورت عدم پذیرش، فقط همان ۱۰ سکه کسر می‌شود.';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isEn ? '👩 Active Girls' : '👩 دختران فعال', callback_data: 'search_filter_female' },
+          { text: isEn ? '👨 Active Boys' : '👨 پسران فعال', callback_data: 'search_filter_male' }
+        ],
+        [
+          { text: isEn ? '📍 Nearby & Same Region' : '📍 همشهری‌ها و افراد نزدیک', callback_data: 'search_filter_province' },
+          { text: isEn ? '⭐ Top Karma Members' : '⭐ برترین‌های کارما و اخلاق', callback_data: 'search_filter_karma' }
+        ]
+      ]
+    }
+  });
+}
+
+async function renderUserList(chatId, userId, filter) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const myUser = db.users[userId];
+  const allUsers = Object.entries(db.users).filter(([uid, u]) => uid !== userId && u.profileCompleted);
+
+  let filtered = allUsers;
+  if (filter === 'female') filtered = allUsers.filter(([_, u]) => u.gender === 'female');
+  if (filter === 'male') filtered = allUsers.filter(([_, u]) => u.gender === 'male');
+  if (filter === 'province' && myUser?.province) filtered = allUsers.filter(([_, u]) => u.province === myUser.province);
+  if (filter === 'karma') filtered = allUsers.sort((a, b) => (b[1].karma || 100) - (a[1].karma || 100));
+
+  const list = filtered.slice(0, 6);
+
+  if (list.length === 0) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '🔍 No users found in this category right now.' : '🔍 در حال حاضر کاربری با این مشخصات یافت نشد.',
+      reply_markup: {
+        inline_keyboard: [[{ text: '🔙', callback_data: 'open_user_search' }]]
+      }
+    });
+  }
+
+  const buttons = list.map(([uid, u]) => {
+    const icon = u.gender === 'female' ? '👩' : '👨';
+    const label = `${icon} ${u.name} (${u.age} yrs, ${u.province})`;
+    return [{ text: label, callback_data: `view_cand_${uid}` }];
+  });
+
+  buttons.push([{ text: isEn ? '🔙 Back to Search' : '🔙 بازگشت به جستجو', callback_data: 'open_user_search' }]);
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: isEn ? '👥 <b>Select a member to view profile and send chat request:</b>' : '👥 <b>یک کاربر را برای مشاهده پروفایل و ارسال درخواست چت انتخاب کنید:</b>',
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+async function viewCandidateProfile(chatId, userId, candId) {
+  const cand = db.users[candId];
+  if (!cand) return;
+  const isEn = db.users[userId]?.lang === 'en';
+  const genderIcon = cand.gender === 'female' ? '👩' : '👨';
+  const avatar = getUserAvatar(cand);
+
+  const caption = isEn
+    ? `👤 <b>${cand.name}'s Profile:</b>\n\n` +
+      `• Gender: <b>${genderIcon} ${cand.gender}</b>\n` +
+      `• Age: <b>${cand.age}</b>\n` +
+      `• Region: <b>${cand.province}</b>\n` +
+      `• Level: <b>Level ${cand.level || 1} (${cand.xp || 0} XP)</b>\n` +
+      `• Karma: <b>⭐ ${cand.karma || 100} pts</b> ${cand.is_vip ? '👑 VIP' : ''}`
+    : `👤 <b>پروفایل ${cand.name}:</b>\n\n` +
+      `• جنسیت: <b>${genderIcon} ${cand.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
+      `• رده سنی: <b>${cand.age}</b>\n` +
+      `• استان: <b>${cand.province}</b>\n` +
+      `• سطح: <b>سطح ${cand.level || 1} (${cand.xp || 0} XP)</b>\n` +
+      `• امتیاز کارما: <b>⭐ ${cand.karma || 100} امتیاز</b> ${cand.is_vip ? '👑 VIP' : ''}`;
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [{ text: isEn ? '📩 Send Direct Chat Request (10 Coins)' : '📩 ارسال درخواست چت مستقیم (۱۰ سکه بیعانه)', callback_data: `send_chat_req_${candId}` }],
+      [{ text: isEn ? '🔙 Back' : '🔙 بازگشت', callback_data: 'search_filter_female' }]
+    ]
+  };
+
+  try {
+    return await callTgApi('sendPhoto', {
+      chat_id: chatId,
+      photo: avatar,
+      caption: caption,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  } catch (_) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: caption,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  }
+}
+
+async function sendDirectChatRequest(senderId, targetId) {
+  const sender = db.users[senderId];
+  const target = db.users[targetId];
+  if (!sender || !target) return;
+
+  if ((sender.coins || 0) < 50) {
+    return callTgApi('sendMessage', {
+      chat_id: senderId,
+      text: t(senderId, 'lowCoinsNotice', { cost: 50, coins: sender.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  // Deduct 10 coins deposit
+  sender.coins -= 10;
+  saveDb();
+
+  const isTargetEn = target.lang === 'en';
+  const senderAvatar = getUserAvatar(sender);
+  const senderIcon = sender.gender === 'female' ? '👩' : '👨';
+
+  const reqCaption = isTargetEn
+    ? `📩 <b>Direct Chat Request Received!</b>\n\n` +
+      `👤 <b>${sender.name}</b> (${senderIcon} ${sender.gender}, ${sender.age} yrs from ${sender.province}) wants to start a private chat with you!\n` +
+      `⭐ Karma: <b>${sender.karma || 100} pts</b>`
+    : `📩 <b>درخواست چت مستقیم جدید!</b>\n\n` +
+      `👤 <b>${sender.name}</b> (${senderIcon} ${sender.gender === 'female' ? 'دختر' : 'پسر'}، ${sender.age} از ${sender.province}) مایل است با شما چت خصوصی کند!\n` +
+      `⭐ کارما و ادب: <b>${sender.karma || 100} امتیاز</b>`;
+
+  const targetMarkup = {
+    inline_keyboard: [
+      [
+        { text: isTargetEn ? '💬 Accept Chat' : '💬 قبول درخواست و شروع چت', callback_data: `accept_chat_req_${senderId}` },
+        { text: isTargetEn ? '❌ Decline' : '❌ رد درخواست', callback_data: `decline_chat_req_${senderId}` }
+      ]
+    ]
+  };
+
+  try {
+    await callTgApi('sendPhoto', {
+      chat_id: targetId,
+      photo: senderAvatar,
+      caption: reqCaption,
+      parse_mode: 'HTML',
+      reply_markup: targetMarkup
+    });
+  } catch (_) {
+    await callTgApi('sendMessage', {
+      chat_id: targetId,
+      text: reqCaption,
+      parse_mode: 'HTML',
+      reply_markup: targetMarkup
+    });
+  }
+
+  const senderNotice = sender.lang === 'en'
+    ? '✅ Direct chat request sent! (10 Coins deposit deducted). You will be notified as soon as they respond.'
+    : '✅ درخواست چت مستقیم ارسال شد! (۱۰ سکه بیعانه کسر شد). به محض پاسخ کاربر به شما اطلاع داده می‌شود.';
+
+  return callTgApi('sendMessage', { chat_id: senderId, text: senderNotice });
+}
+
+async function acceptDirectChatRequest(targetId, senderId) {
+  const target = db.users[targetId];
+  const sender = db.users[senderId];
+  if (!target || !sender) return;
+
+  // Deduct remaining 40 coins from sender (total 50)
+  if ((sender.coins || 0) >= 40) {
+    sender.coins -= 40;
+    saveDb();
+  }
+
+  activePairs.set(senderId, targetId);
+  activePairs.set(targetId, senderId);
+
+  const senderBadge = `${sender.gender === 'female' ? '👩' : '👨'} ${sender.name} (${sender.age} yrs, ${sender.province})`;
+  const targetBadge = `${target.gender === 'female' ? '👩' : '👨'} ${target.name} (${target.age} yrs, ${target.province})`;
+
+  const inChatKeyboardSender = {
+    keyboard: [
+      [{ text: t(senderId, 'inChatNext') }, { text: t(senderId, 'inChatStop') }],
+      [{ text: t(senderId, 'inChatProfile') }, { text: t(senderId, 'inChatDuel') }],
+      [{ text: t(senderId, 'inChatShareId') }]
+    ],
+    resize_keyboard: true
+  };
+
+  const inChatKeyboardTarget = {
+    keyboard: [
+      [{ text: t(targetId, 'inChatNext') }, { text: t(targetId, 'inChatStop') }],
+      [{ text: t(targetId, 'inChatProfile') }, { text: t(targetId, 'inChatDuel') }],
+      [{ text: t(targetId, 'inChatShareId') }]
+    ],
+    resize_keyboard: true
+  };
+
+  callTgApi('sendMessage', {
+    chat_id: senderId,
+    text: t(senderId, 'matched', { badge: targetBadge, karma: target.karma || 100, lvl: target.level || 1 }),
+    parse_mode: 'HTML',
+    reply_markup: inChatKeyboardSender
+  }).catch(() => {});
+
+  callTgApi('sendMessage', {
+    chat_id: targetId,
+    text: t(targetId, 'matched', { badge: senderBadge, karma: sender.karma || 100, lvl: sender.level || 1 }),
+    parse_mode: 'HTML',
+    reply_markup: inChatKeyboardTarget
+  }).catch(() => {});
+}
+
+// Default Avatar URLs
+const DEFAULT_AVATARS = {
+  male: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=800&auto=format&fit=crop&q=80',
+  female: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&auto=format&fit=crop&q=80'
+};
+
+function getUserAvatar(user) {
+  if (user?.photo_id) return user.photo_id;
+  return user?.gender === 'female' ? DEFAULT_AVATARS.female : DEFAULT_AVATARS.male;
+}
+
+// ----------------------------------------------------
 // IN-CHAT 1v1 LIVE MULTIPLAYER DUEL SYSTEM
 // ----------------------------------------------------
 async function promptInChatDuelChoice(chatId, userId) {
@@ -291,6 +576,7 @@ async function sendProfileEditMenu(chatId, userId) {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
+        [{ text: isEn ? '📸 Change Profile Photo' : '📸 تغییر عکس پروفایل', callback_data: 'edit_field_photo' }],
         [{ text: isEn ? '✏️ Edit Name' : '✏️ تغییر نام', callback_data: 'edit_field_name' }],
         [
           { text: isEn ? '👤 Change Gender' : '👤 تغییر جنسیت', callback_data: 'edit_field_gender' },
@@ -309,6 +595,7 @@ async function sendProfileCard(chatId, userId) {
   if (!user) return startLanguageChoice(chatId, userId);
   const genderIcon = user.gender === 'female' ? '👩' : '👨';
   const isEn = user.lang === 'en';
+  const avatar = getUserAvatar(user);
 
   const profText = isEn
     ? `👤 <b>ZenOsLife Social Profile:</b>\n\n` +
@@ -332,14 +619,26 @@ async function sendProfileCard(chatId, userId) {
       `• استریک روزانه: <b>🔥 ${user.streak_days || 1} روز مداوم</b>\n` +
       `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
 
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: profText,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
-    }
-  });
+  const replyMarkup = {
+    inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
+  };
+
+  try {
+    return await callTgApi('sendPhoto', {
+      chat_id: chatId,
+      photo: avatar,
+      caption: profText,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  } catch (_) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: profText,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  }
 }
 /**
  * ============================================================================
@@ -454,6 +753,8 @@ const I18N = {
     btnLeaderboard: '🏆 رتبه‌بندی و برترین‌ها',
     btnSettings: '⚙️ تنظیمات و زبان 🌐',
     btnMiniApp: '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
+    btnSearch: '🔍 جستجوی کاربران و چت مستقیم',
+    inChatProfile: '🪪 مشخصات هم‌صحبت',
 
     // Chat
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
@@ -563,6 +864,8 @@ const I18N = {
     btnLeaderboard: '🏆 Leaderboards & Ranks',
     btnSettings: '⚙️ Settings & Language 🌐',
     btnMiniApp: '🌟 Open ZenOsLife (Mini App) ✨',
+    btnSearch: '🔍 Search Users & Direct Chat',
+    inChatProfile: '🪪 Partner Profile',
 
     // Chat
     filterTitle: '🙈 <b>Who would you like to connect with?</b> 👇',
@@ -920,9 +1223,10 @@ async function sendFilterMenu(chatId, userId) {
   const inlineKeyboard = {
     inline_keyboard: [
       [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
-      [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
       [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
-      [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }]
+      [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
+      [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }],
+      [{ text: t(userId, 'btnSearch'), callback_data: 'open_user_search' }]
     ]
   };
 
@@ -1021,7 +1325,8 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
     const inChatKeyboardUser = {
       keyboard: [
         [{ text: t(userId, 'inChatNext') }, { text: t(userId, 'inChatStop') }],
-        [{ text: t(userId, 'inChatShareId') }, { text: t(userId, 'inChatDuel') }]
+        [{ text: t(userId, 'inChatProfile') }, { text: t(userId, 'inChatDuel') }],
+        [{ text: t(userId, 'inChatShareId') }]
       ],
       resize_keyboard: true
     };
@@ -1029,7 +1334,8 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
     const inChatKeyboardPartner = {
       keyboard: [
         [{ text: t(partnerId, 'inChatNext') }, { text: t(partnerId, 'inChatStop') }],
-        [{ text: t(partnerId, 'inChatShareId') }, { text: t(partnerId, 'inChatDuel') }]
+        [{ text: t(partnerId, 'inChatProfile') }, { text: t(partnerId, 'inChatDuel') }],
+        [{ text: t(partnerId, 'inChatShareId') }]
       ],
       resize_keyboard: true
     };
@@ -1477,6 +1783,9 @@ async function handleMessage(msg) {
     if (text === t(userId, 'inChatShareId')) {
       return shareContact(chatId, userId, msg);
     }
+    if (text === t(userId, 'inChatProfile') || text === '/partner') {
+      return inspectPartnerProfile(chatId, userId);
+    }
     if (text === t(userId, 'inChatDuel') || text === '/duel') {
       return promptInChatDuelChoice(chatId, userId);
     }
@@ -1494,9 +1803,24 @@ async function handleMessage(msg) {
     }
   }
 
-  // 3. Registration or Name Editing step
+  // 3. Registration, Name, or Photo Editing step
   if (registrationSteps.has(userId)) {
     const reg = registrationSteps.get(userId);
+    if (reg.step === 'editing_photo' && msg.photo && msg.photo.length > 0) {
+      const photoId = msg.photo[msg.photo.length - 1].file_id;
+      registrationSteps.delete(userId);
+      if (db.users[userId]) {
+        db.users[userId].photo_id = photoId;
+        saveDb();
+      }
+      const isEn = db.users[userId]?.lang === 'en';
+      await callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: isEn ? '✅ Profile photo updated successfully!' : '✅ عکس پروفایل شما با موفقیت ذخیره شد!'
+      });
+      return sendProfileCard(chatId, userId);
+    }
+
     if (reg.step === 'editing_name' && text) {
       registrationSteps.delete(userId);
       if (db.users[userId]) {
@@ -1530,6 +1854,7 @@ async function handleMessage(msg) {
     return sendMainDashboard(chatId, userId);
   }
 
+  if (text === '/search' || text === t(userId, 'btnSearch')) return sendUserSearchMenu(chatId, userId);
   if (text === '/admin') return sendAdminPanel(chatId, userId);
   if (text === '/lang') return startLanguageChoice(chatId, userId);
   if (text === '/rps') return startRpsGame(chatId, userId);
@@ -1864,6 +2189,45 @@ async function handleCallbackQuery(cq) {
     return sendProfileCard(chatId, userId);
   }
 
+
+
+  // Photo & Search Callbacks
+  if (data === 'edit_field_photo') {
+    registrationSteps.set(userId, { step: 'editing_photo' });
+    const isEn = db.users[userId]?.lang === 'en';
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '📸 Please send your <b>new profile photo</b> in this chat:' : '📸 لطفاً <b>عکس جدید</b> خود را برای پروفایل در چت ارسال کنید:',
+      parse_mode: 'HTML'
+    });
+  }
+
+  if (data === 'open_user_search') return sendUserSearchMenu(chatId, userId);
+  if (data === 'search_filter_female') return renderUserList(chatId, userId, 'female');
+  if (data === 'search_filter_male') return renderUserList(chatId, userId, 'male');
+  if (data === 'search_filter_province') return renderUserList(chatId, userId, 'province');
+  if (data === 'search_filter_karma') return renderUserList(chatId, userId, 'karma');
+
+  if (data.startsWith('view_cand_')) {
+    const candId = data.replace('view_cand_', '');
+    return viewCandidateProfile(chatId, userId, candId);
+  }
+
+  if (data.startsWith('send_chat_req_')) {
+    const targetId = data.replace('send_chat_req_', '');
+    return sendDirectChatRequest(userId, targetId);
+  }
+
+  if (data.startsWith('accept_chat_req_')) {
+    const senderId = data.replace('accept_chat_req_', '');
+    return acceptDirectChatRequest(userId, senderId);
+  }
+
+  if (data.startsWith('decline_chat_req_')) {
+    const senderId = data.replace('decline_chat_req_', '');
+    callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
+    return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
+  }
 
   // In-Chat 1v1 Duel Callbacks
   if (data === 'duel_invite_rps') return sendDuelInviteToPartner(userId, 'rps');
