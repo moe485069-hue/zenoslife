@@ -1,815 +1,37 @@
-
-// ----------------------------------------------------
-// CALENDAR, CHECKLIST & ALARM NOTIFICATION ENGINE
-// ----------------------------------------------------
-db.reminders = db.reminders || [];
-
-async function addReminder(userId, title, timeStr, dateStr = null) {
-  const reminderItem = {
-    id: 'rem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    userId: String(userId),
-    title: title.trim(),
-    time: timeStr.trim(), // e.g. "10:00"
-    date: dateStr || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' }),
-    completed: false,
-    lastNotified: null,
-    createdAt: Date.now()
-  };
-
-  db.reminders.push(reminderItem);
-  saveDb();
-
-  const isEn = db.users[userId]?.lang === 'en';
-  const confirmMsg = isEn
-    ? `⏰ <b>Alarm & Reminder Set!</b>\n\n📌 Task: <b>${reminderItem.title}</b>\n🕒 Time: <b>${reminderItem.time}</b>\n\n<i>You will receive a notification right at ${reminderItem.time}!</i>`
-    : `⏰🔔 <b>یادآور و آلارم با موفقیت تنظیم شد!</b>\n\n📌 عنوان تسک: <b>${reminderItem.title}</b>\n🕒 زمان اعلان: ساعت <b>${reminderItem.time}</b>\n\n<i>سر ساعت تعیین‌شده، ربات فوراً در تلگرام به شما پیام هشدار می‌دهد.</i>`;
-
-  return callTgApi('sendMessage', {
-    chat_id: userId,
-    text: confirmMsg,
-    parse_mode: 'HTML'
-  });
-}
-
-function checkDueReminders() {
-  const now = new Date();
-  const currentHourMin = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
-  const todayDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' });
-
-  for (const rem of db.reminders) {
-    if (!rem.completed && rem.time === currentHourMin && rem.lastNotified !== todayDateStr) {
-      rem.lastNotified = todayDateStr;
-      saveDb();
-
-      const notifText = `⏰🔔 <b>یادآور تقویم و برنامه زنوسلایف!</b>\n\n` +
-        `📌 <b>عنوان تسک:</b> <b>${rem.title}</b>\n` +
-        `🕒 <b>زمان تعیین‌شده:</b> ساعت <b>${rem.time}</b>\n\n` +
-        `<i>آیا این کار را انجام دادید؟</i>`;
-
-      callTgApi('sendMessage', {
-        chat_id: rem.userId,
-        text: notifText,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '✅ انجام شد (+۲۰ XP و +۱۰ سکه) 🪙', callback_data: `complete_reminder_${rem.id}` }],
-            [{ text: '⏳ ۱۰ دقیقه بعد یادآوری کن', callback_data: `snooze_reminder_${rem.id}` }]
-          ]
-        }
-      }).catch(() => {});
-    }
-  }
-}
-
-// Background alarm interval (every 30s)
-setInterval(checkDueReminders, 30000);
-
-async function handleCompleteReminder(userId, remId) {
-  const rem = db.reminders.find(r => r.id === remId);
-  if (!rem) return;
-
-  rem.completed = true;
-  const user = db.users[userId];
-  if (user) {
-    user.coins = (user.coins || 0) + 10;
-    addXp(userId, 20);
-    saveDb();
-  }
-
-  return callTgApi('sendMessage', {
-    chat_id: userId,
-    text: `🎉 <b>آفرین به اراده شما!</b>\nتسک «<b>${rem.title}</b>» با موفقیت انجام شد و <b>+۲۰ XP و +۱۰ سکه پاداش</b> دریافت کردید! 🪙✨`,
-    parse_mode: 'HTML'
-  });
-}
-
-async function handleSnoozeReminder(userId, remId) {
-  const rem = db.reminders.find(r => r.id === remId);
-  if (!rem) return;
-
-  const now = new Date(Date.now() + 10 * 60000);
-  rem.time = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
-  rem.lastNotified = null;
-  saveDb();
-
-  return callTgApi('sendMessage', {
-    chat_id: userId,
-    text: `⏳ <b>یادآور به تعویق افتاد:</b>\nزنگ بعدی ساعت <b>${rem.time}</b> ارسال خواهد شد.`,
-    parse_mode: 'HTML'
-  });
-}
-
-async function sendRemindersList(chatId, userId) {
-  const userReminders = (db.reminders || []).filter(r => r.userId === String(userId) && !r.completed);
-
-  if (userReminders.length === 0) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '⏰ <b>هیچ یادآور فعالی در تقویم شما ثبت نشده است.</b>\n\nبرای ثبت یادآور، کافیست دستور زیر را بفرستید:\n<code>/remind 10:00 مطالعه کتاب</code>',
-      parse_mode: 'HTML'
-    });
-  }
-
-  const listText = userReminders.map((r, i) => `${i + 1}. 🕒 ساعت <b>${r.time}</b> - <b>${r.title}</b>`).join('\n');
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: `⏰ <b>یادآورها و آلارم‌های فعال شما در تقویم:</b>\n\n${listText}\n\n<i>برای افزودن یادآور جدید:</i>\n<code>/remind 10:00 عنوان تسک</code>`,
-    parse_mode: 'HTML'
-  });
-}
-
-// ----------------------------------------------------
-// IN-BOT ONLINE MULTIPLAYER GAME MATCHMAKING
-// ----------------------------------------------------
-const onlineGameQueue = {
-  rps: [],
-  dice: [],
-  trivia: []
-};
-
-async function promptGameModeChoice(chatId, userId, gameType) {
-  const isEn = db.users[userId]?.lang === 'en';
-  const gameNames = {
-    rps: { fa: '🪨📄✂️ سنگ، کاغذ، قیچی', en: '🪨 Rock-Paper-Scissors' },
-    dice: { fa: '🎲 دوئل رولت تاس متحرک', en: '🎲 Animated Dice Duel' },
-    trivia: { fa: '🧠 مسابقه اطلاعات عمومی و هوش', en: '🧠 Trivia Battle' }
-  };
-
-  const game = gameNames[gameType] || { fa: 'بازی آنلاین', en: 'Online Game' };
-
-  const promptText = isEn
-    ? `🎮 <b>${game.en}</b>\n\nChoose how you want to play:`
-    : `🎮 <b>${game.fa}</b>\n\nحالت بازی را انتخاب کنید:`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: promptText,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: isEn ? '🤖 Play vs Smart AI Bot (Instant)' : '🤖 بازی با ربات هوشمند (آفلاین / فوری)', callback_data: `play_bot_${gameType}` }],
-        [{ text: isEn ? '👥 Match with Online Player (Live)' : '👥 جستجوی بازیکن آنلاین (Matchmaking زنده)', callback_data: `match_online_${gameType}` }],
-        [{ text: isEn ? '🔙 Back to Games' : '🔙 بازگشت به لیست بازی‌ها', callback_data: 'back_to_games_menu' }]
-      ]
-    }
-  });
-}
-
-async function executeGameMatchmaking(chatId, userId, gameType) {
-  const user = db.users[userId];
-  const isEn = user?.lang === 'en';
-
-  if (!onlineGameQueue[gameType]) onlineGameQueue[gameType] = [];
-
-  // Check if already in queue
-  if (onlineGameQueue[gameType].includes(userId)) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: isEn ? '🔍 You are already searching for an opponent...' : '🔍 شما در صف جستجوی حریف قرار دارید. لطفاً چند لحظه شکیبا باشید...'
-    });
-  }
-
-  // Look for waiting opponent
-  const oppIndex = onlineGameQueue[gameType].findIndex(uid => uid !== userId);
-
-  if (oppIndex > -1) {
-    const opponentId = onlineGameQueue[gameType].splice(oppIndex, 1)[0];
-    const oppUser = db.users[opponentId];
-
-    const matchNotice1 = isEn
-      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${oppUser?.name || 'Player'}</b> (Lvl ${oppUser?.level || 1})\n⚡ Starting match...`
-      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${oppUser?.name || 'کاربر زنوسلایف'}</b> (سطح ${oppUser?.level || 1})\n⚡ بازی آغاز شد...`;
-
-    const matchNotice2 = isEn
-      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${user?.name || 'Player'}</b> (Lvl ${user?.level || 1})\n⚡ Starting match...`
-      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${user?.name || 'کاربر زنوسلایف'}</b> (سطح ${user?.level || 1})\n⚡ بازی آغاز شد...`;
-
-    callTgApi('sendMessage', { chat_id: userId, text: matchNotice1, parse_mode: 'HTML' });
-    callTgApi('sendMessage', { chat_id: opponentId, text: matchNotice2, parse_mode: 'HTML' });
-
-    if (gameType === 'rps') return startLiveInChatRps(userId, opponentId);
-    if (gameType === 'dice') return startLiveInChatDice(userId, opponentId);
-    if (gameType === 'trivia') return startLiveInChatTrivia(userId, opponentId);
-    return;
-  }
-
-  // Enqueue user
-  onlineGameQueue[gameType].push(userId);
-
-  const searchNotice = isEn
-    ? '🔍 <b>Searching for an online opponent...</b>\n⏳ Matching you with a live player...'
-    : '🔍 <b>در حال جستجوی بازیکن آنلاین...</b>\n⏳ لطفاً چند لحظه شکیبا باشید تا به یک رقیب متصل شوید:';
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: searchNotice,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🤖 بازی فوری با ربات (بدون معطلی)', callback_data: `play_bot_${gameType}` }],
-        [{ text: '❌ انصراف از جستجو', callback_data: `cancel_game_search_${gameType}` }]
-      ]
-    }
-  });
-}
-
-// ----------------------------------------------------
-// IN-BOT MOOD & VIBE MATCHMAKING (HUMAN-CENTRIC)
-// ----------------------------------------------------
-const MOOD_DESCRIPTIONS = {
-  venting: { nameFa: '🕊️ دردودل و گوش شنوا (آرامش)', nameEn: '🕊️ Empathy & Venting (Peace)' },
-  funny: { nameFa: '🚀 پرانرژی و شوخ‌طبع (خنده)', nameEn: '🚀 High Energy & Funny (Laughs)' },
-  art: { nameFa: '🎧 موزیک، هنر، فیلم و کتاب', nameEn: '🎧 Music, Art & Cinema' },
-  deep: { nameFa: '☕ گفتگوی عمیق، فکری و منطقی', nameEn: '☕ Deep & Intellectual' },
-  gaming: { nameFa: '🎮 اهل گیم، چالش و رقابت', nameEn: '🎮 Gaming & Challenges' }
-};
-
-async function sendMoodSelectMenu(chatId, userId) {
-  const isEn = db.users[userId]?.lang === 'en';
-  const text = isEn
-    ? '🌈 <b>Choose your Current Mood & Vibe:</b>\nWe will match you with someone who feels the exact same way right now!'
-    : '🌈 <b>حس‌وحال (مود) امروزت رو انتخاب کن:</b>\nربات شما رو دقیقاً به کسی وصل می‌کنه که الان در همین فرکانس روحی قرار داره:';
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🕊️ دردودل و گوش شنوا (آرامش و تخلیه روحی)', callback_data: 'mood_match_venting' }],
-        [{ text: '🚀 پرانرژی، شاد و اهل شوخی و خنده', callback_data: 'mood_match_funny' }],
-        [{ text: '🎧 عاشق موزیک، هنر، فیلم و پادکست', callback_data: 'mood_match_art' }],
-        [{ text: '☕ گفتگوی عمیق، فکری و تجربیات زندگی', callback_data: 'mood_match_deep' }],
-        [{ text: '🎮 اهل بازی، کل‌کل و رقابت آنلاین', callback_data: 'mood_match_gaming' }],
-        [{ text: '🔙 بازگشت به منوی چت', callback_data: 'back_to_chat_filters' }]
-      ]
-    }
-  });
-}
-
-// ----------------------------------------------------
-// IN-BOT TRIVIA & MUSIC QUIZ DUEL
-// ----------------------------------------------------
-const TRIVIA_QUESTIONS = [
-  { q: 'پایتخت تاریخی ایران در دوره صفویه که به نصف جهان معروف است کجاست؟', options: ['شیراز', 'اصفهان', 'تبریز', 'قزوین'], correct: 1 },
-  { q: 'کدام سیاره در منظومه شمسی به سیاره سرخ معروف است؟', options: ['مریخ', 'زهره', 'مشتری', 'عطارد'], correct: 0 },
-  { q: 'بزرگ‌ترین اقیانوس کره زمین کدام است؟', options: ['اقیانوس اطلس', 'اقیانوس هند', 'اقیانوس آرام', 'اقیانوس منجمد شمالی'], correct: 2 },
-  { q: 'کدام ساز ایرانی به عنوان مادر سازهای زهی شناخته می‌شود؟', options: ['تار', 'سه‌تار', 'سنتور', 'بربط (عود)'], correct: 3 },
-  { q: 'سریع‌ترین حیوان خشکی روی زمین کدام است؟', options: ['یوزپلنگ (چیتا)', 'شیر', 'غزال', 'اسب'], correct: 0 }
-];
-
-async function startLiveInChatTrivia(p1Id, p2Id) {
-  const u1 = db.users[p1Id];
-  const u2 = db.users[p2Id];
-  const qObj = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)];
-  const quizId = 'trivia_' + Date.now();
-
-  activeGames.set(quizId, { id: quizId, p1: p1Id, p2: p2Id, question: qObj, answers: {} });
-
-  const qText = `🧠 <b>مسابقه اطلاعات عمومی و چالش دونفره:</b>\n\n<b>${qObj.q}</b>\n\n<i>هرکس زودتر پاسخ صحیح را انتخاب کند برنده است!</i>`;
-
-  const buttons = qObj.options.map((opt, idx) => [{
-    text: opt,
-    callback_data: `answer_trivia_${quizId}_${idx}`
-  }]);
-
-  callTgApi('sendMessage', { chat_id: p1Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
-  callTgApi('sendMessage', { chat_id: p2Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
-}
-
-async function handleTriviaAnswer(userId, quizId, selectedIdx) {
-  const game = activeGames.get(quizId);
-  if (!game || game.resolved) return;
-
-  const isCorrect = selectedIdx === game.question.correct;
-  const user = db.users[userId];
-  const opponentId = game.p1 === userId ? game.p2 : game.p1;
-  const opp = db.users[opponentId];
-
-  if (isCorrect) {
-    game.resolved = true;
-    activeGames.delete(quizId);
-
-    user.coins = (user.coins || 0) + 30;
-    addXp(userId, 20);
-    saveDb();
-
-    callTgApi('sendMessage', {
-      chat_id: userId,
-      text: `🎉 <b>پاسخ صحیح! شما برنده چالش اطلاعات عمومی شدید! (+۳۰ سکه و +۲۰ XP)</b>`,
-      parse_mode: 'HTML'
-    });
-
-    callTgApi('sendMessage', {
-      chat_id: opponentId,
-      text: `⚡ <b>هم‌صحبت شما زودتر پاسخ صحیح («${game.question.options[game.question.correct]}») را داد!</b>`,
-      parse_mode: 'HTML'
-    });
-  } else {
-    callTgApi('sendMessage', {
-      chat_id: userId,
-      text: '❌ پاسخ شما نادرست بود! منتظر پاسخ هم‌صحبت...'
-    });
-  }
-}
-
-// ----------------------------------------------------
-// CONSOLIDATED FINANCE, VIP & REWARDS HUB
-// ----------------------------------------------------
-async function sendFinanceAndVipHub(chatId, userId) {
-  const user = db.users[userId] || { coins: 0 };
-  const isEn = user.lang === 'en';
-  const coinsText = (user.coins || 0).toLocaleString();
-  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
-  const refCount = (user.referrals || []).length;
-
-  const hubText = isEn
-    ? `💎 <b>VIP, Wallet & Earnings Hub</b>\n\n` +
-      `🪙 <b>Coin Balance:</b> <b>${coinsText} Coins</b>\n` +
-      `👑 <b>VIP Status:</b> <b>${vipText}</b>\n` +
-      `👥 <b>Friends Invited:</b> <b>${refCount} Users</b> (10% Lifetime Cut)\n\n` +
-      `<i>Select an option below:</i>`
-    : `💎 <b>مرکز مالی، اشتراک VIP و درآمدزایی زنوسلایف</b>\n\n` +
-      `🪙 <b>موجودی سکه شما:</b> <b>${coinsText} سکه</b>\n` +
-      `👑 <b>وضعیت اشتراک:</b> <b>${vipText}</b>\n` +
-      `👥 <b>تعداد دعوت‌ها:</b> <b>${refCount} نفر</b> (۱۰٪ پورسانت مادام‌العمر)\n\n` +
-      `<i>یکی از بخش‌های زیر را انتخاب کنید:</i>`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: hubText,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: isEn ? '🪙 Buy Coins with Stars ⭐' : '🪙 خرید سکه با ستاره ⭐', callback_data: 'buy_stars' },
-          { text: isEn ? '👑 VIP Membership Plans' : '👑 پلن‌های اشتراک VIP 🌟', callback_data: 'buy_vip_plans' }
-        ],
-        [
-          { text: isEn ? '🎁 Invite Friends & Earn' : '🎁 لینک دعوت و کسب درآمد', callback_data: 'show_referral' },
-          { text: isEn ? '🎡 Daily Lucky Wheel' : '🎡 گردونه شانس روزانه', callback_data: 'spin_wheel_action' }
-        ],
-        [
-          { text: isEn ? '🏆 Leaderboards & Ranks' : '🏆 جدول برترین‌ها و جوایز', callback_data: 'view_leaderboard_hub' }
-        ]
-      ]
-    }
-  });
-}
-
-// ----------------------------------------------------
-// ADVANCED IN-CHAT PROFILE ACTION ENGINES
-// ----------------------------------------------------
-
-// 1. Gift Coins to Partner
-async function sendGiftCoinsMenu(chatId, userId, partnerId) {
-  const isEn = db.users[userId]?.lang === 'en';
-  const partner = db.users[partnerId];
-  if (!partner) return;
-
-  const text = isEn
-    ? `🪙 <b>Gift Coins to ${partner.name}:</b>\nChoose an amount to transfer from your balance or buy with Stars:`
-    : `🪙 <b>اهدای سکه به «${partner.name}»:</b>\nمقدار سکه مدنظر برای اهدا از حساب خود یا خرید مستقیم با ستاره را انتخاب کنید:`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '🪙 ۵۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_50` },
-          { text: '🪙 ۱۰۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_100` }
-        ],
-        [
-          { text: '💰 ۵۰۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_500` }
-        ],
-        [
-          { text: '⭐ خرید ۱,۰۰۰ سکه برای کاربر (۳۵ ستاره)', callback_data: `buy_gift_stars_${partnerId}_1000` }
-        ]
-      ]
-    }
-  });
-}
-
-async function handleTransferCoins(userId, partnerId, amount) {
-  const sender = db.users[userId];
-  const receiver = db.users[partnerId];
-  if (!sender || !receiver) return;
-
-  if ((sender.coins || 0) < amount) {
-    return callTgApi('sendMessage', {
-      chat_id: userId,
-      text: t(userId, 'lowCoinsNotice', { cost: amount, coins: sender.coins || 0 }),
-      parse_mode: 'HTML'
-    });
-  }
-
-  sender.coins -= amount;
-  receiver.coins = (receiver.coins || 0) + amount;
-  addXp(userId, Math.round(amount / 5));
-  saveDb();
-
-  const isSenderEn = sender.lang === 'en';
-  const isReceiverEn = receiver.lang === 'en';
-
-  callTgApi('sendMessage', {
-    chat_id: userId,
-    text: isSenderEn
-      ? `✅ Successfully sent <b>${amount} Coins</b> to ${receiver.name}!`
-      : `✅ مقدار <b>${amount.toLocaleString()} سکه</b> با موفقیت به «${receiver.name}» اهدا شد!`,
-    parse_mode: 'HTML'
-  });
-
-  callTgApi('sendMessage', {
-    chat_id: partnerId,
-    text: isReceiverEn
-      ? `🎁 <b>${sender.name} gifted you ${amount} Coins!</b>\n🪙 Balance: <b>${receiver.coins.toLocaleString()}</b>`
-      : `🎁 <b>هم‌صحبت شما «${sender.name}» مقدار ${amount.toLocaleString()} سکه به شما هدیه داد!</b>\n🪙 موجودی جدید: <b>${receiver.coins.toLocaleString()}</b> سکه`,
-    parse_mode: 'HTML'
-  });
-}
-
-// 2. Gift VIP to Partner
-async function sendGiftVipMenu(chatId, userId, partnerId) {
-  const partner = db.users[partnerId];
-  if (!partner) return;
-
-  if (partner.is_vip) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: `👑 <b>کاربر «${partner.name}» هم‌اکنون دارای اشتراک فعال VIP است.</b>`,
-      parse_mode: 'HTML'
-    });
-  }
-
-  const text = `👑 <b>خرید و فعال‌سازی اشتراک VIP برای «${partner.name}»:</b>\nبا خرید VIP، هم‌صحبت شما به تالار VIP دسترسی خواهد داشت!`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🥉 هدیه VIP هفتگی (۷۵ ستاره ⭐)', callback_data: `gift_vip_invoice_${partnerId}_7` }],
-        [{ text: '🥈 هدیه VIP ماهانه (۲۵۰ ستاره ⭐)', callback_data: `gift_vip_invoice_${partnerId}_30` }]
-      ]
-    }
-  });
-}
-
-// 3. Friend Request System
-async function handleSendFriendRequest(senderId, partnerId) {
-  const sender = db.users[senderId];
-  const receiver = db.users[partnerId];
-  if (!sender || !receiver) return;
-
-  sender.friends = sender.friends || [];
-  receiver.friends = receiver.friends || [];
-
-  if (sender.friends.includes(partnerId)) {
-    return callTgApi('sendMessage', {
-      chat_id: senderId,
-      text: '👥 شما و این کاربر از قبل در لیست دوستان یکدیگر هستید!'
-    });
-  }
-
-  const isReceiverEn = receiver.lang === 'en';
-  const reqText = isReceiverEn
-    ? `👥 <b>Friend Request from ${sender.name}!</b>\nWould you like to add ${sender.name} to your friends list for permanent free direct chats?`
-    : `👥 <b>درخواست دوستی جدید از «${sender.name}»!</b>\nآیا مایلید ایشان را به لیست دوستان خود اضافه کنید تا بتوانید همیشه با هم چت رایگان مستقیم داشته باشید؟`;
-
-  callTgApi('sendMessage', {
-    chat_id: partnerId,
-    text: reqText,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: isReceiverEn ? '✅ Accept Friend' : '✅ قبول درخواست دوستی', callback_data: `accept_friend_${senderId}` },
-          { text: isReceiverEn ? '❌ Decline' : '❌ رد درخواست', callback_data: `decline_friend_${senderId}` }
-        ]
-      ]
-    }
-  }).catch(() => {});
-
-  return callTgApi('sendMessage', {
-    chat_id: senderId,
-    text: '⏳ درخواست دوستی برای هم‌صحبت ارسال شد. به محض تایید، به لیست دوستان یکدیگر اضافه می‌شوید.'
-  });
-}
-
-async function handleAcceptFriend(receiverId, senderId) {
-  const receiver = db.users[receiverId];
-  const sender = db.users[senderId];
-  if (!receiver || !sender) return;
-
-  receiver.friends = receiver.friends || [];
-  sender.friends = sender.friends || [];
-
-  if (!receiver.friends.includes(senderId)) receiver.friends.push(senderId);
-  if (!sender.friends.includes(receiverId)) sender.friends.push(receiverId);
-  saveDb();
-
-  const msg = '🎉 <b>شما اکنون با یکدیگر دوست شدید!</b>\nمی‌توانید همیشه از بخش دوستان به صورت رایگان به هم پیام دهید.';
-  callTgApi('sendMessage', { chat_id: receiverId, text: msg, parse_mode: 'HTML' });
-  callTgApi('sendMessage', { chat_id: senderId, text: msg, parse_mode: 'HTML' });
-}
-
-// 4. Block Partner
-async function handleBlockPartner(userId, partnerId) {
-  const user = db.users[userId];
-  if (user) {
-    user.blocked = user.blocked || [];
-    if (!user.blocked.includes(partnerId)) {
-      user.blocked.push(partnerId);
-      saveDb();
-    }
-  }
-
-  await stopChat(userId, userId);
-  return callTgApi('sendMessage', {
-    chat_id: userId,
-    text: '🚫 <b>کاربر با موفقیت بلاک شد.</b>\nشما دیگر هرگز در چت ناشناس به این کاربر متصل نخواهید شد.',
-    parse_mode: 'HTML'
-  });
-}
-
-// 5. Report Partner & Admin Logging
-async function promptReportReason(chatId, userId, partnerId) {
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: '🚩 <b>لطفاً علت گزارش تخلف کاربر را انتخاب کنید:</b>',
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '⚠️ مزاحمت، فحاشی یا رفتار نامناسب', callback_data: `submit_report_${partnerId}_harassment` }],
-        [{ text: '🔞 ارسال محتوا یا عکس نامناسب', callback_data: `submit_report_${partnerId}_nsfw` }],
-        [{ text: '📢 تبلیغات و اسپم', callback_data: `submit_report_${partnerId}_spam` }],
-        [{ text: '❌ انصراف', callback_data: 'cancel_report' }]
-      ]
-    }
-  });
-}
-
-async function handleSubmitReport(reporterId, targetId, reason) {
-  const reporter = db.users[reporterId];
-  const target = db.users[targetId];
-
-  const reportItem = {
-    id: crypto.randomUUID(),
-    reporterId,
-    reporterName: reporter?.name || reporterId,
-    targetId,
-    targetName: target?.name || targetId,
-    reason,
-    timestamp: Date.now(),
-    status: 'pending'
-  };
-
-  db.reports = db.reports || [];
-  db.reports.push(reportItem);
-  saveDb();
-
-  // Notify Admins
-  const reasonFa = reason === 'harassment' ? 'مزاحمت و فحاشی' : reason === 'nsfw' ? 'محتوای نامناسب' : 'اسپم و تبلیغات';
-  const adminAlert = `🚩 <b>گزارش تخلف جدید ثبت شد!</b>\n\n` +
-    `👤 <b>شاکی:</b> ${reporter?.name || 'User'} (<code>${reporterId}</code>)\n` +
-    `⚠️ <b>متخلف:</b> ${target?.name || 'User'} (<code>${targetId}</code>)\n` +
-    `📝 <b>علت:</b> ${reasonFa}\n` +
-    `⏳ زمان: ${new Date().toLocaleTimeString('fa-IR')}`;
-
-  for (const admId of HARDCODED_ADMINS) {
-    callTgApi('sendMessage', { chat_id: admId, text: adminAlert, parse_mode: 'HTML' }).catch(() => {});
-  }
-
-  await stopChat(reporterId, reporterId);
-  return callTgApi('sendMessage', {
-    chat_id: reporterId,
-    text: '✅ <b>گزارش تخلف شما ثبت و برای مدیران سیستم ارسال شد.</b>\nمکالمه با کاربر متوقف گردید.',
-    parse_mode: 'HTML'
-  });
-}
-
-// ----------------------------------------------------
-// VIRTUAL GIFTS & ICEBREAKERS ENGINE
-// ----------------------------------------------------
-const ICEBREAKER_QUESTIONS = [
-  '💭 اگر قرار بود فقط یک آرزوت برآورده شه، الان چی می‌خواستی؟',
-  '🎢 بزرگ‌ترین کار هیجان‌انگیز یا دیوونه‌بازی که تا حالا تو زندگیت کردی چی بوده؟',
-  '✨ چه ویژگی اخلاقی تو آدما فوراً جذبت می‌کنه و به دلت می‌شینه؟',
-  '🎵 یک آهنگی که این روزا مدام گوش می‌دی و قفلشی رو به هم‌صحبتت معرفی کن!',
-  '☕ تعطیلات رویاییت چطوریه؟ ساحل و آرامش یا کوه و آدرنالین؟',
-  '🍕 اگر تا آخر عمر فقط بتونی یک غذا بخوری، انتخابت چیه؟',
-  '🎬 بهترین فیلم یا سریالی که اخیراً دیدی و پیشنهاد می‌کنی چیه؟',
-  '🚀 اگر می‌تونستی به هر نقطه از زمان سفر کنی، می‌رفتی گذشته یا آینده؟'
-];
-
-async function sendInChatGiftsMenu(chatId, userId) {
-  if (!activePairs.has(userId)) return;
-  const isEn = db.users[userId]?.lang === 'en';
-
-  const text = isEn
-    ? '🎁 <b>Send a Virtual Gift to your chat partner:</b>\n<i>(50% of the gift coins are transferred to your partner!)</i>'
-    : '🎁 <b>ارسال هدیه دیجیتال برای هم‌صحبت:</b>\n<i>(۵۰٪ از ارزش سکه هدیه مستقیماً به موجودی هم‌صحبت شما واریز می‌شود!)</i>';
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '🌹 شاخه گل رز (۱۰ سکه)', callback_data: 'send_gift_rose' },
-          { text: '🍫 شکلات لوکس (۳۰ سکه)', callback_data: 'send_gift_chocolate' }
-        ],
-        [
-          { text: '💎 الماس سلطنتی (۱۰۰ سکه)', callback_data: 'send_gift_diamond' },
-          { text: '👑 تاج رویال VIP (۳۰۰ سکه)', callback_data: 'send_gift_crown' }
-        ]
-      ]
-    }
-  });
-}
-
-async function handleSendGift(userId, giftType) {
-  if (!activePairs.has(userId)) return;
-  const partnerId = activePairs.get(userId);
-  const sender = db.users[userId];
-  const receiver = db.users[partnerId];
-
-  const giftCatalog = {
-    'rose': { nameFa: '🌹 شاخه گل رز', nameEn: '🌹 Red Rose', cost: 10, reward: 5 },
-    'chocolate': { nameFa: '🍫 جعبه شکلات لوکس', nameEn: '🍫 Luxury Chocolate', cost: 30, reward: 15 },
-    'diamond': { nameFa: '💎 الماس درخشان', nameEn: '💎 Sparkling Diamond', cost: 100, reward: 50 },
-    'crown': { nameFa: '👑 تاج طلایی شاهانه', nameEn: '👑 Royal Crown', cost: 300, reward: 150 }
-  };
-
-  const gift = giftCatalog[giftType];
-  if (!gift) return;
-
-  if ((sender.coins || 0) < gift.cost) {
-    return callTgApi('sendMessage', {
-      chat_id: userId,
-      text: t(userId, 'lowCoinsNotice', { cost: gift.cost, coins: sender.coins || 0 }),
-      parse_mode: 'HTML'
-    });
-  }
-
-  sender.coins -= gift.cost;
-  receiver.coins = (receiver.coins || 0) + gift.reward;
-  addXp(userId, Math.round(gift.cost / 2));
-  saveDb();
-
-  const isSenderEn = sender.lang === 'en';
-  const isReceiverEn = receiver.lang === 'en';
-
-  const senderNotice = isSenderEn
-    ? `🎁 You sent <b>${gift.nameEn}</b> to your partner! (- ${gift.cost} Coins)`
-    : `🎁 شما یک <b>${gift.nameFa}</b> برای هم‌صحبت ارسال کردید! (- ${gift.cost} سکه)`;
-
-  const receiverNotice = isReceiverEn
-    ? `💖 <b>${sender.name} sent you a ${gift.nameEn}!</b>\n💰 <b>+${gift.reward} Coins added to your balance!</b>`
-    : `💖 <b>هم‌صحبت شما یک «${gift.nameFa}» به شما هدیه داد!</b>\n💰 <b>+${gift.reward} سکه به موجودی شما افزوده شد!</b>`;
-
-  callTgApi('sendMessage', { chat_id: userId, text: senderNotice, parse_mode: 'HTML' }).catch(() => {});
-  callTgApi('sendMessage', { chat_id: partnerId, text: receiverNotice, parse_mode: 'HTML' }).catch(() => {});
-}
-
-async function triggerIcebreakerQuestion(userId) {
-  if (!activePairs.has(userId)) return;
-  const partnerId = activePairs.get(userId);
-  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
-
-  const promptText = `🎲 <b>سوال یخ‌شکن و چالش دو‌نفره:</b>\n\n<i>${randomQ}</i>\n\n💬 <i>هر دو نفر نظرتان را در چت بگویید!</i>`;
-
-  callTgApi('sendMessage', { chat_id: userId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
-  callTgApi('sendMessage', { chat_id: partnerId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
-}
-
-// ----------------------------------------------------
-// DAILY LUCKY WHEEL ENGINE (IN-BOT)
-// ----------------------------------------------------
-async function sendLuckyWheelPrompt(chatId, userId) {
-  const user = db.users[userId];
-  const isEn = user?.lang === 'en';
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isFree = user?.last_wheel_date !== todayStr;
-
-  const text = isEn
-    ? `🎡 <b>ZenOsLife Daily Lucky Spin Wheel</b>\n\n` +
-      (isFree ? '🎁 <b>Your Daily Spin is 100% FREE!</b>\n\n' : '🪙 Spin cost: <b>20 Coins</b>\n\n') +
-      'Prizes include: 50, 100, 250, 500 Coins, +50 XP or 1-Day VIP Pass!'
-    : `🎡 <b>گردونه شانس روزانه زنوسلایف</b>\n\n` +
-      (isFree ? '🎁 <b>چرخش امروز شما کاملاً رایگان است!</b>\n\n' : '🪙 هزینه هر چرخش مجدد: <b>۲۰ سکه</b>\n\n') +
-      'جوایز گردونه: ۵۰، ۱۰۰، ۲۵۰ و ۵۰۰ سکه، +۵۰ XP یا اشتراک VIP!';
-
-  const btnText = isFree
-    ? (isEn ? '🎰 Spin Free Now!' : '🎰 چرخش رایگان گردونه!')
-    : (isEn ? '🎰 Spin for 20 Coins' : '🎰 چرخش با ۲۰ سکه');
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: btnText, callback_data: 'spin_wheel_action' }],
-        [{ text: isEn ? '🌟 Open 3D Wheel in Mini App' : '🌟 گردونه متحرک در مینی‌اپلیکیشن', web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${user?.lang || 'fa'}` } }]
-      ]
-    }
-  });
-}
-
-async function handleSpinWheel(chatId, userId) {
-  const user = db.users[userId];
-  if (!user) return;
-  const isEn = user.lang === 'en';
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isFree = user.last_wheel_date !== todayStr;
-
-  if (!isFree && (user.coins || 0) < 20) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'lowCoinsNotice', { cost: 20, coins: user.coins || 0 }),
-      parse_mode: 'HTML'
-    });
-  }
-
-  if (!isFree) user.coins -= 20;
-  user.last_wheel_date = todayStr;
-
-  const wheelPrizes = [
-    { labelFa: '۵۰ سکه 🪙', coins: 50, xp: 10 },
-    { labelFa: '۱۰۰ سکه 💰', coins: 100, xp: 20 },
-    { labelFa: '۳۰ XP ⚡', coins: 20, xp: 30 },
-    { labelFa: '۲۵۰ سکه 💎', coins: 250, xp: 50 },
-    { labelFa: '۵۰۰ سکه 👑', coins: 500, xp: 100 },
-    { labelFa: '۱ روز اشتراک VIP 🌟', coins: 100, xp: 50, isVip: true }
-  ];
-
-  const won = wheelPrizes[Math.floor(Math.random() * wheelPrizes.length)];
-  user.coins = (user.coins || 0) + won.coins;
-  addXp(userId, won.xp);
-
-  if (won.isVip) {
-    user.is_vip = true;
-    const currentExp = (user.vip_expires_at && user.vip_expires_at > Date.now()) ? user.vip_expires_at : Date.now();
-    user.vip_expires_at = currentExp + 86400000;
-  }
-  saveDb();
-
-  const winMsg = isEn
-    ? `🎉 <b>Congratulations! The Wheel Stopped at: ${won.labelFa}</b>\n🪙 Balance: <b>${user.coins.toLocaleString()}</b> Coins`
-    : `🎉 <b>تبریک! عقربه گردونه روی «${won.labelFa}» متوقف شد!</b>\n🪙 موجودی جدید: <b>${user.coins.toLocaleString()}</b> سکه`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: winMsg,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🔄 ' + (isEn ? 'Spin Again (20 Coins)' : 'چرخش مجدد (۲۰ سکه)'), callback_data: 'spin_wheel_action' }]
-      ]
-    }
-  });
-}
 /**
  * ============================================================================
- * 👑 ZenOsLife #1 - Complete Enterprise Bilingual Engine & Royal Ecosystem
+ * 👑 ZenOsLife Enterprise Master Engine & Automated Monetization Backend
  * ============================================================================
- * Features:
- * 1. Bilingual Architecture (🇮🇷 Persian & 🇬🇧 English)
- * 2. Step-by-Step Onboarding with 3D Avatars & Custom Photo Upload
- * 3. Gamification: Level, XP, Daily Streaks (🔥), Achievements & Karma (⭐)
- * 4. Anonymous Social Chat Engine (Random, Same-Lang, Global, Gender, Province)
- * 5. In-Chat Controls: Next, Stop, Share ID, Partner Profile View, 1v1 Duels
- * 6. Live In-Chat 1v1 Multiplayer Duels (🪨📄✂️ RPS, 🎲 Animated Dice)
- * 7. 👑 Royal VIP Anonymous Group Lounge (Live Multi-user Group Chat)
- * 8. 🔍 Advanced User Search Directory & Direct Chat Requests (10/40 Coins)
- * 9. Monetization: Telegram Stars Invoices (XTR), VIP Auto-Expiry, 10% Referral Cut
- * 10. Referral Engine with Rich Viral Photo Banner & 1,000 Welcome Coins
- * 11. 📊 Full Persian Super Admin Control Panel with Interactive Inline Buttons
+ * Architecture:
+ * 1. Unified Backend & REST API Server (Integrated HTTP REST on Port 3001)
+ * 2. Telegram Bot Engine (Bilingual Fa/En, Long-Polling with Auto-Reconnect)
+ * 3. Automated Monetization Engine (Telegram Stars XTR, VIP Plans, 10% Referral Cut)
+ * 4. Human-Centric Social Matchmaking (Random, Mood & Vibe, Gender, Province, Global)
+ * 5. In-Chat Economy & Engagement (Virtual Gifts, Icebreakers, 1v1 Duels, Trivia)
+ * 6. Multiplayer Matchmaking Core (Smart AI Bot Mode vs Live Online Users)
+ * 7. Calendar, Checklist & Alarm Notification Push Engine (Asia/Tehran timezone)
+ * 8. Full Persian Super Admin Command Center (/admin, /grantvip, /setcoins, /ban, /broadcast)
  * ============================================================================
  */
 
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 // ----------------------------------------------------
-// 1. CONFIGURATION & ADMIN PERMISSIONS
+// 1. CONFIGURATION & SUPER ADMIN ACCESS
 // ----------------------------------------------------
 const HARDCODED_ADMINS = ['7517486185', '8887477989', '123456789'];
 
 const CONFIG = {
   BOT_TOKEN: process.env.BOT_TOKEN || '8887477989:AAEj6gnWZvmhm2jFdjRzJAI3fwVtVptZrd4',
   WEBAPP_URL: process.env.WEBAPP_URL || 'https://zen.moeid.net',
+  API_PORT: parseInt(process.env.PORT || '3001', 10),
   CHANNEL_USERNAME: process.env.CHANNEL_USERNAME || '@zenoslife_official',
   DATA_FILE: path.join(__dirname, 'bot_database.json'),
-  RATE_LIMIT_MS: 500
+  RATE_LIMIT_MS: 400
 };
 
 function isAdmin(userId) {
@@ -820,14 +42,15 @@ function isAdmin(userId) {
 }
 
 // ----------------------------------------------------
-// 2. DATABASE PERSISTENCE LAYER (ACID-Style JSON Store)
+// 2. ACID-SAFE PERSISTENT DATA LAYER
 // ----------------------------------------------------
 let db = {
-  users: {},
-  transactions: {},
-  matches: [],
-  chats: [],
-  reports: [],
+  users: {},         // userId -> User Profile Object
+  transactions: {},  // chargeId -> Payment Record
+  chats: [],         // Array of completed chat records
+  matches: [],       // Array of completed game match records
+  reports: [],       // Array of abuse reports
+  reminders: [],     // Array of calendar reminder items
   stats: { totalStarsRevenue: 0, totalMatchesPlayed: 0, totalChatsCompleted: 0 }
 };
 
@@ -837,7 +60,7 @@ try {
     db = Object.assign(db, JSON.parse(raw));
   }
 } catch (e) {
-  console.warn('Initializing fresh bot database');
+  console.warn('Initializing fresh database file');
 }
 
 function saveDb() {
@@ -849,17 +72,20 @@ function saveDb() {
 }
 
 // ----------------------------------------------------
-// 3. RUNTIME MEMORY STATE
+// 3. IN-MEMORY RUNTIME STATE & REAL-TIME QUEUES
 // ----------------------------------------------------
-const waitingQueue = [];               // { userId, filterType, lang, province, gender, timestamp }
-const activePairs = new Map();         // userId -> partnerUserId
-const registrationSteps = new Map();   // userId -> { step, tempProfile }
-const activeGames = new Map();         // gameId -> Game State
-const vipLoungeMembers = new Set();    // Set of userIds currently inside VIP Lounge
+const waitingQueue = [];               // Chat Matchmaking Queue
+const activePairs = new Map();         // In-Chat 1v1 Pairings: userId -> partnerUserId
+const registrationSteps = new Map();   // Onboarding Steps: userId -> { step, tempProfile }
+const activeGames = new Map();         // 1v1 Active In-Chat Games: gameId -> Game State
+const vipLoungeMembers = new Set();    // User IDs currently in Royal VIP Lounge
 const userRateLimits = new Map();      // userId -> lastMessageTimestamp
+const onlineGameQueues = {             // Game-specific Matchmaking Queues
+  rps: [], dice: [], trivia: [], ludo: [], snakes: [], soccer: [], ocho: [], golf: [], billiards: []
+};
 
 // ----------------------------------------------------
-// 4. DEFAULT 3D AVATARS & ASSETS
+// 4. 3D AVATARS & VISUAL ASSETS
 // ----------------------------------------------------
 const DEFAULT_AVATARS = {
   male: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=800&auto=format&fit=crop&q=80',
@@ -873,11 +99,10 @@ function getUserAvatar(user) {
 }
 
 // ----------------------------------------------------
-// 5. BILINGUAL DICTIONARY (FA & EN - 100% COMPLETE)
+// 5. BILINGUAL DICTIONARIES (FA / EN)
 // ----------------------------------------------------
 const I18N = {
   fa: {
-    chooseLang: '🌐 <b>لطفاً زبان خود را انتخاب کنید / Please choose language:</b>',
     welcomeTitle: '👑 <b>به سیستم عامل زندگی و چت ناشناس زنوسلایف خوش آمدید!</b>',
     chooseGender: '👤 لطفاً <b>جنسیت</b> خود را مشخص کنید:',
     male: '👨 پسرم',
@@ -899,7 +124,7 @@ const I18N = {
     regDone: '🎉 <b>تبریک! پروفایل شما ساخته شد و ۱,۰۰۰ سکه هدیه خوش‌آمدگویی گرفتید! 🪙</b>',
     
     // Main Menu
-    menuHeader: '👑 <b>پایگاه چت ناشناس، دوستیابی و بازی‌های آنلاین</b>\n\n' +
+    menuHeader: '👑 <b>پایگاه چت ناشناس، دوستیابی و بازی‌های آنلاین زنوسلایف</b>\n\n' +
                 '👤 <b>{name}</b> ({gender}، {age} ساله از {prov})\n' +
                 '🏆 <b>سطح:</b> Level {lvl} ({xp} XP) | ⭐ <b>کارما:</b> {karma}\n' +
                 '🪙 <b>موجودی:</b> {coins} سکه | 🔥 <b>استریک روزانه:</b> {streak} روز {vipBadge}',
@@ -907,36 +132,29 @@ const I18N = {
     btnGames: '🎮 بازی‌ها و دوئل‌های آنلاین 🎲',
     btnFinanceHub: '💎 VIP، کیف‌پول و درآمدزایی 🎁',
     btnProfileHub: '👤 پروفایل و تنظیمات ⚙️',
-    btnCoins: '🪙 کیف پول و خرید ستاره ⭐',
-    btnVip: '👑 عضویت و پلن‌های VIP',
-    btnVipChat: '👑 چت‌روم گروهی VIP',
-    btnProfile: '👤 پروفایل و دستاوردها 🏅',
-    btnReferral: '🎁 دعوت دوستان و درآمد',
-    btnLeaderboard: '🏆 رتبه‌بندی و برترین‌ها',
-    btnSettings: '⚙️ تنظیمات و زبان 🌐',
     btnMiniApp: '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
-    btnSearch: '🔍 جستجوی کاربران و چت مستقیم',
-    btnWheel: '🎡 گردونه شانس روزانه',
-    inChatProfile: '🪪 مشخصات هم‌صحبت',
-    inChatGift: '🎁 ارسال هدیه',
-    inChatIcebreaker: '🎲 سوال یخ‌شکن',
 
     // Chat
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
     filterRandom: '🎲 جستجوی شانسی (رایگان)',
+    filterMood: '🌈 چت بر اساس حس‌وحال و مود روحی 💫',
     filterSameLang: '💬 چت هم‌زبان (فارسی‌زبانان)',
     filterGlobal: '🌍 چت بین‌المللی (Global)',
     filterFemale: '👩 اتصال به دختر (۵۰ سکه)',
     filterMale: '👨 اتصال به پسر (۵۰ سکه)',
     filterProv: '🛰️ افراد نزدیک و همشهری (۳۰ سکه)',
+    btnVipChat: '👑 چت‌روم گروهی VIP',
+    btnSearch: '🔍 جستجوی کاربران و چت مستقیم',
     searching: '🔍 <b>در حال جستجوی هم‌صحبت با مشخصات درخواستی...</b>\n\n⏳ لطفاً چند لحظه صبور باشید.',
     searchCancelled: '✅ جستجوی هم‌صحبت لغو شد.',
     matched: '🎉 <b>هم‌صحبت پیدا شد!</b>\n\n🎭 <b>مشخصات طرف مقابل:</b> {badge}\n⭐ <b>کارمای اخلاق:</b> {karma} امتیاز | 🏆 <b>سطح:</b> Lvl {lvl}\n\n💬 می‌توانید پیام متنی، ویس، عکس یا استیکر بفرستید.',
     inChatNext: '⏭️ هم‌صحبت بعدی',
     inChatStop: '🛑 پایان گفتگو',
-    inChatShareId: '💖 ارسال آیدی تلگرام',
+    inChatProfile: '🪪 مشخصات هم‌صحبت',
     inChatDuel: '🎮 دوئل بازی 1v1',
-    inChatReport: '🚩 گزارش تخلف',
+    inChatGift: '🎁 ارسال هدیه',
+    inChatIcebreaker: '🎲 سوال یخ‌شکن',
+    inChatShareId: '💖 ارسال آیدی تلگرام',
     chatEndedSelf: '🛑 <b>شما مکالمه را پایان دادید.</b>',
     chatEndedPartner: '🛑 <b>هم‌صحبت شما چت را ترک کرد.</b>',
     chatNextPartner: '🛑 <b>هم‌صحبت شما به سراغ فرد دیگری رفت.</b>',
@@ -947,30 +165,12 @@ const I18N = {
     karmaThanks: '🙏 از ثبت امتیاز شما سپاسگزاریم! (+۵ کارما به هم‌صحبت افزوده شد)',
     lowCoinsNotice: '⚠️ <b>موجودی سکه شما کافی نیست!</b>\nبرای این بخش نیاز به <b>{cost} سکه</b> دارید.\nموجودی فعلی: <b>{coins}</b> سکه',
     surpriseRefill: '🎁 <b>هدیه شارژ شگفت‌انگیز زنوسلایف!</b>\nبه پاس همراهی شما، <b>۲۰۰ سکه رایگان</b> برای ۴ چت فیلتردار دیگر به حسابتان اضافه شد! 🪙✨',
-    shareIdSuccess: '✅ آیدی شما با موفقیت برای هم‌صحبت ارسال شد.',
-    shareIdReceived: '💖 <b>هم‌صحبت آیدی تلگرام خود را به اشتراک گذاشت:</b>\n👤 نام: <b>{name}</b>\n🆔 آیدی: @{username}',
-    noUsernameErr: '⚠️ اکانت تلگرام شما آیدی ندارد. لطفاً در تنظیمات تلگرام یک Username ست کنید.',
-    
-    // Games
-    gamesTitle: '🎮 <b>مرکز بازی‌ها و دوئل‌های 1v1 زنوسلایف</b>\n\nیک بازی را انتخاب کنید و حریفتان را به چالش بکشید:',
-    gameRps: '🪨📄✂️ سنگ، کاغذ، قیچی آنلاین',
-    gameDice: '🎲 دوئل رولت تاس متحرک',
-    gameHokm: '👑 حکم ۴ نفره شاهانه (Mini App)',
-    gameBackgammon: '🎲 تخته نرد ایرانی (Mini App)',
-    rpsPrompt: '🪨📄✂️ <b>بازی سنگ، کاغذ، قیچی (شرط ۵۰ سکه)</b>\nحرکت خود را انتخاب کنید:',
-    rpsRock: '🪨 سنگ',
-    rpsPaper: '📄 کاغذ',
-    rpsScissors: '✂️ قیچی',
-    rpsWin: '🎉 <b>تبریک! شما برنده شدید! (+۹۰ سکه و +۲۵ XP)</b>',
-    rpsLose: '😢 <b>شما باختید! حریف برنده شد. (+۵ XP)</b>',
-    rpsTie: '🤝 <b>مساوی شد! (سکه برگشت داده شد)</b>',
-    
+
     // VIP & Shop
     vipTitle: '👑 <b>پلن‌های اشتراک ویژه VIP زنوسلایف</b>\n\nمزایای VIP:\n• ورود به تالار چت گروهی ناشناس VIP\n• فیلتر نامحدود دختر/پسر/همشهری\n• نشان تاج طلایی در چت و پروفایل\n• ۲۰٪ بانس XP و سکه مضاعف در بازی‌ها',
     vip7: '🥉 VIP هفتگی (۷ روز) - ۷۵ ستاره ⭐',
     vip30: '🥈 VIP ماهانه (۳۰ روز) - ۲۵۰ ستاره ⭐',
     vip90: '👑 VIP طلایی رویال (۹۰ روز) - ۶۵۰ ستاره ⭐',
-    shopTitle: '⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\nشارژ آنی سکه با Telegram Stars بدون واسطه:',
     pkg1: '🪙 ۱,۰۰۰ سکه (۳۵ ستاره ⭐)',
     pkg2: '💰 ۵,۰۰۰ سکه + هدیه (۱۵۰ ستاره ⭐)',
     pkg3: '🌍 ۱۲,۰۰۰ سکه + گلوبال (۳۰۰ ستاره ⭐)',
@@ -986,15 +186,10 @@ const I18N = {
                    '• <b>۱۰٪ پورسانت مادام‌العمر</b> از تمام خریدهای ستاره تلگرام دوست شما!\n\n' +
                    '👥 تعداد زیرمجموعه‌های شما: <b>{refs} نفر</b>',
     btnShareRef: '🚀 ارسال فوری برای دوستان و گروه‌ها',
-    
-    // Achievements & Leaderboard
-    leaderboardTitle: '🏆 <b>جدول برترین‌های زنوسلایف</b>\n\n' +
-                     '🥇 <b>برترین‌های سکه و ثروت:</b>\n{topCoins}\n\n' +
-                     '⭐ <b>بااخلاق‌ترین هم‌صحبت‌ها (کارما):</b>\n{topKarma}',
+    leaderboardTitle: '🏆 <b>جدول برترین‌های زنوسلایف</b>\n\n🥇 <b>برترین‌های سکه:</b>\n{topCoins}\n\n⭐ <b>بااخلاق‌ترین‌ها (کارما):</b>\n{topKarma}'
   },
 
   en: {
-    chooseLang: '🌐 <b>Please choose your language:</b>\nلطفاً زبان خود را انتخاب کنید:',
     welcomeTitle: '👑 <b>Welcome to ZenOsLife Anonymous Chat & Gaming Engine!</b>',
     chooseGender: '👤 Please select your <b>gender</b>:',
     male: '👨 Male / Boy',
@@ -1004,7 +199,7 @@ const I18N = {
     age2: '22 - 26 yrs',
     age3: '27 - 34 yrs',
     age4: '35+ yrs',
-    chooseProv: '📍 Please select your <b>region/country</b>:',
+    chooseProv: '📍 Please select your <b>region</b>:',
     provTeh: 'Europe / UK',
     provIsf: 'North America / US',
     provMsh: 'Asia / Middle East',
@@ -1024,87 +219,61 @@ const I18N = {
     btnGames: '🎮 Online Games & Duels 🎲',
     btnFinanceHub: '💎 VIP, Wallet & Earn 🎁',
     btnProfileHub: '👤 Profile & Settings ⚙️',
-    btnCoins: '🪙 Wallet & Telegram Stars ⭐',
-    btnVip: '👑 VIP Plans & Membership',
-    btnVipChat: '👑 VIP Group Lounge',
-    btnProfile: '👤 My Profile & Badges 🏅',
-    btnReferral: '🎁 Invite Friends & Earn',
-    btnLeaderboard: '🏆 Leaderboards & Ranks',
-    btnSettings: '⚙️ Settings & Language 🌐',
     btnMiniApp: '🌟 Open ZenOsLife (Mini App) ✨',
-    btnSearch: '🔍 Search Users & Direct Chat',
-    inChatProfile: '🪪 Partner Profile',
 
     // Chat
     filterTitle: '🙈 <b>Who would you like to connect with?</b> 👇',
     filterRandom: '🎲 Random Match (Free)',
+    filterMood: '🌈 Chat by Mood & Vibe 💫',
     filterSameLang: '💬 Same Language Match',
-    filterGlobal: '🌍 Global Discovery (All Countries)',
+    filterGlobal: '🌍 Global Discovery',
     filterFemale: '👩 Connect to Girl (50 Coins)',
     filterMale: '👨 Connect to Boy (50 Coins)',
     filterProv: '🛰️ Same Region Match (30 Coins)',
-    searching: '🔍 <b>Searching for the best partner...</b>\n\n⏳ Please wait a moment while we match you with an online user.',
+    btnVipChat: '👑 VIP Group Lounge',
+    btnSearch: '🔍 Search Users & Direct Chat',
+    searching: '🔍 <b>Searching for the best partner...</b>\n\n⏳ Please wait a moment...',
     searchCancelled: '✅ Search cancelled.',
     matched: '🎉 <b>Partner Found!</b>\n\n🎭 <b>Stranger:</b> {badge}\n⭐ <b>Karma:</b> {karma} pts | 🏆 <b>Level:</b> Lvl {lvl}\n\n💬 Feel free to send text, voice notes, photos, or stickers.',
     inChatNext: '⏭️ Next Partner',
     inChatStop: '🛑 End Chat',
-    inChatShareId: '💖 Share Telegram ID',
+    inChatProfile: '🪪 Partner Profile',
     inChatDuel: '🎮 1v1 Game Duel',
-    inChatReport: '🚩 Report User',
+    inChatGift: '🎁 Send Gift',
+    inChatIcebreaker: '🎲 Icebreaker Question',
+    inChatShareId: '💖 Share Telegram ID',
     chatEndedSelf: '🛑 <b>You ended the conversation.</b>',
     chatEndedPartner: '🛑 <b>Your partner left the chat.</b>',
     chatNextPartner: '🛑 <b>Your partner moved on to someone else.</b>',
-    karmaPrompt: '🌟 <b>How was your conversation?</b>\nRate your partner to promote respectful and quality social vibes:',
+    karmaPrompt: '🌟 <b>How was your conversation?</b>\nRate your partner:',
     karmaGreat: '🌟 Great Talker (+5 Karma)',
     karmaPolite: '☕ Polite & Respectful (+5 Karma)',
     karmaInspiring: '💡 Inspiring (+5 Karma)',
-    karmaThanks: '🙏 Thank you for your feedback! (+5 Karma added to partner)',
-    lowCoinsNotice: '⚠️ <b>Insufficient Coins!</b>\nThis filter requires <b>{cost} Coins</b>.\nCurrent Balance: <b>{coins}</b> Coins',
-    surpriseRefill: '🎁 <b>Surprise Coin Refill!</b>\nHere is <b>200 Free Coins</b> for your next filtered chats! 🪙✨',
-    shareIdSuccess: '✅ Your Telegram ID has been shared with your partner.',
-    shareIdReceived: '💖 <b>Your partner shared their Telegram ID:</b>\n👤 Name: <b>{name}</b>\n🆔 Username: @{username}',
-    noUsernameErr: '⚠️ You do not have a Telegram Username set in your Telegram Settings.',
-    
-    // Games
-    gamesTitle: '🎮 <b>ZenOsLife 1v1 In-Bot Gaming Hub</b>\n\nSelect a game to challenge your opponents:',
-    gameRps: '🪨📄✂️ Rock-Paper-Scissors Online',
-    gameDice: '🎲 Animated Dice Duel',
-    gameHokm: '👑 Hokm 4-Player (Mini App)',
-    gameBackgammon: '🎲 Persian Backgammon (Mini App)',
-    rpsPrompt: '🪨📄✂️ <b>Rock, Paper, Scissors (50 Coins Wager)</b>\nMake your move:',
-    rpsRock: '🪨 Rock',
-    rpsPaper: '📄 Paper',
-    rpsScissors: '✂️ Scissors',
-    rpsWin: '🎉 <b>Congratulations! You Won! (+90 Coins & +25 XP)</b>',
-    rpsLose: '😢 <b>You Lost! Opponent won. (+5 XP)</b>',
-    rpsTie: '🤝 <b>It is a Tie! (Wager returned)</b>',
-    
+    karmaThanks: '🙏 Thank you for your feedback! (+5 Karma added)',
+    lowCoinsNotice: '⚠️ <b>Insufficient Coins!</b>\nRequires <b>{cost} Coins</b>.\nBalance: <b>{coins}</b> Coins',
+    surpriseRefill: '🎁 <b>Surprise Coin Refill!</b>\nHere is <b>200 Free Coins</b>! 🪙✨',
+
     // VIP & Shop
-    vipTitle: '👑 <b>ZenOsLife VIP Subscription Plans</b>\n\nVIP Benefits:\n• Access to Royal VIP Anonymous Group Lounge\n• Unlimited Gender & Region Filters\n• Golden Crown badge on Profile & Chat\n• +20% XP boost & bonus coins in games',
+    vipTitle: '👑 <b>ZenOsLife VIP Subscription Plans</b>',
     vip7: '🥉 Weekly VIP (7 Days) - 75 Stars ⭐',
     vip30: '🥈 Monthly VIP (30 Days) - 250 Stars ⭐',
     vip90: '👑 Royal VIP (90 Days) - 650 Stars ⭐',
-    shopTitle: '⭐ <b>Official Telegram Stars Coin Shop</b>\nInstant recharge using Telegram Stars:',
     pkg1: '🪙 1,000 Coins (35 Stars ⭐)',
     pkg2: '💰 5,000 Coins + Bonus (150 Stars ⭐)',
     pkg3: '🌍 12,000 Coins + Global (300 Stars ⭐)',
     pkg4: '💎 50,000 Coins + VIP (1,000 Stars ⭐)',
 
     // Daily & Referral
-    dailyStreakTitle: '🔥 <b>Daily Streak & Login Bonus</b>\n\nYou have logged in for <b>{days} consecutive days</b>!\n🎁 Today Reward: <b>+{coins} Coins & +{xp} XP</b>',
+    dailyStreakTitle: '🔥 <b>Daily Streak & Login Bonus</b>\n\nLogged in <b>{days} consecutive days</b>!\n🎁 Reward: <b>+{coins} Coins & +{xp} XP</b>',
     referralTitle: '🎁 <b>ZenOsLife Automated Referral Engine</b>\n\n' +
                    '🔗 <b>Your Exclusive Invite Link:</b>\n<code>{refLink}</code>\n\n' +
-                   '🎁 <b>Awesome Rewards:</b>\n' +
-                   '• <b>1,000 Bonus Coins for you</b> for every successful invite\n' +
-                   '• <b>1,000 Welcome Coins for your friend</b> upon joining!\n' +
+                   '🎁 <b>Rewards:</b>\n' +
+                   '• <b>1,000 Coins for you</b> per successful invite\n' +
+                   '• <b>1,000 Coins for your friend</b> on signup!\n' +
                    '• <b>10% Lifetime Cut</b> on all their Stars purchases!\n\n' +
                    '👥 Friends Invited: <b>{refs}</b>',
-    btnShareRef: '🚀 1-Tap Share to Friends & Groups',
-    
-    // Achievements & Leaderboard
-    leaderboardTitle: '🏆 <b>ZenOsLife Top Leaderboard</b>\n\n' +
-                     '🥇 <b>Wealth Leaders (Coins):</b>\n{topCoins}\n\n' +
-                     '⭐ <b>Ethics & Karma Leaders:</b>\n{topKarma}',
+    btnShareRef: '🚀 1-Tap Share to Friends',
+    leaderboardTitle: '🏆 <b>ZenOsLife Top Leaderboards</b>\n\n🥇 <b>Wealth Leaders:</b>\n{topCoins}\n\n⭐ <b>Karma Leaders:</b>\n{topKarma}'
   }
 };
 
@@ -1123,7 +292,7 @@ function t(userId, key, params = {}) {
 }
 
 // ----------------------------------------------------
-// 6. SECURE TELEGRAM API CLIENT
+// 6. TELEGRAM HTTPS API CLIENT
 // ----------------------------------------------------
 const httpsAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
 
@@ -1163,7 +332,7 @@ function callTgApi(method, payload = {}) {
 }
 
 // ----------------------------------------------------
-// 7. GAMIFICATION: LEVEL, XP & VIP EXPIRATION
+// 7. LEVEL, XP & RECURRING RETENTION
 // ----------------------------------------------------
 function addXp(userId, amount) {
   const user = db.users[userId];
@@ -1238,6 +407,8 @@ async function startLanguageChoice(chatId, userId, startParam = '') {
       streak_days: 1,
       last_streak_date: new Date().toISOString().slice(0, 10),
       referrals: [],
+      friends: [],
+      blocked: [],
       lastRefill: Date.now(),
       createdAt: Date.now()
     }
@@ -1275,7 +446,7 @@ async function promptGenderSelection(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 9. PROFILE CARD & INTERACTIVE EDITOR
+// 9. PROFILE CARD & IN-CHAT PROFILE INSPECTION
 // ----------------------------------------------------
 async function sendProfileCard(chatId, userId) {
   const user = db.users[userId];
@@ -1294,7 +465,7 @@ async function sendProfileCard(chatId, userId) {
       `• Karma & Ethics: <b>⭐ ${user.karma || 100} pts</b>\n` +
       `• Balance: <b>🪙 ${(user.coins || 0).toLocaleString()} Coins</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
       `• Daily Streak: <b>🔥 ${user.streak_days || 1} Days</b>\n` +
-      `• Referrals: <b>${(user.referrals || []).length} Friends</b>`
+      `• Friends: <b>${(user.friends || []).length} Users</b>`
     : `👤 <b>پروفایل کاربری شما در زنوسلایف:</b>\n\n` +
       `• نام: <b>${user.name}</b>\n` +
       `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
@@ -1304,10 +475,13 @@ async function sendProfileCard(chatId, userId) {
       `• امتیاز کارما و ادب: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
       `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
       `• استریک روزانه: <b>🔥 ${user.streak_days || 1} روز مداوم</b>\n` +
-      `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
+      `• تعداد دوستان: <b>${(user.friends || []).length} نفر</b>`;
 
   const replyMarkup = {
-    inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
+    inline_keyboard: [
+      [{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }],
+      [{ text: isEn ? '👥 My Friends List' : '👥 لیست دوستان من', callback_data: 'view_my_friends' }]
+    ]
   };
 
   try {
@@ -1358,7 +532,7 @@ async function sendProfileEditMenu(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 10. MAIN DASHBOARD & REPLY KEYBOARD
+// 10. MAIN BOT DASHBOARD & KEYBOARD
 // ----------------------------------------------------
 function getMainReplyKeyboard(userId) {
   const user = db.users[userId];
@@ -1367,9 +541,9 @@ function getMainReplyKeyboard(userId) {
 
   return {
     keyboard: [
-      // 1. In-Bot Native Chat (Big Button)
+      // 1. Native In-Bot Chat
       [{ text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی' }],
-      // 2. In-Bot Native Games & Duels (Big Button)
+      // 2. Native In-Bot Games & Duels
       [{ text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' }],
       // 3. Consolidated Finance & Profile Hubs
       [
@@ -1433,7 +607,7 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
 }
 
 // ----------------------------------------------------
-// 11. ANONYMOUS CHAT & MATCHMAKING
+// 11. SOCIAL MATCHMAKING & MOOD ENGINE
 // ----------------------------------------------------
 async function sendFilterMenu(chatId, userId) {
   const user = db.users[userId];
@@ -1443,7 +617,7 @@ async function sendFilterMenu(chatId, userId) {
   const inlineKeyboard = {
     inline_keyboard: [
       [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
-      [{ text: isEn ? '🌈 Chat by Mood & Vibe (New!)' : '🌈 چت بر اساس حس‌وحال و مود روحی 💫', callback_data: 'open_mood_menu' }],
+      [{ text: isEn ? '🌈 Chat by Mood & Vibe 💫' : '🌈 چت بر اساس حس‌وحال و مود روحی 💫', callback_data: 'open_mood_menu' }],
       [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
       [{ text: t(userId, 'btnVipChat'), callback_data: 'enter_vip_lounge' }],
       [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
@@ -1457,6 +631,29 @@ async function sendFilterMenu(chatId, userId) {
     text: t(userId, 'filterTitle'),
     parse_mode: 'HTML',
     reply_markup: inlineKeyboard
+  });
+}
+
+async function sendMoodSelectMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const text = isEn
+    ? '🌈 <b>Choose your Current Mood & Vibe:</b>\nWe will match you with someone feeling the exact same way:'
+    : '🌈 <b>حس‌وحال (مود) امروزت رو انتخاب کن:</b>\nربات شما رو دقیقاً به کسی وصل می‌کنه که الان در همین فرکانس روحی قرار داره:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🕊️ دردودل و گوش شنوا (آرامش و کاهش تنهایی)', callback_data: 'mood_match_venting' }],
+        [{ text: '🚀 پرانرژی، شاد و اهل شوخی و خنده', callback_data: 'mood_match_funny' }],
+        [{ text: '🎧 عاشق موزیک، هنر، فیلم و کتاب', callback_data: 'mood_match_art' }],
+        [{ text: '☕ گفتگوی عمیق، فکری و تجربیات زندگی', callback_data: 'mood_match_deep' }],
+        [{ text: '🎮 اهل بازی، کل‌کل و رقابت آنلاین', callback_data: 'mood_match_gaming' }],
+        [{ text: '🔙 بازگشت به منوی چت', callback_data: 'back_to_chat_filters' }]
+      ]
+    }
   });
 }
 
@@ -1477,9 +674,9 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '⭐ ' + t(userId, 'btnCoins'), callback_data: 'buy_stars' }],
+            [{ text: '⭐ خرید سکه با ستاره', callback_data: 'buy_stars' }],
             [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
-            [{ text: '🎁 ' + t(userId, 'btnReferral'), callback_data: 'show_referral' }]
+            [{ text: '🎁 دعوت دوستان', callback_data: 'show_referral' }]
           ]
         }
       });
@@ -1596,7 +793,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
 }
 
 // ----------------------------------------------------
-// 12. IN-CHAT CONTROLS & PARTNER PROFILE INSPECTION
+// 12. IN-CHAT CONTROLS, PROFILE & GIFTS
 // ----------------------------------------------------
 async function stopChat(chatId, userId) {
   const qIdx = waitingQueue.findIndex(w => w.userId === userId);
@@ -1710,25 +907,6 @@ async function inspectPartnerProfile(chatId, userId) {
   }
 }
 
-async function shareContact(chatId, userId, msg) {
-  if (!activePairs.has(userId)) return;
-  const partnerId = activePairs.get(userId);
-  const username = msg.from.username;
-  const user = db.users[userId];
-
-  if (!username) {
-    return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'noUsernameErr') });
-  }
-
-  callTgApi('sendMessage', {
-    chat_id: partnerId,
-    text: t(partnerId, 'shareIdReceived', { name: user?.name || 'User', username }),
-    parse_mode: 'HTML'
-  }).catch(() => {});
-
-  return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'shareIdSuccess') });
-}
-
 async function relayMessage(msg, partnerId) {
   const userId = String(msg.from.id);
   const now = Date.now();
@@ -1767,70 +945,185 @@ async function relayMessage(msg, partnerId) {
 }
 
 // ----------------------------------------------------
-// 13. LIVE IN-CHAT 1v1 MULTIPLAYER DUELS
+// 13. VIRTUAL GIFTS & ICEBREAKERS
 // ----------------------------------------------------
-async function promptInChatDuelChoice(chatId, userId) {
-  if (!activePairs.has(userId)) return;
-  const user = db.users[userId];
-  const isEn = user?.lang === 'en';
+const ICEBREAKER_QUESTIONS = [
+  '💭 اگر قرار بود فقط یک آرزوت برآورده شه، الان چی می‌خواستی؟',
+  '🎢 بزرگ‌ترین کار هیجان‌انگیز یا دیوونه‌بازی که تا حالا تو زندگیت کردی چی بوده؟',
+  '✨ چه ویژگی اخلاقی تو آدما فوراً جذبت می‌کنه و به دلت می‌شینه؟',
+  '🎵 یک آهنگی که این روزا مدام گوش می‌دی و قفلشی رو به هم‌صحبتت معرفی کن!',
+  '☕ تعطیلات رویاییت چطوریه؟ ساحل و آرامش یا کوه و آدرنالین؟',
+  '🍕 اگر تا آخر عمر فقط بتونی یک غذا بخوری، انتخابت چیه؟',
+  '🎬 بهترین فیلم یا سریالی که اخیراً دیدی و پیشنهاد می‌کنی چیه؟',
+  '🚀 اگر می‌تونستی به هر نقطه از زمان سفر کنی، می‌رفتی گذشته یا آینده؟'
+];
 
-  if ((user?.coins || 0) < 50) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'lowCoinsNotice', { cost: 50, coins: user?.coins || 0 }),
-      parse_mode: 'HTML'
-    });
-  }
+async function sendInChatGiftsMenu(chatId, userId) {
+  if (!activePairs.has(userId)) return;
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const text = isEn
+    ? '🎁 <b>Send a Virtual Gift to your chat partner:</b>\n<i>(50% of the gift coins are transferred to your partner!)</i>'
+    : '🎁 <b>ارسال هدیه دیجیتال برای هم‌صحبت:</b>\n<i>(۵۰٪ از ارزش سکه هدیه مستقیماً به موجودی هم‌صحبت شما واریز می‌شود!)</i>';
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: isEn ? '⚔️ <b>Select a 1v1 In-Chat Game with your partner:</b>' : '⚔️ <b>یک بازی دونفره را برای اجرا در همین چت انتخاب کن:</b>',
+    text: text,
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: isEn ? '🪨 Rock-Paper-Scissors (50 Coins)' : '🪨📄✂️ سنگ، کاغذ، قیچی (۵۰ سکه)', callback_data: 'duel_invite_rps' }],
-        [{ text: isEn ? '🎲 Animated Dice Duel (50 Coins)' : '🎲 دوئل رولت تاس متحرک (۵۰ سکه)', callback_data: 'duel_invite_dice' }],
-        [{ text: isEn ? '🧠 Trivia Knowledge Battle (Free)' : '🧠 مسابقه اطلاعات عمومی و هوش (رایگان)', callback_data: 'duel_invite_trivia' }]
+        [
+          { text: '🌹 شاخه گل رز (۱۰ سکه)', callback_data: 'send_gift_rose' },
+          { text: '🍫 شکلات لوکس (۳۰ سکه)', callback_data: 'send_gift_chocolate' }
+        ],
+        [
+          { text: '💎 الماس سلطنتی (۱۰۰ سکه)', callback_data: 'send_gift_diamond' },
+          { text: '👑 تاج رویال VIP (۳۰۰ سکه)', callback_data: 'send_gift_crown' }
+        ]
       ]
     }
   });
 }
 
-async function sendDuelInviteToPartner(fromUserId, gameType) {
-  if (!activePairs.has(fromUserId)) return;
-  const partnerId = activePairs.get(fromUserId);
-  const fromUser = db.users[fromUserId];
-  const partnerUser = db.users[partnerId];
-  const isEn = partnerUser?.lang === 'en';
+async function handleSendGift(userId, giftType) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const sender = db.users[userId];
+  const receiver = db.users[partnerId];
 
-  let gameName = 'سنگ، کاغذ، قیچی';
-  if (gameType === 'rps') gameName = isEn ? 'Rock-Paper-Scissors' : 'سنگ، کاغذ، قیچی';
-  else if (gameType === 'dice') gameName = isEn ? 'Animated Dice Duel' : 'دوئل رولت تاس';
-  else if (gameType === 'trivia') gameName = isEn ? 'Trivia Battle' : 'مسابقه اطلاعات عمومی';
+  const giftCatalog = {
+    'rose': { nameFa: '🌹 شاخه گل رز', nameEn: '🌹 Red Rose', cost: 10, reward: 5 },
+    'chocolate': { nameFa: '🍫 جعبه شکلات لوکس', nameEn: '🍫 Luxury Chocolate', cost: 30, reward: 15 },
+    'diamond': { nameFa: '💎 الماس درخشان', nameEn: '💎 Sparkling Diamond', cost: 100, reward: 50 },
+    'crown': { nameFa: '👑 تاج طلایی شاهانه', nameEn: '👑 Royal Crown', cost: 300, reward: 150 }
+  };
 
-  const inviteText = isEn
-    ? `⚔️ <b>${fromUser?.name || 'Partner'} challenged you to a 1v1 ${gameName}!</b>\n🪙 Wager: <b>50 Coins</b> (Winner takes 90 Coins!)`
-    : `⚔️ <b>هم‌صحبت شما را به دوئل «${gameName}» دعوت کرد!</b>\n🪙 شرط مسابقه: <b>۵۰ سکه</b> (برنده ۹۰ سکه دریافت می‌کند!)`;
+  const gift = giftCatalog[giftType];
+  if (!gift) return;
 
-  callTgApi('sendMessage', {
-    chat_id: partnerId,
-    text: inviteText,
+  if ((sender.coins || 0) < gift.cost) {
+    return callTgApi('sendMessage', {
+      chat_id: userId,
+      text: t(userId, 'lowCoinsNotice', { cost: gift.cost, coins: sender.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  sender.coins -= gift.cost;
+  receiver.coins = (receiver.coins || 0) + gift.reward;
+  addXp(userId, Math.round(gift.cost / 2));
+  saveDb();
+
+  const isSenderEn = sender.lang === 'en';
+  const isReceiverEn = receiver.lang === 'en';
+
+  const senderNotice = isSenderEn
+    ? `🎁 You sent <b>${gift.nameEn}</b> to your partner! (- ${gift.cost} Coins)`
+    : `🎁 شما یک <b>${gift.nameFa}</b> برای هم‌صحبت ارسال کردید! (- ${gift.cost} سکه)`;
+
+  const receiverNotice = isReceiverEn
+    ? `💖 <b>${sender.name} sent you a ${gift.nameEn}!</b>\n💰 <b>+${gift.reward} Coins added to your balance!</b>`
+    : `💖 <b>هم‌صحبت شما یک «${gift.nameFa}» به شما هدیه داد!</b>\n💰 <b>+${gift.reward} سکه به موجودی شما افزوده شد!</b>`;
+
+  callTgApi('sendMessage', { chat_id: userId, text: senderNotice, parse_mode: 'HTML' }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: partnerId, text: receiverNotice, parse_mode: 'HTML' }).catch(() => {});
+}
+
+async function triggerIcebreakerQuestion(userId) {
+  if (!activePairs.has(userId)) return;
+  const partnerId = activePairs.get(userId);
+  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
+
+  const promptText = `🎲 <b>سوال یخ‌شکن و چالش دو‌نفره:</b>\n\n<i>${randomQ}</i>\n\n💬 <i>هر دو نفر نظرتان را در چت بگویید!</i>`;
+
+  callTgApi('sendMessage', { chat_id: userId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: partnerId, text: promptText, parse_mode: 'HTML' }).catch(() => {});
+}
+
+// ----------------------------------------------------
+// 14. IN-BOT DUELS & MATCHMAKING
+// ----------------------------------------------------
+async function promptGameModeChoice(chatId, userId, gameType) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const gameNames = {
+    rps: { fa: '🪨📄✂️ سنگ، کاغذ، قیچی', en: '🪨 Rock-Paper-Scissors' },
+    dice: { fa: '🎲 دوئل رولت تاس متحرک', en: '🎲 Animated Dice Duel' },
+    trivia: { fa: '🧠 مسابقه اطلاعات عمومی و هوش', en: '🧠 Trivia Battle' }
+  };
+
+  const game = gameNames[gameType] || { fa: 'بازی آنلاین', en: 'Online Game' };
+
+  const promptText = isEn
+    ? `🎮 <b>${game.en}</b>\n\nChoose how you want to play:`
+    : `🎮 <b>${game.fa}</b>\n\nحالت بازی را انتخاب کنید:`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: promptText,
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [
-          { text: isEn ? '⚔️ Accept Challenge!' : '⚔️ قبول چالش و شروع بازی!', callback_data: `duel_accept_${gameType}_${fromUserId}` },
-          { text: isEn ? '❌ Decline' : '❌ رد دعوت', callback_data: `duel_decline_${fromUserId}` }
-        ]
+        [{ text: isEn ? '🤖 Play vs Smart AI Bot (Instant)' : '🤖 بازی با ربات هوشمند (آفلاین / فوری)', callback_data: `play_bot_${gameType}` }],
+        [{ text: isEn ? '👥 Match with Online Player (Live)' : '👥 جستجوی بازیکن آنلاین (Matchmaking زنده)', callback_data: `match_online_${gameType}` }],
+        [{ text: isEn ? '🔙 Back to Games' : '🔙 بازگشت به لیست بازی‌ها', callback_data: 'back_to_games_menu' }]
       ]
     }
-  }).catch(() => {});
+  });
+}
 
-  const sentNotice = fromUser?.lang === 'en'
-    ? '⏳ Challenge invite sent to your partner. Waiting for acceptance...'
-    : '⏳ دعوت‌نامه دوئل برای هم‌صحبت ارسال شد. منتظر تایید او باشید...';
+async function executeGameMatchmaking(chatId, userId, gameType) {
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
 
-  callTgApi('sendMessage', { chat_id: fromUserId, text: sentNotice });
+  if (!onlineGameQueues[gameType]) onlineGameQueues[gameType] = [];
+
+  if (onlineGameQueues[gameType].includes(userId)) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '🔍 You are already searching for an opponent...' : '🔍 شما در صف جستجوی حریف قرار دارید. لطفاً چند لحظه شکیبا باشید...'
+    });
+  }
+
+  const oppIndex = onlineGameQueues[gameType].findIndex(uid => uid !== userId);
+
+  if (oppIndex > -1) {
+    const opponentId = onlineGameQueues[gameType].splice(oppIndex, 1)[0];
+    const oppUser = db.users[opponentId];
+
+    const matchNotice1 = isEn
+      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${oppUser?.name || 'Player'}</b> (Lvl ${oppUser?.level || 1})\n⚡ Starting match...`
+      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${oppUser?.name || 'کاربر زنوسلایف'}</b> (سطح ${oppUser?.level || 1})\n⚡ بازی آغاز شد...`;
+
+    const matchNotice2 = isEn
+      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${user?.name || 'Player'}</b> (Lvl ${user?.level || 1})\n⚡ Starting match...`
+      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${user?.name || 'کاربر زنوسلایف'}</b> (سطح ${user?.level || 1})\n⚡ بازی آغاز شد...`;
+
+    callTgApi('sendMessage', { chat_id: userId, text: matchNotice1, parse_mode: 'HTML' });
+    callTgApi('sendMessage', { chat_id: opponentId, text: matchNotice2, parse_mode: 'HTML' });
+
+    if (gameType === 'rps') return startLiveInChatRps(userId, opponentId);
+    if (gameType === 'dice') return startLiveInChatDice(userId, opponentId);
+    if (gameType === 'trivia') return startLiveInChatTrivia(userId, opponentId);
+    return;
+  }
+
+  onlineGameQueues[gameType].push(userId);
+
+  const searchNotice = isEn
+    ? '🔍 <b>Searching for an online opponent...</b>\n⏳ Matching you with a live player...'
+    : '🔍 <b>در حال جستجوی بازیکن آنلاین...</b>\n⏳ لطفاً چند لحظه شکیبا باشید تا به یک رقیب متصل شوید:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: searchNotice,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🤖 بازی فوری با ربات (بدون معطلی)', callback_data: `play_bot_${gameType}` }],
+        [{ text: '❌ انصراف از جستجو', callback_data: `cancel_game_search_${gameType}` }]
+      ]
+    }
+  });
 }
 
 async function startLiveInChatRps(p1Id, p2Id) {
@@ -1850,9 +1143,6 @@ async function startLiveInChatRps(p1Id, p2Id) {
   const duelId = 'duel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
   activeGames.set(duelId, { id: duelId, p1: p1Id, p2: p2Id, p1Move: null, p2Move: null, wager: 50 });
 
-  const prompt1 = u1?.lang === 'en' ? '🪨📄✂️ <b>1v1 Duel Started! Make your move:</b>' : '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>';
-  const prompt2 = u2?.lang === 'en' ? '🪨📄✂️ <b>1v1 Duel Started! Make your move:</b>' : '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>';
-
   const rpsKeyboard = {
     inline_keyboard: [
       [
@@ -1863,8 +1153,8 @@ async function startLiveInChatRps(p1Id, p2Id) {
     ]
   };
 
-  callTgApi('sendMessage', { chat_id: p1Id, text: prompt1, parse_mode: 'HTML', reply_markup: rpsKeyboard }).catch(() => {});
-  callTgApi('sendMessage', { chat_id: p2Id, text: prompt2, parse_mode: 'HTML', reply_markup: rpsKeyboard }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: p1Id, text: '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>', parse_mode: 'HTML', reply_markup: rpsKeyboard }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: p2Id, text: '🪨📄✂️ <b>دوئل دونفره شروع شد! حرکت خود را انتخاب کنید:</b>', parse_mode: 'HTML', reply_markup: rpsKeyboard }).catch(() => {});
 }
 
 async function handleLiveRpsMove(userId, duelId, move) {
@@ -1900,8 +1190,6 @@ async function resolveLiveRpsDuel(game) {
   const u2 = db.users[p2];
 
   const moveIcons = { rock: '🪨', paper: '📄', scissors: '✂️' };
-  const moveNamesFa = { rock: 'سنگ', paper: 'کاغذ', scissors: 'قیچی' };
-
   let winner = null;
   if (p1Move === p2Move) winner = null;
   else if (
@@ -1948,60 +1236,341 @@ async function startLiveInChatDice(p1Id, p2Id) {
   const u1 = db.users[p1Id];
   const u2 = db.users[p2Id];
 
-  if ((u1?.coins || 0) < 50 || (u2?.coins || 0) < 50) {
+  if ((u1?.coins || 0) < 50 || (p2Id !== 'bot_ai' && (u2?.coins || 0) < 50)) {
     callTgApi('sendMessage', { chat_id: p1Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
-    callTgApi('sendMessage', { chat_id: p2Id, text: '⚠️ یکی از بازیکنان موجودی کافی (۵۰ سکه) ندارد.' });
     return;
   }
 
   u1.coins -= 50;
-  u2.coins -= 50;
+  if (p2Id !== 'bot_ai') u2.coins -= 50;
   saveDb();
 
   callTgApi('sendMessage', { chat_id: p1Id, text: '🎲 <b>پرتاب تاس بازیکن اول...</b>', parse_mode: 'HTML' });
-  callTgApi('sendMessage', { chat_id: p2Id, text: '🎲 <b>پرتاب تاس بازیکن اول...</b>', parse_mode: 'HTML' });
-
   const diceMsg1 = await callTgApi('sendDice', { chat_id: p1Id, emoji: '🎲' });
-  await callTgApi('sendDice', { chat_id: p2Id, emoji: '🎲' });
   const val1 = diceMsg1?.dice?.value || 3;
 
   setTimeout(async () => {
     callTgApi('sendMessage', { chat_id: p1Id, text: '🎲 <b>پرتاب تاس بازیکن دوم...</b>', parse_mode: 'HTML' });
-    callTgApi('sendMessage', { chat_id: p2Id, text: '🎲 <b>پرتاب تاس بازیکن دوم...</b>', parse_mode: 'HTML' });
-
     const diceMsg2 = await callTgApi('sendDice', { chat_id: p1Id, emoji: '🎲' });
-    await callTgApi('sendDice', { chat_id: p2Id, emoji: '🎲' });
     const val2 = diceMsg2?.dice?.value || 3;
 
     setTimeout(() => {
       db.stats.totalMatchesPlayed++;
       if (val1 === val2) {
         u1.coins += 50;
-        u2.coins += 50;
+        if (p2Id !== 'bot_ai') u2.coins += 50;
         saveDb();
         callTgApi('sendMessage', { chat_id: p1Id, text: `🤝 <b>مساوی شد (${val1} = ${val2})! ۵۰ سکه بازگشت.</b>`, parse_mode: 'HTML' });
-        callTgApi('sendMessage', { chat_id: p2Id, text: `🤝 <b>مساوی شد (${val1} = ${val2})! ۵۰ سکه بازگشت.</b>`, parse_mode: 'HTML' });
       } else if (val1 > val2) {
         u1.coins += 90;
         addXp(p1Id, 30);
-        addXp(p2Id, 10);
         saveDb();
         callTgApi('sendMessage', { chat_id: p1Id, text: `🏆 <b>شما برنده شدید (${val1} در برابر ${val2})! (+۹۰ سکه و +۳۰ XP)</b>`, parse_mode: 'HTML' });
-        callTgApi('sendMessage', { chat_id: p2Id, text: `😢 <b>هم‌صحبت برنده شد (${val1} در برابر ${val2})! (+۱۰ XP)</b>`, parse_mode: 'HTML' });
       } else {
-        u2.coins += 90;
-        addXp(p2Id, 30);
+        if (p2Id !== 'bot_ai') u2.coins += 90;
         addXp(p1Id, 10);
         saveDb();
-        callTgApi('sendMessage', { chat_id: p2Id, text: `🏆 <b>شما برنده شدید (${val2} در برابر ${val1})! (+۹۰ سکه و +۳۰ XP)</b>`, parse_mode: 'HTML' });
-        callTgApi('sendMessage', { chat_id: p1Id, text: `😢 <b>هم‌صحبت برنده شد (${val2} در برابر ${val1})! (+۱۰ XP)</b>`, parse_mode: 'HTML' });
+        callTgApi('sendMessage', { chat_id: p1Id, text: `😢 <b>حریف برنده شد (${val2} در برابر ${val1})! (+۱۰ XP)</b>`, parse_mode: 'HTML' });
       }
     }, 2500);
   }, 2000);
 }
 
+const TRIVIA_QUESTIONS = [
+  { q: 'پایتخت تاریخی ایران در دوره صفویه که به نصف جهان معروف است کجاست؟', options: ['شیراز', 'اصفهان', 'تبریز', 'قزوین'], correct: 1 },
+  { q: 'کدام سیاره در منظومه شمسی به سیاره سرخ معروف است؟', options: ['مریخ', 'زهره', 'مشتری', 'عطارد'], correct: 0 },
+  { q: 'بزرگ‌ترین اقیانوس کره زمین کدام است؟', options: ['اقیانوس اطلس', 'اقیانوس هند', 'اقیانوس آرام', 'اقیانوس منجمد شمالی'], correct: 2 },
+  { q: 'کدام ساز ایرانی به عنوان مادر سازهای زهی شناخته می‌شود؟', options: ['تار', 'سه‌تار', 'سنتور', 'بربط (عود)'], correct: 3 },
+  { q: 'سریع‌ترین حیوان خشکی روی زمین کدام است؟', options: ['یوزپلنگ (چیتا)', 'شیر', 'غزال', 'اسب'], correct: 0 }
+];
+
+async function startLiveInChatTrivia(p1Id, p2Id) {
+  const qObj = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)];
+  const quizId = 'trivia_' + Date.now();
+  activeGames.set(quizId, { id: quizId, p1: p1Id, p2: p2Id, question: qObj, resolved: false });
+
+  const qText = `🧠 <b>مسابقه اطلاعات عمومی و چالش دونفره:</b>\n\n<b>${qObj.q}</b>\n\n<i>هرکس زودتر پاسخ صحیح را انتخاب کند برنده است!</i>`;
+  const buttons = qObj.options.map((opt, idx) => [{ text: opt, callback_data: `answer_trivia_${quizId}_${idx}` }]);
+
+  callTgApi('sendMessage', { chat_id: p1Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
+  if (p2Id && p2Id !== 'bot_ai') {
+    callTgApi('sendMessage', { chat_id: p2Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
+  }
+}
+
+async function handleTriviaAnswer(userId, quizId, selectedIdx) {
+  const game = activeGames.get(quizId);
+  if (!game || game.resolved) return;
+
+  const isCorrect = selectedIdx === game.question.correct;
+  const user = db.users[userId];
+  const opponentId = game.p1 === userId ? game.p2 : game.p1;
+
+  if (isCorrect) {
+    game.resolved = true;
+    activeGames.delete(quizId);
+
+    user.coins = (user.coins || 0) + 30;
+    addXp(userId, 20);
+    saveDb();
+
+    callTgApi('sendMessage', {
+      chat_id: userId,
+      text: `🎉 <b>پاسخ صحیح! شما برنده چالش شدید! (+۳۰ سکه و +۲۰ XP)</b>`,
+      parse_mode: 'HTML'
+    });
+
+    if (opponentId && opponentId !== 'bot_ai') {
+      callTgApi('sendMessage', {
+        chat_id: opponentId,
+        text: `⚡ <b>هم‌صحبت شما زودتر پاسخ صحیح («${game.question.options[game.question.correct]}») را داد!</b>`,
+        parse_mode: 'HTML'
+      });
+    }
+  } else {
+    callTgApi('sendMessage', { chat_id: userId, text: '❌ پاسخ شما نادرست بود! منتظر پاسخ هم‌صحبت...' });
+  }
+}
+
 // ----------------------------------------------------
-// 14. VIP ANONYMOUS GROUP CHAT LOUNGE
+// 15. CALENDAR, CHECKLIST & ALARM NOTIFICATIONS
+// ----------------------------------------------------
+db.reminders = db.reminders || [];
+
+async function addReminder(userId, title, timeStr, dateStr = null) {
+  const reminderItem = {
+    id: 'rem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    userId: String(userId),
+    title: title.trim(),
+    time: timeStr.trim(),
+    date: dateStr || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' }),
+    completed: false,
+    lastNotified: null,
+    createdAt: Date.now()
+  };
+
+  db.reminders.push(reminderItem);
+  saveDb();
+
+  const isEn = db.users[userId]?.lang === 'en';
+  const confirmMsg = isEn
+    ? `⏰ <b>Alarm & Reminder Set!</b>\n\n📌 Task: <b>${reminderItem.title}</b>\n🕒 Time: <b>${reminderItem.time}</b>\n\n<i>You will receive a notification right at ${reminderItem.time}!</i>`
+    : `⏰🔔 <b>یادآور و آلارم با موفقیت تنظیم شد!</b>\n\n📌 عنوان تسک: <b>${reminderItem.title}</b>\n🕒 زمان اعلان: ساعت <b>${reminderItem.time}</b>\n\n<i>سر ساعت تعیین‌شده، ربات فوراً در تلگرام به شما پیام هشدار می‌دهد.</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: confirmMsg,
+    parse_mode: 'HTML'
+  });
+}
+
+function checkDueReminders() {
+  const now = new Date();
+  const currentHourMin = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
+  const todayDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' });
+
+  for (const rem of db.reminders) {
+    if (!rem.completed && rem.time === currentHourMin && rem.lastNotified !== todayDateStr) {
+      rem.lastNotified = todayDateStr;
+      saveDb();
+
+      const notifText = `⏰🔔 <b>یادآور تقویم و برنامه زنوسلایف!</b>\n\n` +
+        `📌 <b>عنوان تسک:</b> <b>${rem.title}</b>\n` +
+        `🕒 <b>زمان تعیین‌شده:</b> ساعت <b>${rem.time}</b>\n\n` +
+        `<i>آیا این کار را انجام دادید؟</i>`;
+
+      callTgApi('sendMessage', {
+        chat_id: rem.userId,
+        text: notifText,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ انجام شد (+۲۰ XP و +۱۰ سکه) 🪙', callback_data: `complete_reminder_${rem.id}` }],
+            [{ text: '⏳ ۱۰ دقیقه بعد یادآوری کن', callback_data: `snooze_reminder_${rem.id}` }]
+          ]
+        }
+      }).catch(() => {});
+    }
+  }
+}
+
+setInterval(checkDueReminders, 30000);
+
+async function handleCompleteReminder(userId, remId) {
+  const rem = db.reminders.find(r => r.id === remId);
+  if (!rem) return;
+
+  rem.completed = true;
+  const user = db.users[userId];
+  if (user) {
+    user.coins = (user.coins || 0) + 10;
+    addXp(userId, 20);
+    saveDb();
+  }
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: `🎉 <b>آفرین به اراده شما!</b>\nتسک «<b>${rem.title}</b>» با موفقیت انجام شد و <b>+۲۰ XP و +۱۰ سکه پاداش</b> دریافت کردید! 🪙✨`,
+    parse_mode: 'HTML'
+  });
+}
+
+async function handleSnoozeReminder(userId, remId) {
+  const rem = db.reminders.find(r => r.id === remId);
+  if (!rem) return;
+
+  const now = new Date(Date.now() + 10 * 60000);
+  rem.time = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
+  rem.lastNotified = null;
+  saveDb();
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: `⏳ <b>یادآور به تعویق افتاد:</b>\nزنگ بعدی ساعت <b>${rem.time}</b> ارسال خواهد شد.`,
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
+// 16. FINANCE, VIP & STARS MONETIZATION HUB
+// ----------------------------------------------------
+async function sendFinanceAndVipHub(chatId, userId) {
+  const user = db.users[userId] || { coins: 0 };
+  const isEn = user.lang === 'en';
+  const coinsText = (user.coins || 0).toLocaleString();
+  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
+  const refCount = (user.referrals || []).length;
+
+  const hubText = isEn
+    ? `💎 <b>VIP, Wallet & Earnings Hub</b>\n\n` +
+      `🪙 <b>Coin Balance:</b> <b>${coinsText} Coins</b>\n` +
+      `👑 <b>VIP Status:</b> <b>${vipText}</b>\n` +
+      `👥 <b>Friends Invited:</b> <b>${refCount} Users</b> (10% Lifetime Cut)\n\n` +
+      `<i>Select an option below:</i>`
+    : `💎 <b>مرکز مالی، اشتراک VIP و درآمدزایی زنوسلایف</b>\n\n` +
+      `🪙 <b>موجودی سکه شما:</b> <b>${coinsText} سکه</b>\n` +
+      `👑 <b>وضعیت اشتراک:</b> <b>${vipText}</b>\n` +
+      `👥 <b>تعداد دعوت‌ها:</b> <b>${refCount} نفر</b> (۱۰٪ پورسانت مادام‌العمر)\n\n` +
+      `<i>یکی از بخش‌های زیر را انتخاب کنید:</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: hubText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isEn ? '🪙 Buy Coins with Stars ⭐' : '🪙 خرید سکه با ستاره ⭐', callback_data: 'buy_stars' },
+          { text: isEn ? '👑 VIP Membership Plans' : '👑 پلن‌های اشتراک VIP 🌟', callback_data: 'buy_vip_plans' }
+        ],
+        [
+          { text: isEn ? '🎁 Invite Friends & Earn' : '🎁 لینک دعوت و کسب درآمد', callback_data: 'show_referral' },
+          { text: isEn ? '🎡 Daily Lucky Wheel' : '🎡 گردونه شانس روزانه', callback_data: 'spin_wheel_action' }
+        ],
+        [
+          { text: isEn ? '🏆 Leaderboards & Ranks' : '🏆 جدول برترین‌ها و جوایز', callback_data: 'view_leaderboard_hub' }
+        ]
+      ]
+    }
+  });
+}
+
+function sendBuyStarsMenu(chatId, userId) {
+  const user = db.users[userId] || { coins: 0 };
+  const isEn = user.lang === 'en';
+  const coinsText = (user.coins || 0).toLocaleString();
+  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
+
+  const shopHeader = isEn
+    ? `🪙 <b>Current Balance:</b> <b>${coinsText} Coins</b> | <b>Status:</b> ${vipText}\n\n⭐ <b>Official Telegram Stars Coin Shop</b>\nInstant recharge using Telegram Stars:`
+    : `🪙 <b>موجودی فعلی شما:</b> <b>${coinsText} سکه</b> | <b>وضعیت:</b> ${vipText}\n\n⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\nشارژ آنی سکه با Telegram Stars بدون واسطه:`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: shopHeader,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t(userId, 'pkg1'), callback_data: 'buy_pkg_bronze' }],
+        [{ text: t(userId, 'pkg2'), callback_data: 'buy_pkg_silver' }],
+        [{ text: t(userId, 'pkg3'), callback_data: 'buy_pkg_global' }],
+        [{ text: t(userId, 'pkg4'), callback_data: 'buy_pkg_vip' }]
+      ]
+    }
+  });
+}
+
+function sendVipPlansMenu(chatId, userId) {
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'vipTitle'),
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t(userId, 'vip7'), callback_data: 'buy_vip_7' }],
+        [{ text: t(userId, 'vip30'), callback_data: 'buy_vip_30' }],
+        [{ text: t(userId, 'vip90'), callback_data: 'buy_vip_90' }]
+      ]
+    }
+  });
+}
+
+async function sendReferralHub(chatId, userId) {
+  const botInfo = await getBotInfo();
+  const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
+  const user = db.users[userId] || { referrals: [] };
+  const isEn = user.lang === 'en';
+
+  const shareText = isEn
+    ? `👑 Join ZenOsLife Anonymous Chat & Games!\n\n` +
+      `🙈 Chat with boys & girls nearby\n` +
+      `🎮 Live 1v1 Games & Tournaments\n` +
+      `🎁 Get 1,000 FREE Welcome Coins with my invite link:\n\n${refLink}`
+    : `👑 به چت ناشناس و بازی‌های آنلاین زنوسلایف خوش اومدی!\n\n` +
+      `🙈 چت ناشناس با فیلتر دختر و پسر و همشهری\n` +
+      `🎮 بازی‌های سنگ‌کاغذقیچی، حکم و تخته‌نرد\n` +
+      `🎁 همین الان با لینک من عضو شو و ۱,۰۰۰ سکه هدیه رایگان بگیر:\n\n${refLink}`;
+
+  const captionText = t(userId, 'referralTitle', { refLink, refs: (user.referrals || []).length });
+
+  return callTgApi('sendPhoto', {
+    chat_id: chatId,
+    photo: DEFAULT_AVATARS.referralBanner,
+    caption: captionText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t(userId, 'btnShareRef'), url: `https://t.me/share/url?url=${refLink}&text=${encodeURIComponent(shareText)}` }]
+      ]
+    }
+  }).catch(() => {
+    return callTgApi('sendMessage', { chat_id: chatId, text: captionText, parse_mode: 'HTML' });
+  });
+}
+
+async function sendLeaderboard(chatId, userId) {
+  const allUsers = Object.values(db.users);
+  const topCoins = allUsers
+    .sort((a, b) => (b.coins || 0) - (a.coins || 0))
+    .slice(0, 5)
+    .map((u, i) => `${i + 1}. ${u.name || 'User'} - <b>${(u.coins || 0).toLocaleString()}</b> 🪙 (Lvl ${u.level || 1})`)
+    .join('\n') || 'موردی ثبت نشده';
+
+  const topKarma = allUsers
+    .sort((a, b) => (b.karma || 100) - (a.karma || 100))
+    .slice(0, 5)
+    .map((u, i) => `${i + 1}. ${u.name || 'User'} - ⭐ <b>${u.karma || 100}</b> کارما`)
+    .join('\n') || 'موردی ثبت نشده';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'leaderboardTitle', { topCoins, topKarma }),
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
+// 17. ROYAL VIP ANONYMOUS GROUP CHAT LOUNGE
 // ----------------------------------------------------
 async function enterVipLounge(chatId, userId) {
   const user = db.users[userId];
@@ -2121,358 +1690,7 @@ async function broadcastToVipLounge(msg, senderId) {
 }
 
 // ----------------------------------------------------
-// 15. USER DIRECTORY & DIRECT CHAT REQUESTS
-// ----------------------------------------------------
-async function sendUserSearchMenu(chatId, userId) {
-  const text = '🔍 <b>جستجوی پیشرفته کاربران زنوسلایف و درخواست چت مستقیم:</b>\n\n' +
-    'کاربران فعال را پیدا کنید و مستقیماً به آن‌ها درخواست گفتگو بفرستید!\n' +
-    '🪙 <b>هزینه:</b> ۱۰ سکه بیعانه برای ارسال درخواست. در صورت قبول طرف مقابل، ۴۰ سکه دیگر کسر می‌شود (مجموعاً ۵۰ سکه برای اتصال موفق). در صورت عدم پذیرش، فقط همان ۱۰ سکه کسر می‌شود.';
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '👩 دختران فعال', callback_data: 'search_filter_female' },
-          { text: '👨 پسران فعال', callback_data: 'search_filter_male' }
-        ],
-        [
-          { text: '📍 همشهری‌ها و افراد نزدیک', callback_data: 'search_filter_province' },
-          { text: '⭐ برترین‌های کارما و اخلاق', callback_data: 'search_filter_karma' }
-        ]
-      ]
-    }
-  });
-}
-
-async function renderUserList(chatId, userId, filter) {
-  const myUser = db.users[userId];
-  const allUsers = Object.entries(db.users).filter(([uid, u]) => uid !== userId && u.profileCompleted);
-
-  let filtered = allUsers;
-  if (filter === 'female') filtered = allUsers.filter(([_, u]) => u.gender === 'female');
-  if (filter === 'male') filtered = allUsers.filter(([_, u]) => u.gender === 'male');
-  if (filter === 'province' && myUser?.province) filtered = allUsers.filter(([_, u]) => u.province === myUser.province);
-  if (filter === 'karma') filtered = allUsers.sort((a, b) => (b[1].karma || 100) - (a[1].karma || 100));
-
-  const list = filtered.slice(0, 6);
-
-  if (list.length === 0) {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🔍 در حال حاضر کاربری با این مشخصات یافت نشد.',
-      reply_markup: { inline_keyboard: [[{ text: '🔙 بازگشت', callback_data: 'open_user_search' }]] }
-    });
-  }
-
-  const buttons = list.map(([uid, u]) => {
-    const icon = u.gender === 'female' ? '👩' : '👨';
-    const label = `${icon} ${u.name} (${u.age} ساله، ${u.province})`;
-    return [{ text: label, callback_data: `view_cand_${uid}` }];
-  });
-
-  buttons.push([{ text: '🔙 بازگشت به جستجو', callback_data: 'open_user_search' }]);
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: '👥 <b>یک کاربر را برای مشاهده پروفایل و ارسال درخواست چت انتخاب کنید:</b>',
-    parse_mode: 'HTML',
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-async function viewCandidateProfile(chatId, userId, candId) {
-  const cand = db.users[candId];
-  if (!cand) return;
-  const genderIcon = cand.gender === 'female' ? '👩' : '👨';
-  const avatar = getUserAvatar(cand);
-
-  const caption = `👤 <b>پروفایل ${cand.name}:</b>\n\n` +
-    `• جنسیت: <b>${genderIcon} ${cand.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
-    `• رده سنی: <b>${cand.age}</b>\n` +
-    `• استان: <b>${cand.province}</b>\n` +
-    `• سطح: <b>سطح ${cand.level || 1} (${cand.xp || 0} XP)</b>\n` +
-    `• امتیاز کارما: <b>⭐ ${cand.karma || 100} امتیاز</b> ${cand.is_vip ? '👑 VIP' : ''}`;
-
-  const replyMarkup = {
-    inline_keyboard: [
-      [{ text: '📩 ارسال درخواست چت مستقیم (۱۰ سکه بیعانه)', callback_data: `send_chat_req_${candId}` }],
-      [{ text: '🔙 بازگشت', callback_data: 'search_filter_female' }]
-    ]
-  };
-
-  try {
-    return await callTgApi('sendPhoto', {
-      chat_id: chatId,
-      photo: avatar,
-      caption: caption,
-      parse_mode: 'HTML',
-      reply_markup: replyMarkup
-    });
-  } catch (_) {
-    return callTgApi('sendMessage', { chat_id: chatId, text: caption, parse_mode: 'HTML', reply_markup: replyMarkup });
-  }
-}
-
-async function sendDirectChatRequest(senderId, targetId) {
-  const sender = db.users[senderId];
-  const target = db.users[targetId];
-  if (!sender || !target) return;
-
-  if ((sender.coins || 0) < 50) {
-    return callTgApi('sendMessage', {
-      chat_id: senderId,
-      text: t(senderId, 'lowCoinsNotice', { cost: 50, coins: sender.coins || 0 }),
-      parse_mode: 'HTML'
-    });
-  }
-
-  sender.coins -= 10;
-  saveDb();
-
-  const senderAvatar = getUserAvatar(sender);
-  const senderIcon = sender.gender === 'female' ? '👩' : '👨';
-
-  const reqCaption = `📩 <b>درخواست چت مستقیم جدید!</b>\n\n` +
-    `👤 <b>${sender.name}</b> (${senderIcon} ${sender.gender === 'female' ? 'دختر' : 'پسر'}، ${sender.age} از ${sender.province}) مایل است با شما چت خصوصی کند!\n` +
-    `⭐ کارما و ادب: <b>${sender.karma || 100} امتیاز</b>`;
-
-  const targetMarkup = {
-    inline_keyboard: [
-      [
-        { text: '💬 قبول درخواست و شروع چت', callback_data: `accept_chat_req_${senderId}` },
-        { text: '❌ رد درخواست', callback_data: `decline_chat_req_${senderId}` }
-      ]
-    ]
-  };
-
-  try {
-    await callTgApi('sendPhoto', {
-      chat_id: targetId,
-      photo: senderAvatar,
-      caption: reqCaption,
-      parse_mode: 'HTML',
-      reply_markup: targetMarkup
-    });
-  } catch (_) {
-    await callTgApi('sendMessage', {
-      chat_id: targetId,
-      text: reqCaption,
-      parse_mode: 'HTML',
-      reply_markup: targetMarkup
-    });
-  }
-
-  return callTgApi('sendMessage', {
-    chat_id: senderId,
-    text: '✅ درخواست چت مستقیم ارسال شد! (۱۰ سکه بیعانه کسر شد). به محض پاسخ کاربر به شما اطلاع داده می‌شود.'
-  });
-}
-
-async function acceptDirectChatRequest(targetId, senderId) {
-  const target = db.users[targetId];
-  const sender = db.users[senderId];
-  if (!target || !sender) return;
-
-  if ((sender.coins || 0) >= 40) {
-    sender.coins -= 40;
-    saveDb();
-  }
-
-  activePairs.set(senderId, targetId);
-  activePairs.set(targetId, senderId);
-
-  const senderBadge = `${sender.gender === 'female' ? '👩' : '👨'} ${sender.name} (${sender.age} yrs, ${sender.province})`;
-  const targetBadge = `${target.gender === 'female' ? '👩' : '👨'} ${target.name} (${target.age} yrs, ${target.province})`;
-
-  const inChatKeyboardSender = {
-    keyboard: [
-      [{ text: t(senderId, 'inChatNext') }, { text: t(senderId, 'inChatStop') }],
-      [{ text: t(senderId, 'inChatProfile') }, { text: t(senderId, 'inChatDuel') }],
-      [{ text: t(senderId, 'inChatShareId') }]
-    ],
-    resize_keyboard: true
-  };
-
-  const inChatKeyboardTarget = {
-    keyboard: [
-      [{ text: t(targetId, 'inChatNext') }, { text: t(targetId, 'inChatStop') }],
-      [{ text: t(targetId, 'inChatProfile') }, { text: t(targetId, 'inChatDuel') }],
-      [{ text: t(targetId, 'inChatShareId') }]
-    ],
-    resize_keyboard: true
-  };
-
-  callTgApi('sendMessage', {
-    chat_id: senderId,
-    text: t(senderId, 'matched', { badge: targetBadge, karma: target.karma || 100, lvl: target.level || 1 }),
-    parse_mode: 'HTML',
-    reply_markup: inChatKeyboardSender
-  }).catch(() => {});
-
-  callTgApi('sendMessage', {
-    chat_id: targetId,
-    text: t(targetId, 'matched', { badge: senderBadge, karma: sender.karma || 100, lvl: sender.level || 1 }),
-    parse_mode: 'HTML',
-    reply_markup: inChatKeyboardTarget
-  }).catch(() => {});
-}
-
-// ----------------------------------------------------
-// 16. GAMES & MONETIZATION
-// ----------------------------------------------------
-async function sendGamesMenu(chatId, userId) {
-  const isEn = db.users[userId]?.lang === 'en';
-
-  const menuTitle = isEn
-    ? '🎮 <b>ZenOsLife Royal Gaming & Tournament Arena</b>\n\nSelect a game to play with Smart AI Bots or Real Users:'
-    : '🎮 <b>مرکز بازی‌ها و دوئل‌های 1v1 و گروهی زنوسلایف</b>\n\nیک بازی را برای شروع انتخاب کنید (قابلیت بازی با ربات هوشمند یا بازیکنان آنلاین):';
-
-  const inlineKeyboard = {
-    inline_keyboard: [
-      // Fast In-Bot 1v1 Duels with Mode Selector
-      [
-        { text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'prompt_mode_rps' },
-        { text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'prompt_mode_dice' }
-      ],
-      [
-        { text: isEn ? '🧠 Trivia Battle' : '🧠 مسابقه اطلاعات عمومی و هوش', callback_data: 'prompt_mode_trivia' }
-      ],
-      // Classic Board & Multi-player
-      [
-        { text: isEn ? '🎯 Ludo (2-4P)' : '🎯 منچ (۲ تا ۴ نفره)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/ludo` } },
-        { text: isEn ? '🐍 Snakes & Ladders' : '🐍🪜 مار و پله (۲ تا ۴ نفره)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/snakes-and-ladders` } }
-      ],
-      // Sports & Arcade
-      [
-        { text: isEn ? '⚽ Finger Soccer (2-4P)' : '⚽ فوتبال انگشتی و تیمی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/finger-soccer` } },
-        { text: isEn ? '🎱 8-Ball Billiards' : '🎱 بیلیارد و اسنوکر', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/billiards` } }
-      ],
-      // Cards & Classics
-      [
-        { text: isEn ? '🌈 Ocho (Uno Cards)' : '🌈 اوچو و اونو کارتی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/ocho` } },
-        { text: isEn ? '⛳ Mini Golf Royal' : '⛳ مینی گلف رویال', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/mini-golf` } }
-      ],
-      // Persian Favorites
-      [
-        { text: isEn ? '👑 Royal Hokm (4P)' : '👑 حکم ۴ نفره شاهانه', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
-        { text: isEn ? '🎲 Persian Backgammon' : '🎲 تخته نرد اصیل ایرانی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }
-      ],
-      // Full Arcade Portal
-      [{ text: isEn ? '🌟 All 15+ Arcade Games (Mini App)' : '🌟 ورود به آرکید جامع ۱۵+ بازی (Mini App)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
-    ]
-  };
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: menuTitle,
-    parse_mode: 'HTML',
-    reply_markup: inlineKeyboard
-  });
-}
-
-function sendBuyStarsMenu(chatId, userId) {
-  const user = db.users[userId] || { coins: 0 };
-  const isEn = user.lang === 'en';
-  const coinsText = (user.coins || 0).toLocaleString();
-  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
-
-  const shopHeader = isEn
-    ? `🪙 <b>Current Balance:</b> <b>${coinsText} Coins</b> | <b>Status:</b> ${vipText}\n\n⭐ <b>Official Telegram Stars Coin Shop</b>\nInstant recharge using Telegram Stars:`
-    : `🪙 <b>موجودی فعلی شما:</b> <b>${coinsText} سکه</b> | <b>وضعیت:</b> ${vipText}\n\n⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\nشارژ آنی سکه با Telegram Stars بدون واسطه:`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: shopHeader,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t(userId, 'pkg1'), callback_data: 'buy_pkg_bronze' }],
-        [{ text: t(userId, 'pkg2'), callback_data: 'buy_pkg_silver' }],
-        [{ text: t(userId, 'pkg3'), callback_data: 'buy_pkg_global' }],
-        [{ text: t(userId, 'pkg4'), callback_data: 'buy_pkg_vip' }]
-      ]
-    }
-  });
-}
-
-function sendVipPlansMenu(chatId, userId) {
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: t(userId, 'vipTitle'),
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t(userId, 'vip7'), callback_data: 'buy_vip_7' }],
-        [{ text: t(userId, 'vip30'), callback_data: 'buy_vip_30' }],
-        [{ text: t(userId, 'vip90'), callback_data: 'buy_vip_90' }]
-      ]
-    }
-  });
-}
-
-async function sendReferralHub(chatId, userId) {
-  const botInfo = await getBotInfo();
-  const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
-  const user = db.users[userId] || { referrals: [] };
-  const isEn = user.lang === 'en';
-
-  const shareText = isEn
-    ? `👑 Join ZenOsLife Anonymous Chat & Games!\n\n` +
-      `🙈 Chat with boys & girls nearby\n` +
-      `🎮 Live 1v1 Games & Tournaments\n` +
-      `🎁 Get 1,000 FREE Welcome Coins with my invite link:\n\n${refLink}`
-    : `👑 به چت ناشناس و بازی‌های آنلاین زنوسلایف خوش اومدی!\n\n` +
-      `🙈 چت ناشناس با فیلتر دختر و پسر و همشهری\n` +
-      `🎮 بازی‌های سنگ‌کاغذقیچی، حکم و تخته‌نرد\n` +
-      `🎁 همین الان با لینک من عضو شو و ۱,۰۰۰ سکه هدیه رایگان بگیر:\n\n${refLink}`;
-
-  const captionText = t(userId, 'referralTitle', { refLink, refs: (user.referrals || []).length });
-
-  const replyMarkup = {
-    inline_keyboard: [
-      [{ text: t(userId, 'btnShareRef'), url: `https://t.me/share/url?url=${refLink}&text=${encodeURIComponent(shareText)}` }]
-    ]
-  };
-
-  try {
-    return await callTgApi('sendPhoto', {
-      chat_id: chatId,
-      photo: DEFAULT_AVATARS.referralBanner,
-      caption: captionText,
-      parse_mode: 'HTML',
-      reply_markup: replyMarkup
-    });
-  } catch (err) {
-    return callTgApi('sendMessage', { chat_id: chatId, text: captionText, parse_mode: 'HTML', reply_markup: replyMarkup });
-  }
-}
-
-async function sendLeaderboard(chatId, userId) {
-  const allUsers = Object.values(db.users);
-  const topCoins = allUsers
-    .sort((a, b) => (b.coins || 0) - (a.coins || 0))
-    .slice(0, 5)
-    .map((u, i) => `${i + 1}. ${u.name || 'User'} - <b>${(u.coins || 0).toLocaleString()}</b> 🪙 (Lvl ${u.level || 1})`)
-    .join('\n') || 'موردی ثبت نشده';
-
-  const topKarma = allUsers
-    .sort((a, b) => (b.karma || 100) - (a.karma || 100))
-    .slice(0, 5)
-    .map((u, i) => `${i + 1}. ${u.name || 'User'} - ⭐ <b>${u.karma || 100}</b> کارما`)
-    .join('\n') || 'موردی ثبت نشده';
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: t(userId, 'leaderboardTitle', { topCoins, topKarma }),
-    parse_mode: 'HTML'
-  });
-}
-
-// ----------------------------------------------------
-// 17. FULL PERSIAN SUPER ADMIN CONTROL PANEL
+// 18. SUPER ADMIN DASHBOARD (/admin)
 // ----------------------------------------------------
 async function sendAdminPanel(chatId, userId) {
   if (!isAdmin(userId)) {
@@ -2490,6 +1708,7 @@ async function sendAdminPanel(chatId, userId) {
   const totalChats = db.stats.totalChatsCompleted || 0;
   const totalRevenue = db.stats.totalStarsRevenue || 0;
   const activeChatPairs = activePairs.size / 2;
+  const pendingReports = (db.reports || []).filter(r => r.status === 'pending').length;
 
   const adminText = `📊 <b>داشبورد جامع مدیریت زنوسلایف (Super Admin Panel)</b>\n\n` +
     `👥 <b>تعداد کل کاربران ثبت‌نامی:</b> <b>${totalUsers.toLocaleString()} نفر</b>\n` +
@@ -2497,7 +1716,7 @@ async function sendAdminPanel(chatId, userId) {
     `💬 <b>چت‌های ناشناس فعال در لحظه:</b> <b>${activeChatPairs} جفت</b>\n` +
     `👑 <b>اعضای آنلاین در تالار VIP:</b> <b>${vipLoungeMembers.size} نفر</b>\n` +
     `⏳ <b>افراد در صف جستجوی هم‌صحبت:</b> <b>${waitingQueue.length} نفر</b>\n` +
-    `🎮 <b>تعداد بازی‌های ۱ به ۱ انجام‌شده:</b> <b>${totalMatches.toLocaleString()} دست</b>\n` +
+    `🎮 <b>تعداد بازی‌های انجام‌شده:</b> <b>${totalMatches.toLocaleString()} دست</b>\n` +
     `⭐ <b>درآمد کل ستاره‌های تلگرام:</b> <b>${totalRevenue.toLocaleString()} Stars ⭐</b>\n\n` +
     `🛠️ <b>دستورات مدیریتی سریع:</b>\n` +
     `• <code>/grantvip &lt;شناسه_کاربر&gt; &lt;روز&gt;</code> - اعطای اشتراک VIP\n` +
@@ -2509,7 +1728,7 @@ async function sendAdminPanel(chatId, userId) {
   const adminMarkup = {
     inline_keyboard: [
       [{ text: '🔄 به‌روزرسانی آمار زنده', callback_data: 'admin_refresh_stats' }],
-      [{ text: '🚩 مشاهده گزارش‌های تخلف (' + ((db.reports || []).filter(r => r.status === 'pending').length) + ' مورد)', callback_data: 'admin_view_reports' }],
+      [{ text: `🚩 مشاهده گزارش‌های تخلف (${pendingReports} مورد)`, callback_data: 'admin_view_reports' }],
       [{ text: '👑 مشاهده تالار VIP', callback_data: 'enter_vip_lounge' }],
       [{ text: '🔙 بازگشت به منوی اصلی', callback_data: 'back_to_dashboard' }]
     ]
@@ -2524,14 +1743,14 @@ async function sendAdminPanel(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 18. MESSAGE DISPATCHER
+// 19. MESSAGE ROUTER & DISPATCHER
 // ----------------------------------------------------
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from.id);
   const text = msg.text || '';
 
-  // 0. VIP Lounge Handling
+  // 0. VIP Lounge Member Broadcast
   if (vipLoungeMembers.has(userId)) {
     if (text === '🛑 خروج از تالار VIP' || text === '🛑 Exit VIP Lounge' || text === '/exit') {
       return leaveVipLounge(chatId, userId);
@@ -2550,44 +1769,35 @@ async function handleMessage(msg) {
     return broadcastToVipLounge(msg, userId);
   }
 
-  // 1. Active Chat Relay & Controls
+  // 1. In-Chat Active Relay & Commands
   if (activePairs.has(userId)) {
-    if (text === t(userId, 'inChatStop') || text === '/stop') {
-      return stopChat(chatId, userId);
-    }
-    if (text === t(userId, 'inChatNext') || text === '/next') {
-      return nextPartner(chatId, userId);
-    }
-    if (text === t(userId, 'inChatProfile') || text === '/partner') {
-      return inspectPartnerProfile(chatId, userId);
-    }
-    if (text === t(userId, 'inChatGift') || text === '/gift') {
-      return sendInChatGiftsMenu(chatId, userId);
-    }
-    if (text === t(userId, 'inChatIcebreaker') || text === '/icebreaker') {
-      return triggerIcebreakerQuestion(userId);
-    }
-    if (text === t(userId, 'inChatDuel') || text === '/duel') {
-      return promptInChatDuelChoice(chatId, userId);
-    }
+    if (text === t(userId, 'inChatStop') || text === '/stop') return stopChat(chatId, userId);
+    if (text === t(userId, 'inChatNext') || text === '/next') return nextPartner(chatId, userId);
+    if (text === t(userId, 'inChatProfile') || text === '/partner') return inspectPartnerProfile(chatId, userId);
+    if (text === t(userId, 'inChatDuel') || text === '/duel') return promptInChatDuelChoice(chatId, userId);
+    if (text === t(userId, 'inChatGift') || text === '/gift') return sendInChatGiftsMenu(chatId, userId);
+    if (text === t(userId, 'inChatIcebreaker') || text === '/icebreaker') return triggerIcebreakerQuestion(userId);
     if (text === t(userId, 'inChatShareId')) {
-      return shareContact(chatId, userId, msg);
-    }
-    if (text === t(userId, 'inChatReport')) {
-      await stopChat(chatId, userId);
-      return callTgApi('sendMessage', { chat_id: chatId, text: '🚩 گزارش تخلف ثبت شد. هم‌صحبت قطع شد.' });
+      const username = msg.from.username;
+      if (!username) return callTgApi('sendMessage', { chat_id: chatId, text: '⚠️ لطفاً در تنظیمات تلگرام یک Username ست کنید.' });
+      callTgApi('sendMessage', {
+        chat_id: activePairs.get(userId),
+        text: `💖 <b>هم‌صحبت آیدی تلگرام خود را به اشتراک گذاشت:</b>\n🆔 @${username}`,
+        parse_mode: 'HTML'
+      }).catch(() => {});
+      return callTgApi('sendMessage', { chat_id: chatId, text: '✅ آیدی شما با موفقیت برای هم‌صحبت ارسال شد.' });
     }
     return relayMessage(msg, activePairs.get(userId));
   }
 
-  // 2. Queue cancellation
+  // 2. Queue Cancellation
   if (waitingQueue.some(w => w.userId === userId)) {
     if (text === t(userId, 'inChatStop') || text === '/stop') {
       return stopChat(chatId, userId);
     }
   }
 
-  // 3. Registration, Name, or Photo Editing step
+  // 3. Onboarding & Profile Editing Steps
   if (registrationSteps.has(userId)) {
     const reg = registrationSteps.get(userId);
     if (reg.step === 'editing_photo' && msg.photo && msg.photo.length > 0) {
@@ -2622,15 +1832,13 @@ async function handleMessage(msg) {
     }
   }
 
-  // 4. Admin Direct Commands
+  // 4. Super Admin Direct Commands
   if (isAdmin(userId)) {
     if (text.startsWith('/grantvip')) {
       const parts = text.split(' ');
       const targetUid = parts[1];
       const days = parseInt(parts[2] || '30', 10);
-      if (!targetUid || !db.users[targetUid]) {
-        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /grantvip <شناسه_کاربر> <تعداد_روز>' });
-      }
+      if (!targetUid || !db.users[targetUid]) return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /grantvip <شناسه_کاربر> <تعداد_روز>' });
       const targetUser = db.users[targetUid];
       targetUser.is_vip = true;
       targetUser.vip_expires_at = Date.now() + days * 86400000;
@@ -2648,9 +1856,7 @@ async function handleMessage(msg) {
     if (text.startsWith('/revokevip')) {
       const parts = text.split(' ');
       const targetUid = parts[1];
-      if (!targetUid || !db.users[targetUid]) {
-        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /revokevip <شناسه_کاربر>' });
-      }
+      if (!targetUid || !db.users[targetUid]) return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /revokevip <شناسه_کاربر>' });
       db.users[targetUid].is_vip = false;
       db.users[targetUid].vip_expires_at = null;
       saveDb();
@@ -2661,41 +1867,33 @@ async function handleMessage(msg) {
       const parts = text.split(' ');
       const targetUid = parts[1];
       const amount = parseInt(parts[2] || '1000', 10);
-      if (!targetUid || !db.users[targetUid]) {
-        return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /setcoins <شناسه_کاربر> <تعداد_سکه>' });
-      }
+      if (!targetUid || !db.users[targetUid]) return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /setcoins <شناسه_کاربر> <تعداد_سکه>' });
       db.users[targetUid].coins = amount;
       saveDb();
       return callTgApi('sendMessage', { chat_id: chatId, text: `✅ موجودی سکه کاربر ${targetUid} به ${amount.toLocaleString()} تغییر یافت.` });
+    }
+
+    if (text.startsWith('/ban')) {
+      const parts = text.split(' ');
+      const targetUid = parts[1];
+      if (!targetUid || !db.users[targetUid]) return callTgApi('sendMessage', { chat_id: chatId, text: '❌ کاربر یافت نشد. نحوه استفاده: /ban <شناسه_کاربر>' });
+      db.users[targetUid].is_banned = true;
+      saveDb();
+      return callTgApi('sendMessage', { chat_id: chatId, text: `🚫 کاربر ${targetUid} مسدود شد.` });
     }
 
     if (text.startsWith('/broadcast')) {
       const broadcastMsg = text.replace('/broadcast', '').trim();
       if (!broadcastMsg) return callTgApi('sendMessage', { chat_id: chatId, text: 'نحوه استفاده: /broadcast <متن پیام>' });
       const allUsers = Object.keys(db.users);
-      let count = 0;
       for (const uid of allUsers) {
-        callTgApi('sendMessage', { chat_id: uid, text: `📢 <b>اطلاعیه رسمی زنوسلایف:</b>\n\n${broadcastMsg}`, parse_mode: 'HTML' })
-          .then(() => count++)
-          .catch(() => {});
+        callTgApi('sendMessage', { chat_id: uid, text: `📢 <b>اطلاعیه رسمی زنوسلایف:</b>\n\n${broadcastMsg}`, parse_mode: 'HTML' }).catch(() => {});
       }
       return callTgApi('sendMessage', { chat_id: chatId, text: `✅ ارسال همگانی به ${allUsers.length} کاربر آغاز شد.` });
     }
   }
 
-  // 5. Main Commands
-  if (text.startsWith('/start')) {
-    const parts = text.split(' ');
-    const startParam = parts[1] || '';
-    const user = db.users[userId];
-    if (!user || !user.profileCompleted) {
-      return startLanguageChoice(chatId, userId, startParam);
-    }
-    return sendMainDashboard(chatId, userId);
-  }
-
-  if (text === '/admin') return sendAdminPanel(chatId, userId);
-  if (text === '/search' || text === t(userId, 'btnSearch')) return sendUserSearchMenu(chatId, userId);
+  // 5. Calendar Reminders & Alarms Commands
   if (text.startsWith('/remind') || text.startsWith('/alarm') || text.startsWith('/reminder')) {
     const parts = text.replace(/\/remind|\/alarm|\/reminder/, '').trim().split(' ');
     const timeStr = parts[0];
@@ -2711,36 +1909,47 @@ async function handleMessage(msg) {
 
     return addReminder(userId, taskTitle, timeStr);
   }
-  if (text === '/calendar' || text === '/reminders' || text === '⏰ یادآورها و تقویم') {
-    return sendRemindersList(chatId, userId);
-  }
-  if (text === '/wheel' || text === '🎡 گردونه شانس روزانه' || text === '🎡 Lucky Wheel') return sendLuckyWheelPrompt(chatId, userId);
-  if (text === '/lang') return startLanguageChoice(chatId, userId);
-  if (text === '/vip' || text === '/buy' || text === '/wallet' || text === '/ref' || text === t(userId, 'btnFinanceHub') || text === '💎 VIP، کیف‌پول و درآمدزایی 🎁' || text === '💎 VIP, Wallet & Earn 🎁' || text === t(userId, 'btnCoins') || text === t(userId, 'btnVip') || text === t(userId, 'btnReferral')) return sendFinanceAndVipHub(chatId, userId);
-  if (text === '/profile' || text === '/settings' || text === t(userId, 'btnProfileHub') || text === '👤 پروفایل و تنظیمات ⚙️' || text === '👤 Profile & Settings ⚙️' || text === t(userId, 'btnProfile') || text === t(userId, 'btnSettings')) return sendProfileCard(chatId, userId);
-  if (text === '/games' || text === t(userId, 'btnGames') || text.includes('بازی‌ها و دوئل‌های آنلاین') || text.includes('Online Games')) return sendGamesMenu(chatId, userId);
-  if (text === '/chat' || text === t(userId, 'btnChat') || text.includes('چت ناشناس و دوستیابی') || text.includes('Anonymous Chat')) return sendFilterMenu(chatId, userId);
-  if (text === '/rank' || text === t(userId, 'btnLeaderboard')) return sendLeaderboard(chatId, userId);
 
-  if (text === t(userId, 'btnMiniApp')) {
-    const user = db.users[userId];
-    const userLang = user?.lang || 'fa';
+  if (text === '/calendar' || text === '/reminders') {
+    const userReminders = (db.reminders || []).filter(r => r.userId === String(userId) && !r.completed);
+    if (userReminders.length === 0) {
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: '⏰ <b>هیچ یادآور فعالی در تقویم شما ثبت نشده است.</b>\n\nبرای ثبت یادآور:\n<code>/remind 10:00 عنوان تسک</code>',
+        parse_mode: 'HTML'
+      });
+    }
+    const listText = userReminders.map((r, i) => `${i + 1}. 🕒 ساعت <b>${r.time}</b> - <b>${r.title}</b>`).join('\n');
     return callTgApi('sendMessage', {
       chat_id: chatId,
-      text: userLang === 'en' ? '🚀 <b>ZenOsLife Mini App:</b>' : '🚀 <b>ورود به دنیای زنوسلایف:</b>',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: userLang === 'en' ? '🌟 Launch Mini App' : '🌟 ورود به مینی‌اپلیکیشن', web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${userLang}` } }]]
-      }
+      text: `⏰ <b>یادآورها و آلارم‌های فعال شما در تقویم:</b>\n\n${listText}`,
+      parse_mode: 'HTML'
     });
   }
+
+  // 6. Main Navigation Triggers
+  if (text.startsWith('/start')) {
+    const parts = text.split(' ');
+    const startParam = parts[1] || '';
+    const user = db.users[userId];
+    if (!user || !user.profileCompleted) return startLanguageChoice(chatId, userId, startParam);
+    return sendMainDashboard(chatId, userId);
+  }
+
+  if (text === '/admin') return sendAdminPanel(chatId, userId);
+  if (text === '/chat' || text.includes('چت ناشناس و دوستیابی') || text.includes('Anonymous Chat')) return sendFilterMenu(chatId, userId);
+  if (text === '/games' || text.includes('بازی‌ها و دوئل‌های آنلاین') || text.includes('Online Games')) return sendGamesMenu(chatId, userId);
+  if (text === '/finance' || text === '/vip' || text === '/buy' || text === '/wallet' || text.includes('VIP، کیف‌پول و درآمدزایی') || text.includes('VIP, Wallet & Earn')) return sendFinanceAndVipHub(chatId, userId);
+  if (text === '/profile' || text === '/settings' || text.includes('پروفایل و تنظیمات') || text.includes('Profile & Settings')) return sendProfileCard(chatId, userId);
+  if (text === '/rank') return sendLeaderboard(chatId, userId);
+  if (text === '/ref') return sendReferralHub(chatId, userId);
 
   // Fallback
   return sendMainDashboard(chatId, userId);
 }
 
 // ----------------------------------------------------
-// 19. CALLBACK QUERY ROUTER
+// 20. CALLBACK QUERY ROUTER
 // ----------------------------------------------------
 async function handleCallbackQuery(cq) {
   const chatId = cq.message.chat.id;
@@ -2748,372 +1957,33 @@ async function handleCallbackQuery(cq) {
   const data = cq.data;
   callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
 
-  // Reminder Callbacks
-  if (data.startsWith('complete_reminder_')) {
-    const remId = data.replace('complete_reminder_', '');
-    return handleCompleteReminder(userId, remId);
-  }
-  if (data.startsWith('snooze_reminder_')) {
-    const remId = data.replace('snooze_reminder_', '');
-    return handleSnoozeReminder(userId, remId);
-  }
-
   // Admin Callbacks
   if (data === 'admin_refresh_stats') return sendAdminPanel(chatId, userId);
-  if (data === 'view_leaderboard_hub') return sendLeaderboard(chatId, userId);
   if (data === 'admin_view_reports') {
     const pending = (db.reports || []).filter(r => r.status === 'pending');
-    if (pending.length === 0) {
-      return callTgApi('sendMessage', { chat_id: chatId, text: '✅ هیچ گزارش تخلف بررسی‌نشده‌ای وجود ندارد.' });
-    }
+    if (pending.length === 0) return callTgApi('sendMessage', { chat_id: chatId, text: '✅ هیچ گزارش تخلف بررسی‌نشده‌ای وجود ندارد.' });
     const reportList = pending.slice(0, 5).map(r => `🚩 متخلف: <b>${r.targetName}</b> (<code>${r.targetId}</code>)\nشاکی: ${r.reporterName}\nعلت: ${r.reason}`).join('\n\n');
     return callTgApi('sendMessage', {
       chat_id: chatId,
       text: `🚩 <b>لیست گزارش‌های اخیر:</b>\n\n${reportList}`,
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: '🔙 بازگشت به پنل', callback_data: 'admin_refresh_stats' }]]
-      }
+      reply_markup: { inline_keyboard: [[{ text: '🔙 بازگشت به پنل', callback_data: 'admin_refresh_stats' }]] }
     });
   }
 
-  // Profile In-Chat Actions
-  if (data.startsWith('gift_coins_menu_')) {
-    const partnerId = data.replace('gift_coins_menu_', '');
-    return sendGiftCoinsMenu(chatId, userId, partnerId);
-  }
-  if (data.startsWith('gift_vip_menu_')) {
-    const partnerId = data.replace('gift_vip_menu_', '');
-    return sendGiftVipMenu(chatId, userId, partnerId);
-  }
-  if (data.startsWith('transfer_coins_')) {
-    const parts = data.replace('transfer_coins_', '').split('_');
-    const partnerId = parts[0];
-    const amount = parseInt(parts[1], 10);
-    return handleTransferCoins(userId, partnerId, amount);
-  }
-  if (data.startsWith('add_friend_req_')) {
-    const partnerId = data.replace('add_friend_req_', '');
-    return handleSendFriendRequest(userId, partnerId);
-  }
-  if (data.startsWith('accept_friend_')) {
-    const senderId = data.replace('accept_friend_', '');
-    return handleAcceptFriend(userId, senderId);
-  }
-  if (data.startsWith('decline_friend_')) {
-    return callTgApi('sendMessage', { chat_id: userId, text: '❌ درخواست دوستی رد شد.' });
-  }
-  if (data.startsWith('block_partner_')) {
-    const partnerId = data.replace('block_partner_', '');
-    return handleBlockPartner(userId, partnerId);
-  }
-  if (data.startsWith('report_partner_')) {
-    const partnerId = data.replace('report_partner_', '');
-    return promptReportReason(chatId, userId, partnerId);
-  }
-  if (data.startsWith('submit_report_')) {
-    const parts = data.replace('submit_report_', '').split('_');
-    const targetId = parts[0];
-    const reason = parts[1];
-    return handleSubmitReport(userId, targetId, reason);
-  }
-  if (data === 'cancel_report') {
-    return callTgApi('sendMessage', { chat_id: chatId, text: '✅ گزارش لغو شد.' });
-  }
-  if (data === 'back_to_dashboard') return sendMainDashboard(chatId, userId);
+  // Reminder Callbacks
+  if (data.startsWith('complete_reminder_')) return handleCompleteReminder(userId, data.replace('complete_reminder_', ''));
+  if (data.startsWith('snooze_reminder_')) return handleSnoozeReminder(userId, data.replace('snooze_reminder_', ''));
 
-  // VIP Lounge Callbacks
-  if (data === 'enter_vip_lounge') return enterVipLounge(chatId, userId);
-  if (data === 'buy_vip_plans') return sendVipPlansMenu(chatId, userId);
-
-  // Language Selection
-  if (data.startsWith('set_lang_')) {
-    const lang = data.replace('set_lang_', '');
-    let reg = registrationSteps.get(userId);
-    if (!reg) {
-      reg = {
-        step: 'gender',
-        tempProfile: {
-          userId,
-          coins: 1000,
-          xp: 0,
-          level: 1,
-          karma: 100,
-          streak_days: 1,
-          last_streak_date: new Date().toISOString().slice(0, 10),
-          referrals: [],
-          lastRefill: Date.now(),
-          createdAt: Date.now()
-        }
-      };
-    }
-    reg.tempProfile.lang = lang;
-    reg.tempProfile.name = cq.from.first_name || (lang === 'en' ? 'Zen Member' : 'کاربر زنوسلایف');
-    reg.step = 'gender';
-    registrationSteps.set(userId, reg);
-
-    if (db.users[userId] && db.users[userId].profileCompleted) {
-      db.users[userId].lang = lang;
-      saveDb();
-      return sendMainDashboard(chatId, userId, lang === 'en' ? 'Language set to English!' : 'زبان به فارسی تنظیم شد!');
-    }
-
-    return promptGenderSelection(chatId, userId);
-  }
-
-  // Registration: Gender
-  if (data.startsWith('reg_gender_')) {
-    const gender = data.replace('reg_gender_', '');
-    let reg = registrationSteps.get(userId);
-    if (!reg) {
-      reg = {
-        step: 'age',
-        tempProfile: {
-          userId,
-          lang: db.users[userId]?.lang || 'fa',
-          coins: 1000,
-          karma: 100,
-          referrals: [],
-          name: cq.from.first_name || 'کاربر زنوسلایف'
-        }
-      };
-    }
-    reg.tempProfile.gender = gender;
-    reg.step = 'age';
-    registrationSteps.set(userId, reg);
-
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'chooseAge'),
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t(userId, 'age1'), callback_data: 'reg_age_18-21' }, { text: t(userId, 'age2'), callback_data: 'reg_age_22-26' }],
-          [{ text: t(userId, 'age3'), callback_data: 'reg_age_27-34' }, { text: t(userId, 'age4'), callback_data: 'reg_age_35+' }]
-        ]
-      }
-    });
-  }
-
-  // Registration: Age
-  if (data.startsWith('reg_age_')) {
-    const age = data.replace('reg_age_', '');
-    let reg = registrationSteps.get(userId);
-    if (!reg) return startLanguageChoice(chatId, userId);
-    reg.tempProfile.age = age;
-    reg.step = 'province';
-    registrationSteps.set(userId, reg);
-
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'chooseProv'),
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t(userId, 'provTeh'), callback_data: 'reg_prov_Tehran' }, { text: t(userId, 'provIsf'), callback_data: 'reg_prov_Isfahan' }],
-          [{ text: t(userId, 'provMsh'), callback_data: 'reg_prov_Mashhad' }, { text: t(userId, 'provShr'), callback_data: 'reg_prov_Shiraz' }],
-          [{ text: t(userId, 'provTab'), callback_data: 'reg_prov_Tabriz' }, { text: t(userId, 'provAhv'), callback_data: 'reg_prov_Ahvaz' }],
-          [{ text: t(userId, 'provNrt'), callback_data: 'reg_prov_North' }, { text: t(userId, 'provOth'), callback_data: 'reg_prov_Global' }]
-        ]
-      }
-    });
-  }
-
-  // Registration: Province & Finish
-  if (data.startsWith('reg_prov_')) {
-    const prov = data.replace('reg_prov_', '');
-    let reg = registrationSteps.get(userId);
-    if (!reg) return startLanguageChoice(chatId, userId);
-
-    reg.tempProfile.province = prov;
-    reg.tempProfile.profileCompleted = true;
-    db.users[userId] = reg.tempProfile;
-    saveDb();
-    registrationSteps.delete(userId);
-
-    // Referral Bounty Fulfillment
-    if (reg.tempProfile.invitedBy && db.users[reg.tempProfile.invitedBy]) {
-      const refUser = db.users[reg.tempProfile.invitedBy];
-      refUser.referrals = refUser.referrals || [];
-      refUser.referrals.push(userId);
-      refUser.coins = (refUser.coins || 0) + 1000;
-      addXp(reg.tempProfile.invitedBy, 50);
-      saveDb();
-
-      callTgApi('sendMessage', {
-        chat_id: reg.tempProfile.invitedBy,
-        text: '🎉 <b>تبریک! دوست جدیدی با لینک شما ثبت‌نام کرد! (+۱,۰۰۰ سکه هدیه و +۵۰ XP)</b>',
-        parse_mode: 'HTML'
-      }).catch(() => {});
-    }
-
-    return sendMainDashboard(chatId, userId, t(userId, 'regDone'));
-  }
-
-  // Profile Editor Actions
-  if (data === 'edit_profile') return sendProfileEditMenu(chatId, userId);
-  if (data === 'view_profile_full') return sendProfileCard(chatId, userId);
-
-  if (data === 'edit_field_photo') {
-    registrationSteps.set(userId, { step: 'editing_photo' });
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '📸 لطفاً <b>عکس جدید</b> خود را برای پروفایل در چت ارسال کنید:',
-      parse_mode: 'HTML'
-    });
-  }
-
-  if (data === 'edit_field_name') {
-    registrationSteps.set(userId, { step: 'editing_name' });
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '✏️ لطفاً <b>نام جدید</b> خود را در چت ارسال کنید:',
-      parse_mode: 'HTML'
-    });
-  }
-
-  if (data === 'edit_field_gender') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'chooseGender'),
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t(userId, 'male'), callback_data: 'save_edit_gender_male' }, { text: t(userId, 'female'), callback_data: 'save_edit_gender_female' }],
-          [{ text: '🔙 بازگشت', callback_data: 'edit_profile' }]
-        ]
-      }
-    });
-  }
-
-  if (data.startsWith('save_edit_gender_')) {
-    const newGender = data.replace('save_edit_gender_', '');
-    if (db.users[userId]) {
-      db.users[userId].gender = newGender;
-      saveDb();
-    }
-    await callTgApi('sendMessage', { chat_id: chatId, text: '✅ جنسیت با موفقیت به‌روزرسانی شد!' });
-    return sendProfileCard(chatId, userId);
-  }
-
-  if (data === 'edit_field_age') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'chooseAge'),
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t(userId, 'age1'), callback_data: 'save_edit_age_18-21' }, { text: t(userId, 'age2'), callback_data: 'save_edit_age_22-26' }],
-          [{ text: t(userId, 'age3'), callback_data: 'save_edit_age_27-34' }, { text: t(userId, 'age4'), callback_data: 'save_edit_age_35+' }],
-          [{ text: '🔙 بازگشت', callback_data: 'edit_profile' }]
-        ]
-      }
-    });
-  }
-
-  if (data.startsWith('save_edit_age_')) {
-    const newAge = data.replace('save_edit_age_', '');
-    if (db.users[userId]) {
-      db.users[userId].age = newAge;
-      saveDb();
-    }
-    await callTgApi('sendMessage', { chat_id: chatId, text: '✅ رده سنی با موفقیت به‌روزرسانی شد!' });
-    return sendProfileCard(chatId, userId);
-  }
-
-  if (data === 'edit_field_prov') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: t(userId, 'chooseProv'),
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t(userId, 'provTeh'), callback_data: 'save_edit_prov_Tehran' }, { text: t(userId, 'provIsf'), callback_data: 'save_edit_prov_Isfahan' }],
-          [{ text: t(userId, 'provMsh'), callback_data: 'save_edit_prov_Mashhad' }, { text: t(userId, 'provShr'), callback_data: 'save_edit_prov_Shiraz' }],
-          [{ text: t(userId, 'provTab'), callback_data: 'save_edit_prov_Tabriz' }, { text: t(userId, 'provAhv'), callback_data: 'save_edit_prov_Ahvaz' }],
-          [{ text: t(userId, 'provNrt'), callback_data: 'save_edit_prov_North' }, { text: t(userId, 'provOth'), callback_data: 'save_edit_prov_Global' }],
-          [{ text: '🔙 بازگشت', callback_data: 'edit_profile' }]
-        ]
-      }
-    });
-  }
-
-  if (data.startsWith('save_edit_prov_')) {
-    const newProv = data.replace('save_edit_prov_', '');
-    if (db.users[userId]) {
-      db.users[userId].province = newProv;
-      saveDb();
-    }
-    await callTgApi('sendMessage', { chat_id: chatId, text: '✅ استان با موفقیت به‌روزرسانی شد!' });
-    return sendProfileCard(chatId, userId);
-  }
-
-  if (data === 'edit_field_lang') {
-    return callTgApi('sendMessage', {
-      chat_id: chatId,
-      text: '🌐 <b>لطفاً زبان جدید را انتخاب کنید:</b>',
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'فارسی (Persian)', callback_data: 'save_edit_lang_fa' }, { text: 'English', callback_data: 'save_edit_lang_en' }],
-          [{ text: '🔙 بازگشت', callback_data: 'edit_profile' }]
-        ]
-      }
-    });
-  }
-
-  if (data.startsWith('save_edit_lang_')) {
-    const newLang = data.replace('save_edit_lang_', '');
-    if (db.users[userId]) {
-      db.users[userId].lang = newLang;
-      saveDb();
-    }
-    await callTgApi('sendMessage', { chat_id: chatId, text: newLang === 'en' ? '✅ Language changed to English!' : '✅ زبان به فارسی تغییر یافت!' });
-    return sendProfileCard(chatId, userId);
-  }
-
-  // User Search Callbacks
-  if (data === 'open_user_search') return sendUserSearchMenu(chatId, userId);
-  if (data === 'search_filter_female') return renderUserList(chatId, userId, 'female');
-  if (data === 'search_filter_male') return renderUserList(chatId, userId, 'male');
-  if (data === 'search_filter_province') return renderUserList(chatId, userId, 'province');
-  if (data === 'search_filter_karma') return renderUserList(chatId, userId, 'karma');
-
-  if (data.startsWith('view_cand_')) {
-    const candId = data.replace('view_cand_', '');
-    return viewCandidateProfile(chatId, userId, candId);
-  }
-
-  if (data.startsWith('send_chat_req_')) {
-    const targetId = data.replace('send_chat_req_', '');
-    return sendDirectChatRequest(userId, targetId);
-  }
-
-  if (data.startsWith('accept_chat_req_')) {
-    const senderId = data.replace('accept_chat_req_', '');
-    return acceptDirectChatRequest(userId, senderId);
-  }
-
-  if (data.startsWith('decline_chat_req_')) {
-    const senderId = data.replace('decline_chat_req_', '');
-    callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
-    return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
-  }
-
-  // Game Mode Selection & Matchmaking Callbacks
-  if (data.startsWith('prompt_mode_')) {
-    const gameType = data.replace('prompt_mode_', '');
-    return promptGameModeChoice(chatId, userId, gameType);
-  }
-  if (data.startsWith('match_online_')) {
-    const gameType = data.replace('match_online_', '');
-    return executeGameMatchmaking(chatId, userId, gameType);
-  }
+  // Game Mode Selection & Matchmaking
+  if (data.startsWith('prompt_mode_')) return promptGameModeChoice(chatId, userId, data.replace('prompt_mode_', ''));
+  if (data.startsWith('match_online_')) return executeGameMatchmaking(chatId, userId, data.replace('match_online_', ''));
   if (data.startsWith('play_bot_')) {
     const gameType = data.replace('play_bot_', '');
     if (gameType === 'rps') {
-      const isEn = db.users[userId]?.lang === 'en';
       return callTgApi('sendMessage', {
         chat_id: chatId,
-        text: isEn ? '🪨 <b>Rock-Paper-Scissors vs AI: Make your move:</b>' : '🪨📄✂️ <b>بازی با ربات هوشمند: حرکت خود را انتخاب کنید:</b>',
+        text: '🪨📄✂️ <b>بازی با ربات هوشمند: حرکت خود را انتخاب کنید:</b>',
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
@@ -3122,10 +1992,10 @@ async function handleCallbackQuery(cq) {
         }
       });
     }
-    if (gameType === 'dice') {
-      return startLiveInChatDice(userId, 'bot_ai');
-    }
+    if (gameType === 'dice') return startLiveInChatDice(userId, 'bot_ai');
+    if (gameType === 'trivia') return startLiveInChatTrivia(userId, 'bot_ai');
   }
+
   if (data.startsWith('rps_bot_')) {
     const move = data.replace('rps_bot_', '');
     const botMoves = ['rock', 'paper', 'scissors'];
@@ -3163,90 +2033,316 @@ async function handleCallbackQuery(cq) {
       });
     }
   }
+
   if (data.startsWith('cancel_game_search_')) {
     const gameType = data.replace('cancel_game_search_', '');
-    if (onlineGameQueue[gameType]) {
-      const idx = onlineGameQueue[gameType].indexOf(userId);
-      if (idx > -1) onlineGameQueue[gameType].splice(idx, 1);
+    if (onlineGameQueues[gameType]) {
+      const idx = onlineGameQueues[gameType].indexOf(userId);
+      if (idx > -1) onlineGameQueues[gameType].splice(idx, 1);
     }
     return callTgApi('sendMessage', { chat_id: chatId, text: '✅ جستجوی حریف لغو شد.' });
   }
-  if (data === 'back_to_games_menu') return sendGamesMenu(chatId, userId);
 
   // Mood & Trivia Callbacks
   if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);
   if (data === 'back_to_chat_filters') return sendFilterMenu(chatId, userId);
-  if (data.startsWith('mood_match_')) {
-    const mood = data.replace('mood_match_', '');
-    return executeMatchSearch(chatId, userId, `mood_${mood}`);
+  if (data.startsWith('mood_match_')) return executeMatchSearch(chatId, userId, `mood_${data.replace('mood_match_', '')}`);
+
+  if (data === 'duel_invite_trivia') {
+    if (!activePairs.has(userId)) return;
+    const partnerId = activePairs.get(userId);
+    callTgApi('sendMessage', {
+      chat_id: partnerId,
+      text: '🧠 <b>هم‌صحبت شما را به چالش اطلاعات عمومی دعوت کرد!</b>',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '⚔️ قبول چالش', callback_data: `duel_accept_trivia_${userId}` }],
+          [{ text: '❌ رد دعوت', callback_data: `duel_decline_${userId}` }]
+        ]
+      }
+    });
+    return callTgApi('sendMessage', { chat_id: userId, text: '⏳ دعوت به مسابقه اطلاعات عمومی برای هم‌صحبت ارسال شد...' });
   }
-  if (data === 'duel_invite_trivia') return sendDuelInviteToPartner(userId, 'trivia');
-  if (data.startsWith('duel_accept_trivia_')) {
-    const challengerId = data.replace('duel_accept_trivia_', '');
-    return startLiveInChatTrivia(challengerId, userId);
-  }
+
+  if (data.startsWith('duel_accept_trivia_')) return startLiveInChatTrivia(data.replace('duel_accept_trivia_', ''), userId);
   if (data.startsWith('answer_trivia_')) {
     const parts = data.replace('answer_trivia_', '').split('_');
-    const quizId = parts.slice(0, 2).join('_');
-    const selectedIdx = parseInt(parts[2], 10);
-    return handleTriviaAnswer(userId, quizId, selectedIdx);
+    return handleTriviaAnswer(userId, parts.slice(0, 2).join('_'), parseInt(parts[2], 10));
   }
 
   // Gifts & Wheel Callbacks
-  if (data === 'spin_wheel_action') return handleSpinWheel(chatId, userId);
-  if (data.startsWith('send_gift_')) {
-    const giftType = data.replace('send_gift_', '');
-    return handleSendGift(userId, giftType);
+  if (data === 'spin_wheel_action') {
+    const user = db.users[userId];
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const isFree = user?.last_wheel_date !== todayStr;
+
+    if (!isFree && (user?.coins || 0) < 20) {
+      return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'lowCoinsNotice', { cost: 20, coins: user?.coins || 0 }), parse_mode: 'HTML' });
+    }
+
+    if (!isFree) user.coins -= 20;
+    user.last_wheel_date = todayStr;
+
+    const prizes = [
+      { label: '۵۰ سکه 🪙', coins: 50, xp: 10 },
+      { label: '۱۰۰ سکه 💰', coins: 100, xp: 20 },
+      { label: '۳۰ XP ⚡', coins: 20, xp: 30 },
+      { label: '۲۵۰ سکه 💎', coins: 250, xp: 50 },
+      { label: '۵۰۰ سکه 👑', coins: 500, xp: 100 },
+      { label: '۱ روز VIP 🌟', coins: 100, xp: 50, isVip: true }
+    ];
+
+    const won = prizes[Math.floor(Math.random() * prizes.length)];
+    user.coins = (user.coins || 0) + won.coins;
+    addXp(userId, won.xp);
+    if (won.isVip) {
+      user.is_vip = true;
+      user.vip_expires_at = Date.now() + 86400000;
+    }
+    saveDb();
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: `🎉 <b>تبریک! عقربه گردونه روی «${won.label}» متوقف شد!</b>\n🪙 موجودی جدید: <b>${user.coins.toLocaleString()}</b> سکه`,
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [[{ text: '🔄 چرخش مجدد (۲۰ سکه)', callback_data: 'spin_wheel_action' }]] }
+    });
   }
 
-  // In-Chat Duels
-  if (data === 'duel_invite_rps') return sendDuelInviteToPartner(userId, 'rps');
-  if (data === 'duel_invite_dice') return sendDuelInviteToPartner(userId, 'dice');
+  if (data.startsWith('send_gift_')) return handleSendGift(userId, data.replace('send_gift_', ''));
 
-  if (data.startsWith('duel_accept_rps_')) {
-    const challengerId = data.replace('duel_accept_rps_', '');
-    return startLiveInChatRps(challengerId, userId);
+  // Profile Action Callbacks
+  if (data.startsWith('gift_coins_menu_')) {
+    const partnerId = data.replace('gift_coins_menu_', '');
+    const partner = db.users[partnerId];
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: `🪙 <b>اهدای سکه به «${partner?.name || 'هم‌صحبت'}»:</b>`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🪙 ۵۰ سکه', callback_data: `transfer_coins_${partnerId}_50` }, { text: '🪙 ۱۰۰ سکه', callback_data: `transfer_coins_${partnerId}_100` }],
+          [{ text: '💰 ۵۰۰ سکه', callback_data: `transfer_coins_${partnerId}_500` }]
+        ]
+      }
+    });
   }
 
-  if (data.startsWith('duel_accept_dice_')) {
-    const challengerId = data.replace('duel_accept_dice_', '');
-    return startLiveInChatDice(challengerId, userId);
+  if (data.startsWith('transfer_coins_')) {
+    const parts = data.replace('transfer_coins_', '').split('_');
+    const partnerId = parts[0];
+    const amount = parseInt(parts[1], 10);
+    const sender = db.users[userId];
+    const receiver = db.users[partnerId];
+
+    if ((sender?.coins || 0) < amount) {
+      return callTgApi('sendMessage', { chat_id: userId, text: t(userId, 'lowCoinsNotice', { cost: amount, coins: sender?.coins || 0 }), parse_mode: 'HTML' });
+    }
+
+    sender.coins -= amount;
+    receiver.coins = (receiver.coins || 0) + amount;
+    addXp(userId, Math.round(amount / 5));
+    saveDb();
+
+    callTgApi('sendMessage', { chat_id: userId, text: `✅ مقدار <b>${amount.toLocaleString()} سکه</b> به «${receiver.name}» اهدا شد!`, parse_mode: 'HTML' });
+    return callTgApi('sendMessage', { chat_id: partnerId, text: `🎁 <b>هم‌صحبت شما «${sender.name}» مقدار ${amount.toLocaleString()} سکه به شما هدیه داد!</b>`, parse_mode: 'HTML' });
   }
 
-  if (data.startsWith('duel_decline_')) {
-    const challengerId = data.replace('duel_decline_', '');
-    callTgApi('sendMessage', { chat_id: challengerId, text: '❌ هم‌صحبت دعوت به دوئل را رد کرد.' }).catch(() => {});
-    return callTgApi('sendMessage', { chat_id: userId, text: '✅ دعوت به دوئل رد شد.' });
+  if (data.startsWith('add_friend_req_')) {
+    const partnerId = data.replace('add_friend_req_', '');
+    const sender = db.users[userId];
+    const receiver = db.users[partnerId];
+    if (!sender || !receiver) return;
+
+    sender.friends = sender.friends || [];
+    receiver.friends = receiver.friends || [];
+
+    if (sender.friends.includes(partnerId)) {
+      return callTgApi('sendMessage', { chat_id: userId, text: '👥 شما و این کاربر از قبل در لیست دوستان یکدیگر هستید!' });
+    }
+
+    callTgApi('sendMessage', {
+      chat_id: partnerId,
+      text: `👥 <b>درخواست دوستی جدید از «${sender.name}»!</b>\nآیا مایلید ایشان را به لیست دوستان خود اضافه کنید؟`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ قبول درخواست دوستی', callback_data: `accept_friend_${userId}` }, { text: '❌ رد', callback_data: 'decline_friend' }]
+        ]
+      }
+    }).catch(() => {});
+
+    return callTgApi('sendMessage', { chat_id: userId, text: '⏳ درخواست دوستی برای هم‌صحبت ارسال شد.' });
   }
 
-  if (data.startsWith('live_rps_')) {
-    const parts = data.replace('live_rps_', '').split('_');
-    const duelId = parts.slice(0, 3).join('_');
-    const move = parts[3];
-    return handleLiveRpsMove(userId, duelId, move);
+  if (data.startsWith('accept_friend_')) {
+    const senderId = data.replace('accept_friend_', '');
+    const receiver = db.users[userId];
+    const sender = db.users[senderId];
+
+    receiver.friends = receiver.friends || [];
+    sender.friends = sender.friends || [];
+
+    if (!receiver.friends.includes(senderId)) receiver.friends.push(senderId);
+    if (!sender.friends.includes(userId)) sender.friends.push(userId);
+    saveDb();
+
+    callTgApi('sendMessage', { chat_id: userId, text: '🎉 <b>شما اکنون با یکدیگر دوست شدید!</b>', parse_mode: 'HTML' });
+    return callTgApi('sendMessage', { chat_id: senderId, text: '🎉 <b>شما اکنون با یکدیگر دوست شدید!</b>', parse_mode: 'HTML' });
   }
 
-  // Karma Feedback
-  if (data.startsWith('karma_5_')) {
-    const targetUserId = data.replace('karma_5_', '');
-    if (db.users[targetUserId]) {
-      db.users[targetUserId].karma = (db.users[targetUserId].karma || 100) + 5;
+  if (data.startsWith('block_partner_')) {
+    const partnerId = data.replace('block_partner_', '');
+    const user = db.users[userId];
+    if (user) {
+      user.blocked = user.blocked || [];
+      if (!user.blocked.includes(partnerId)) user.blocked.push(partnerId);
       saveDb();
     }
-    return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'karmaThanks') });
+    await stopChat(userId, userId);
+    return callTgApi('sendMessage', { chat_id: userId, text: '🚫 کاربر بلاک شد و دیگر به شما متصل نخواهد شد.' });
   }
 
-  // Matchmaking Filters
-  if (data === 'filter_random') return executeMatchSearch(chatId, userId, 'random');
-  if (data === 'filter_samelang') return executeMatchSearch(chatId, userId, 'samelang');
-  if (data === 'filter_global') return executeMatchSearch(chatId, userId, 'global');
-  if (data === 'filter_female') return executeMatchSearch(chatId, userId, 'female');
-  if (data === 'filter_male') return executeMatchSearch(chatId, userId, 'male');
-  if (data === 'filter_province') return executeMatchSearch(chatId, userId, 'province');
-  if (data === 'buy_stars') return sendBuyStarsMenu(chatId, userId);
-  if (data === 'show_referral') return sendReferralHub(chatId, userId);
+  if (data.startsWith('report_partner_')) {
+    const partnerId = data.replace('report_partner_', '');
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '🚩 <b>علت گزارش تخلف کاربر را انتخاب کنید:</b>',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '⚠️ مزاحمت و رفتار نامناسب', callback_data: `submit_rep_${partnerId}_harassment` }],
+          [{ text: '🔞 محتوای نامناسب', callback_data: `submit_rep_${partnerId}_nsfw` }],
+          [{ text: '📢 اسپم و تبلیغات', callback_data: `submit_rep_${partnerId}_spam` }]
+        ]
+      }
+    });
+  }
 
-  // VIP Purchases via Stars
+  if (data.startsWith('submit_rep_')) {
+    const parts = data.replace('submit_rep_', '').split('_');
+    const targetId = parts[0];
+    const reason = parts[1];
+    const reporter = db.users[userId];
+    const target = db.users[targetId];
+
+    db.reports = db.reports || [];
+    db.reports.push({ id: crypto.randomUUID(), reporterId: userId, reporterName: reporter?.name || userId, targetId, targetName: target?.name || targetId, reason, timestamp: Date.now(), status: 'pending' });
+    saveDb();
+
+    await stopChat(userId, userId);
+    return callTgApi('sendMessage', { chat_id: userId, text: '✅ گزارش تخلف شما ثبت و برای مدیران سیستم ارسال شد.' });
+  }
+
+  // Duels Accept / Decline
+  if (data.startsWith('duel_accept_rps_')) return startLiveInChatRps(data.replace('duel_accept_rps_', ''), userId);
+  if (data.startsWith('duel_accept_dice_')) return startLiveInChatDice(data.replace('duel_accept_dice_', ''), userId);
+  if (data.startsWith('duel_decline_')) {
+    callTgApi('sendMessage', { chat_id: data.replace('duel_decline_', ''), text: '❌ هم‌صحبت دعوت به دوئل را رد کرد.' }).catch(() => {});
+    return callTgApi('sendMessage', { chat_id: userId, text: '✅ دعوت رد شد.' });
+  }
+
+  // Language & Registration
+  if (data.startsWith('set_lang_')) {
+    const lang = data.replace('set_lang_', '');
+    let reg = registrationSteps.get(userId);
+    if (!reg) reg = { step: 'gender', tempProfile: { userId, coins: 1000, xp: 0, level: 1, karma: 100, streak_days: 1, last_streak_date: new Date().toISOString().slice(0, 10), referrals: [], friends: [], blocked: [], createdAt: Date.now() } };
+    reg.tempProfile.lang = lang;
+    reg.tempProfile.name = cq.from.first_name || (lang === 'en' ? 'Zen Member' : 'کاربر زنوسلایف');
+    reg.step = 'gender';
+    registrationSteps.set(userId, reg);
+
+    if (db.users[userId] && db.users[userId].profileCompleted) {
+      db.users[userId].lang = lang;
+      saveDb();
+      return sendMainDashboard(chatId, userId, lang === 'en' ? 'Language set to English!' : 'زبان به فارسی تنظیم شد!');
+    }
+    return promptGenderSelection(chatId, userId);
+  }
+
+  if (data.startsWith('reg_gender_')) {
+    const gender = data.replace('reg_gender_', '');
+    let reg = registrationSteps.get(userId);
+    if (!reg) return startLanguageChoice(chatId, userId);
+    reg.tempProfile.gender = gender;
+    reg.step = 'age';
+    registrationSteps.set(userId, reg);
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'chooseAge'),
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(userId, 'age1'), callback_data: 'reg_age_18-21' }, { text: t(userId, 'age2'), callback_data: 'reg_age_22-26' }],
+          [{ text: t(userId, 'age3'), callback_data: 'reg_age_27-34' }, { text: t(userId, 'age4'), callback_data: 'reg_age_35+' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('reg_age_')) {
+    const age = data.replace('reg_age_', '');
+    let reg = registrationSteps.get(userId);
+    if (!reg) return startLanguageChoice(chatId, userId);
+    reg.tempProfile.age = age;
+    reg.step = 'province';
+    registrationSteps.set(userId, reg);
+
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'chooseProv'),
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t(userId, 'provTeh'), callback_data: 'reg_prov_Tehran' }, { text: t(userId, 'provIsf'), callback_data: 'reg_prov_Isfahan' }],
+          [{ text: t(userId, 'provMsh'), callback_data: 'reg_prov_Mashhad' }, { text: t(userId, 'provShr'), callback_data: 'reg_prov_Shiraz' }],
+          [{ text: t(userId, 'provTab'), callback_data: 'reg_prov_Tabriz' }, { text: t(userId, 'provAhv'), callback_data: 'reg_prov_Ahvaz' }],
+          [{ text: t(userId, 'provNrt'), callback_data: 'reg_prov_North' }, { text: t(userId, 'provOth'), callback_data: 'reg_prov_Global' }]
+        ]
+      }
+    });
+  }
+
+  if (data.startsWith('reg_prov_')) {
+    const prov = data.replace('reg_prov_', '');
+    let reg = registrationSteps.get(userId);
+    if (!reg) return startLanguageChoice(chatId, userId);
+
+    reg.tempProfile.province = prov;
+    reg.tempProfile.profileCompleted = true;
+    db.users[userId] = reg.tempProfile;
+    saveDb();
+    registrationSteps.delete(userId);
+
+    // Referral Commission Fulfillment
+    if (reg.tempProfile.invitedBy && db.users[reg.tempProfile.invitedBy]) {
+      const refUser = db.users[reg.tempProfile.invitedBy];
+      refUser.referrals = refUser.referrals || [];
+      refUser.referrals.push(userId);
+      refUser.coins = (refUser.coins || 0) + 1000;
+      addXp(reg.tempProfile.invitedBy, 50);
+      saveDb();
+
+      callTgApi('sendMessage', {
+        chat_id: reg.tempProfile.invitedBy,
+        text: '🎉 <b>تبریک! دوست جدیدی با لینک شما ثبت‌نام کرد! (+۱,۰۰۰ سکه هدیه و +۵۰ XP)</b>',
+        parse_mode: 'HTML'
+      }).catch(() => {});
+    }
+
+    return sendMainDashboard(chatId, userId, t(userId, 'regDone'));
+  }
+
+  // Profile Editor Actions
+  if (data === 'edit_profile') return sendProfileEditMenu(chatId, userId);
+  if (data === 'view_profile_full') return sendProfileCard(chatId, userId);
+  if (data === 'view_my_friends') {
+    const user = db.users[userId];
+    const friends = (user?.friends || []).map(fId => db.users[fId]?.name || fId).join(', ') || 'هنوز دوستی اضافه نکرده‌اید.';
+    return callTgApi('sendMessage', { chat_id: chatId, text: `👥 <b>لیست دوستان شما:</b>\n${friends}`, parse_mode: 'HTML' });
+  }
+
+  // Stars Purchases
   if (data.startsWith('buy_vip_')) {
     const days = parseInt(data.replace('buy_vip_', ''));
     const vipPrices = { 7: 75, 30: 250, 90: 650 };
@@ -3263,7 +2359,6 @@ async function handleCallbackQuery(cq) {
     });
   }
 
-  // Coin Package Invoices
   if (data.startsWith('buy_pkg_')) {
     const pkgType = data.replace('buy_pkg_', '');
     const packages = {
@@ -3284,10 +2379,36 @@ async function handleCallbackQuery(cq) {
       });
     }
   }
+
+  if (data === 'filter_random') return executeMatchSearch(chatId, userId, 'random');
+  if (data === 'filter_samelang') return executeMatchSearch(chatId, userId, 'samelang');
+  if (data === 'filter_global') return executeMatchSearch(chatId, userId, 'global');
+  if (data === 'filter_female') return executeMatchSearch(chatId, userId, 'female');
+  if (data === 'filter_male') return executeMatchSearch(chatId, userId, 'male');
+  if (data === 'filter_province') return executeMatchSearch(chatId, userId, 'province');
+  if (data === 'buy_stars') return sendBuyStarsMenu(chatId, userId);
+  if (data === 'buy_vip_plans') return sendVipPlansMenu(chatId, userId);
+  if (data === 'show_referral') return sendReferralHub(chatId, userId);
+  if (data === 'enter_vip_lounge') return enterVipLounge(chatId, userId);
+  if (data === 'view_leaderboard_hub') return sendLeaderboard(chatId, userId);
+  if (data === 'back_to_dashboard') return sendMainDashboard(chatId, userId);
+  if (data === 'open_user_search') {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '🔍 <b>جستجوی پیشرفته کاربران زنوسلایف:</b>',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '👩 دختران فعال', callback_data: 'search_filter_female' }, { text: '👨 پسران فعال', callback_data: 'search_filter_male' }],
+          [{ text: '📍 همشهری‌ها و افراد نزدیک', callback_data: 'search_filter_province' }]
+        ]
+      }
+    });
+  }
 }
 
 // ----------------------------------------------------
-// 20. TELEGRAM STARS PRE-CHECKOUT & SETTLEMENT
+// 21. PAYMENT SETTLEMENT & STARS PRE-CHECKOUT
 // ----------------------------------------------------
 async function handlePreCheckoutQuery(pcq) {
   return callTgApi('answerPreCheckoutQuery', { pre_checkout_query_id: pcq.id, ok: true });
@@ -3356,6 +2477,66 @@ async function handleSuccessfulPayment(msg) {
   });
 }
 
+// ----------------------------------------------------
+// 22. INTEGRATED HTTP REST API SERVER (FOR MINI APP SYNC)
+// ----------------------------------------------------
+const server = http.createServer((req, res) => {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    return res.end();
+  }
+
+  // Health check
+  if (req.url === '/health' || req.url === '/api/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), usersCount: Object.keys(db.users).length }));
+  }
+
+  // Get user profile
+  if (req.url.startsWith('/api/user/')) {
+    const uid = req.url.replace('/api/user/', '').split('?')[0];
+    const user = db.users[uid];
+    if (user) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(user));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'User not found' }));
+    }
+  }
+
+  // Add reminder from Mini App
+  if (req.method === 'POST' && req.url === '/api/reminders') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        if (payload.userId && payload.title && payload.time) {
+          addReminder(payload.userId, payload.title, payload.time, payload.date);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true }));
+        }
+      } catch (_) {}
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Invalid payload' }));
+    });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end();
+});
+
+server.listen(CONFIG.API_PORT, () => {
+  console.log(`🌐 Integrated Backend REST API listening on port ${CONFIG.API_PORT}`);
+});
+
 let cachedBotInfo = null;
 async function getBotInfo() {
   if (!cachedBotInfo) cachedBotInfo = await callTgApi('getMe');
@@ -3363,7 +2544,7 @@ async function getBotInfo() {
 }
 
 // ----------------------------------------------------
-// 21. CRON & LONG POLLING LOOP
+// 23. LONG-POLLING ENGINE WITH GRACEFUL RECOVERY
 // ----------------------------------------------------
 setInterval(checkVipExpiration, 6 * 3600 * 1000);
 
@@ -3388,18 +2569,15 @@ async function initBotSettings() {
       commands: [
         { command: 'start', description: '🚀 منوی اصلی ربات' },
         { command: 'chat', description: '💬 چت ناشناس و دوستیابی' },
-        { command: 'search', description: '🔍 جستجوی کاربران و چت مستقیم' },
         { command: 'games', description: '🎮 مرکز بازی‌ها و دوئل 1v1' },
-        { command: 'buy', description: '⭐ خرید ستاره تلگرام' },
-        { command: 'vip', description: '👑 اشتراک و تالار VIP' },
+        { command: 'finance', description: '💎 کیف‌پول، VIP و درآمدزایی' },
         { command: 'profile', description: '👤 پروفایل و کارما' },
-        { command: 'ref', description: '🎁 دعوت دوستان و کسب درآمد' },
-        { command: 'rank', description: '🏆 برترین‌های سکه و اخلاق' },
+        { command: 'remind', description: '⏰ تنظیم یادآور و آلارم تقویم' },
         { command: 'admin', description: '📊 پنل مدیریت' }
       ]
     });
 
-    console.log('✅ Bot Commands & Menu initialized successfully!');
+    console.log('✅ Bot Commands & WebApp Menu initialized successfully!');
   } catch (e) {
     console.warn('Notice during bot init:', e.message);
   }
@@ -3430,10 +2608,10 @@ async function pollUpdates() {
 }
 
 // Start Engine
-console.log('🚀 ZenOsLife #1 Consolidated Production Engine Starting...');
+console.log('🚀 ZenOsLife Enterprise Master Backend Engine Starting...');
 initBotSettings().then(() => {
   pollUpdates();
-  console.log('✨ ZenOsLife Bot is Online and 100% Operational!');
+  console.log('✨ ZenOsLife Bot & Backend is Online and 100% Operational!');
 }).catch(err => {
-  console.error('Fatal error starting bot:', err);
+  console.error('Fatal error starting engine:', err);
 });
