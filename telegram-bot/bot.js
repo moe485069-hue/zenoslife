@@ -1046,12 +1046,32 @@ async function sendProfileEditMenu(chatId, userId) {
 // 10. MAIN DASHBOARD & REPLY KEYBOARD
 // ----------------------------------------------------
 function getMainReplyKeyboard(userId) {
+  const user = db.users[userId];
+  const lang = user?.lang || 'fa';
+  const isEn = lang === 'en';
+
   return {
     keyboard: [
-      [{ text: t(userId, 'btnChat') }],
-      [{ text: t(userId, 'btnGames') }],
-      [{ text: t(userId, 'btnFinanceHub') }, { text: t(userId, 'btnProfileHub') }],
-      [{ text: t(userId, 'btnMiniApp') }]
+      // 1. Chat Hero Button (Blue WebApp Highlight)
+      [{
+        text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی 🔷',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}&theme=blue#/chat` }
+      }],
+      // 2. Games Hero Button (Navy WebApp Highlight)
+      [{
+        text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲 🌌',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}&theme=navy#/games` }
+      }],
+      // 3. Consolidated Hubs
+      [
+        { text: t(userId, 'btnFinanceHub') },
+        { text: t(userId, 'btnProfileHub') }
+      ],
+      // 4. Mini App Universe
+      [{
+        text: t(userId, 'btnMiniApp'),
+        web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}` }
+      }]
     ],
     resize_keyboard: true
   };
@@ -2361,8 +2381,8 @@ async function handleMessage(msg) {
   if (text === '/lang') return startLanguageChoice(chatId, userId);
   if (text === '/vip' || text === '/buy' || text === '/wallet' || text === '/ref' || text === t(userId, 'btnFinanceHub') || text === '💎 VIP، کیف‌پول و درآمدزایی 🎁' || text === '💎 VIP, Wallet & Earn 🎁' || text === t(userId, 'btnCoins') || text === t(userId, 'btnVip') || text === t(userId, 'btnReferral')) return sendFinanceAndVipHub(chatId, userId);
   if (text === '/profile' || text === '/settings' || text === t(userId, 'btnProfileHub') || text === '👤 پروفایل و تنظیمات ⚙️' || text === '👤 Profile & Settings ⚙️' || text === t(userId, 'btnProfile') || text === t(userId, 'btnSettings')) return sendProfileCard(chatId, userId);
-  if (text === '/games' || text === t(userId, 'btnGames') || text === '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' || text === '🎮 Online Games & Duels 🎲') return sendGamesMenu(chatId, userId);
-  if (text === '/chat' || text === t(userId, 'btnChat') || text === '💬 چت ناشناس و دوستیابی' || text === '💬 Anonymous Chat & Dating') return sendFilterMenu(chatId, userId);
+  if (text === '/games' || text === t(userId, 'btnGames') || text.includes('بازی‌ها و دوئل‌های آنلاین') || text.includes('Online Games')) return sendGamesMenu(chatId, userId);
+  if (text === '/chat' || text === t(userId, 'btnChat') || text.includes('چت ناشناس و دوستیابی') || text.includes('Anonymous Chat')) return sendFilterMenu(chatId, userId);
   if (text === '/rank' || text === t(userId, 'btnLeaderboard')) return sendLeaderboard(chatId, userId);
 
   if (text === t(userId, 'btnMiniApp')) {
