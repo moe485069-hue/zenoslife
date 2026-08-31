@@ -798,7 +798,7 @@ const CONFIG = {
   BOT_TOKEN: process.env.BOT_TOKEN || '8887477989:AAEj6gnWZvmhm2jFdjRzJAI3fwVtVptZrd4',
   WEBAPP_URL: process.env.WEBAPP_URL || 'https://zen.moeid.net',
   CHANNEL_USERNAME: process.env.CHANNEL_USERNAME || '@zenoslife_official',
-  ADMIN_IDS: (process.env.ADMIN_IDS || '123456789,8887477989').split(',').map(id => id.trim()),
+  ADMIN_IDS: (process.env.ADMIN_IDS || '7517486185,8887477989,123456789').split(',').map(id => id.trim()),
   DATA_FILE: path.join(__dirname, 'bot_database.json'),
   RATE_LIMIT_MS: 500, // Max 2 messages per second
 };
@@ -1872,7 +1872,13 @@ async function sendLeaderboard(chatId, userId) {
 // 15. ADMIN PANEL & BROADCAST
 // ----------------------------------------------------
 async function sendAdminPanel(chatId, userId) {
-  if (!CONFIG.ADMIN_IDS.includes(userId)) return;
+  if (!CONFIG.ADMIN_IDS.includes(userId)) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: `⛔ <b>دسترسی به پنل ادمین محدود است!</b>\nشناسه عددی شما (<code>${userId}</code>) در لیست مدیران ثبت نشده است.`,
+      parse_mode: 'HTML'
+    });
+  }
 
   const allUsers = Object.values(db.users);
   const totalUsers = allUsers.length;
