@@ -1,5 +1,105 @@
 
 // ----------------------------------------------------
+// IN-BOT MOOD & VIBE MATCHMAKING (HUMAN-CENTRIC)
+// ----------------------------------------------------
+const MOOD_DESCRIPTIONS = {
+  venting: { nameFa: '🕊️ دردودل و گوش شنوا (آرامش)', nameEn: '🕊️ Empathy & Venting (Peace)' },
+  funny: { nameFa: '🚀 پرانرژی و شوخ‌طبع (خنده)', nameEn: '🚀 High Energy & Funny (Laughs)' },
+  art: { nameFa: '🎧 موزیک، هنر، فیلم و کتاب', nameEn: '🎧 Music, Art & Cinema' },
+  deep: { nameFa: '☕ گفتگوی عمیق، فکری و منطقی', nameEn: '☕ Deep & Intellectual' },
+  gaming: { nameFa: '🎮 اهل گیم، چالش و رقابت', nameEn: '🎮 Gaming & Challenges' }
+};
+
+async function sendMoodSelectMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const text = isEn
+    ? '🌈 <b>Choose your Current Mood & Vibe:</b>\nWe will match you with someone who feels the exact same way right now!'
+    : '🌈 <b>حس‌وحال (مود) امروزت رو انتخاب کن:</b>\nربات شما رو دقیقاً به کسی وصل می‌کنه که الان در همین فرکانس روحی قرار داره:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🕊️ دردودل و گوش شنوا (آرامش و تخلیه روحی)', callback_data: 'mood_match_venting' }],
+        [{ text: '🚀 پرانرژی، شاد و اهل شوخی و خنده', callback_data: 'mood_match_funny' }],
+        [{ text: '🎧 عاشق موزیک، هنر، فیلم و پادکست', callback_data: 'mood_match_art' }],
+        [{ text: '☕ گفتگوی عمیق، فکری و تجربیات زندگی', callback_data: 'mood_match_deep' }],
+        [{ text: '🎮 اهل بازی، کل‌کل و رقابت آنلاین', callback_data: 'mood_match_gaming' }],
+        [{ text: '🔙 بازگشت به منوی چت', callback_data: 'back_to_chat_filters' }]
+      ]
+    }
+  });
+}
+
+// ----------------------------------------------------
+// IN-BOT TRIVIA & MUSIC QUIZ DUEL
+// ----------------------------------------------------
+const TRIVIA_QUESTIONS = [
+  { q: 'پایتخت تاریخی ایران در دوره صفویه که به نصف جهان معروف است کجاست؟', options: ['شیراز', 'اصفهان', 'تبریز', 'قزوین'], correct: 1 },
+  { q: 'کدام سیاره در منظومه شمسی به سیاره سرخ معروف است؟', options: ['مریخ', 'زهره', 'مشتری', 'عطارد'], correct: 0 },
+  { q: 'بزرگ‌ترین اقیانوس کره زمین کدام است؟', options: ['اقیانوس اطلس', 'اقیانوس هند', 'اقیانوس آرام', 'اقیانوس منجمد شمالی'], correct: 2 },
+  { q: 'کدام ساز ایرانی به عنوان مادر سازهای زهی شناخته می‌شود؟', options: ['تار', 'سه‌تار', 'سنتور', 'بربط (عود)'], correct: 3 },
+  { q: 'سریع‌ترین حیوان خشکی روی زمین کدام است؟', options: ['یوزپلنگ (چیتا)', 'شیر', 'غزال', 'اسب'], correct: 0 }
+];
+
+async function startLiveInChatTrivia(p1Id, p2Id) {
+  const u1 = db.users[p1Id];
+  const u2 = db.users[p2Id];
+  const qObj = TRIVIA_QUESTIONS[Math.floor(Math.random() * TRIVIA_QUESTIONS.length)];
+  const quizId = 'trivia_' + Date.now();
+
+  activeGames.set(quizId, { id: quizId, p1: p1Id, p2: p2Id, question: qObj, answers: {} });
+
+  const qText = `🧠 <b>مسابقه اطلاعات عمومی و چالش دونفره:</b>\n\n<b>${qObj.q}</b>\n\n<i>هرکس زودتر پاسخ صحیح را انتخاب کند برنده است!</i>`;
+
+  const buttons = qObj.options.map((opt, idx) => [{
+    text: opt,
+    callback_data: `answer_trivia_${quizId}_${idx}`
+  }]);
+
+  callTgApi('sendMessage', { chat_id: p1Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
+  callTgApi('sendMessage', { chat_id: p2Id, text: qText, parse_mode: 'HTML', reply_markup: { inline_keyboard: buttons } }).catch(() => {});
+}
+
+async function handleTriviaAnswer(userId, quizId, selectedIdx) {
+  const game = activeGames.get(quizId);
+  if (!game || game.resolved) return;
+
+  const isCorrect = selectedIdx === game.question.correct;
+  const user = db.users[userId];
+  const opponentId = game.p1 === userId ? game.p2 : game.p1;
+  const opp = db.users[opponentId];
+
+  if (isCorrect) {
+    game.resolved = true;
+    activeGames.delete(quizId);
+
+    user.coins = (user.coins || 0) + 30;
+    addXp(userId, 20);
+    saveDb();
+
+    callTgApi('sendMessage', {
+      chat_id: userId,
+      text: `🎉 <b>پاسخ صحیح! شما برنده چالش اطلاعات عمومی شدید! (+۳۰ سکه و +۲۰ XP)</b>`,
+      parse_mode: 'HTML'
+    });
+
+    callTgApi('sendMessage', {
+      chat_id: opponentId,
+      text: `⚡ <b>هم‌صحبت شما زودتر پاسخ صحیح («${game.question.options[game.question.correct]}») را داد!</b>`,
+      parse_mode: 'HTML'
+    });
+  } else {
+    callTgApi('sendMessage', {
+      chat_id: userId,
+      text: '❌ پاسخ شما نادرست بود! منتظر پاسخ هم‌صحبت...'
+    });
+  }
+}
+
+// ----------------------------------------------------
 // CONSOLIDATED FINANCE, VIP & REWARDS HUB
 // ----------------------------------------------------
 async function sendFinanceAndVipHub(chatId, userId) {
@@ -1052,24 +1152,18 @@ function getMainReplyKeyboard(userId) {
 
   return {
     keyboard: [
-      // 1. Chat Hero Button (Blue WebApp Highlight)
-      [{
-        text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی 🔷',
-        web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}&theme=blue#/chat` }
-      }],
-      // 2. Games Hero Button (Navy WebApp Highlight)
-      [{
-        text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲 🌌',
-        web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}&theme=navy#/games` }
-      }],
-      // 3. Consolidated Hubs
+      // 1. In-Bot Native Chat (Big Button)
+      [{ text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی' }],
+      // 2. In-Bot Native Games & Duels (Big Button)
+      [{ text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' }],
+      // 3. Consolidated Finance & Profile Hubs
       [
-        { text: t(userId, 'btnFinanceHub') },
-        { text: t(userId, 'btnProfileHub') }
+        { text: isEn ? '💎 VIP, Wallet & Earn 🎁' : '💎 VIP، کیف‌پول و درآمدزایی 🎁' },
+        { text: isEn ? '👤 Profile & Settings ⚙️' : '👤 پروفایل و تنظیمات ⚙️' }
       ],
-      // 4. Mini App Universe
+      // 4. Optional Mini App Portal
       [{
-        text: t(userId, 'btnMiniApp'),
+        text: isEn ? '🌟 Open ZenOsLife (Mini App) ✨' : '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
         web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}` }
       }]
     ],
@@ -1129,10 +1223,12 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
 async function sendFilterMenu(chatId, userId) {
   const user = db.users[userId];
   if (!user || !user.profileCompleted) return startLanguageChoice(chatId, userId);
+  const isEn = user.lang === 'en';
 
   const inlineKeyboard = {
     inline_keyboard: [
       [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
+      [{ text: isEn ? '🌈 Chat by Mood & Vibe (New!)' : '🌈 چت بر اساس حس‌وحال و مود روحی 💫', callback_data: 'open_mood_menu' }],
       [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
       [{ text: t(userId, 'btnVipChat'), callback_data: 'enter_vip_lounge' }],
       [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
@@ -1192,6 +1288,8 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
     if (candUser.blocked && candUser.blocked.includes(userId)) continue;
 
     let isMatch = true;
+    if (filterType.startsWith('mood_') && cand.filterType !== filterType) isMatch = false;
+    if (cand.filterType.startsWith('mood_') && cand.filterType !== filterType) isMatch = false;
     if (filterType === 'female' && candUser.gender !== 'female') isMatch = false;
     if (filterType === 'male' && candUser.gender !== 'male') isMatch = false;
     if (filterType === 'province' && candUser.province !== user.province) isMatch = false;
@@ -1471,12 +1569,13 @@ async function promptInChatDuelChoice(chatId, userId) {
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: isEn ? '⚔️ <b>Select a 1v1 Duel for your partner (50 Coins Wager):</b>' : '⚔️ <b>یک بازی را برای دوئل با هم‌صحبتت انتخاب کن (شرط ۵۰ سکه):</b>',
+    text: isEn ? '⚔️ <b>Select a 1v1 In-Chat Game with your partner:</b>' : '⚔️ <b>یک بازی دونفره را برای اجرا در همین چت انتخاب کن:</b>',
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'duel_invite_rps' }],
-        [{ text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس متحرک', callback_data: 'duel_invite_dice' }]
+        [{ text: isEn ? '🪨 Rock-Paper-Scissors (50 Coins)' : '🪨📄✂️ سنگ، کاغذ، قیچی (۵۰ سکه)', callback_data: 'duel_invite_rps' }],
+        [{ text: isEn ? '🎲 Animated Dice Duel (50 Coins)' : '🎲 دوئل رولت تاس متحرک (۵۰ سکه)', callback_data: 'duel_invite_dice' }],
+        [{ text: isEn ? '🧠 Trivia Knowledge Battle (Free)' : '🧠 مسابقه اطلاعات عمومی و هوش (رایگان)', callback_data: 'duel_invite_trivia' }]
       ]
     }
   });
@@ -1489,9 +1588,10 @@ async function sendDuelInviteToPartner(fromUserId, gameType) {
   const partnerUser = db.users[partnerId];
   const isEn = partnerUser?.lang === 'en';
 
-  const gameName = gameType === 'rps' 
-    ? (isEn ? 'Rock-Paper-Scissors' : 'سنگ، کاغذ، قیچی')
-    : (isEn ? 'Animated Dice Duel' : 'دوئل رولت تاس');
+  let gameName = 'سنگ، کاغذ، قیچی';
+  if (gameType === 'rps') gameName = isEn ? 'Rock-Paper-Scissors' : 'سنگ، کاغذ، قیچی';
+  else if (gameType === 'dice') gameName = isEn ? 'Animated Dice Duel' : 'دوئل رولت تاس';
+  else if (gameType === 'trivia') gameName = isEn ? 'Trivia Battle' : 'مسابقه اطلاعات عمومی';
 
   const inviteText = isEn
     ? `⚔️ <b>${fromUser?.name || 'Partner'} challenged you to a 1v1 ${gameName}!</b>\n🪙 Wager: <b>50 Coins</b> (Winner takes 90 Coins!)`
@@ -2750,6 +2850,25 @@ async function handleCallbackQuery(cq) {
     const senderId = data.replace('decline_chat_req_', '');
     callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
     return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
+  }
+
+  // Mood & Trivia Callbacks
+  if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);
+  if (data === 'back_to_chat_filters') return sendFilterMenu(chatId, userId);
+  if (data.startsWith('mood_match_')) {
+    const mood = data.replace('mood_match_', '');
+    return executeMatchSearch(chatId, userId, `mood_${mood}`);
+  }
+  if (data === 'duel_invite_trivia') return sendDuelInviteToPartner(userId, 'trivia');
+  if (data.startsWith('duel_accept_trivia_')) {
+    const challengerId = data.replace('duel_accept_trivia_', '');
+    return startLiveInChatTrivia(challengerId, userId);
+  }
+  if (data.startsWith('answer_trivia_')) {
+    const parts = data.replace('answer_trivia_', '').split('_');
+    const quizId = parts.slice(0, 2).join('_');
+    const selectedIdx = parseInt(parts[2], 10);
+    return handleTriviaAnswer(userId, quizId, selectedIdx);
   }
 
   // Gifts & Wheel Callbacks
