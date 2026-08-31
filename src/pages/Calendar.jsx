@@ -76,6 +76,18 @@ export default function Calendar() {
     soundEngine.playCheckmark();
     addXP(10, 'افزودن تسک جدید');
 
+    // Telegram Bot Alarm Sync
+    if (window.Telegram?.WebApp?.sendData && taskReminder && taskTime) {
+      try {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          action: 'add_alarm',
+          title: taskTitle.trim(),
+          time: taskTime,
+          date: taskDate || selectedDate
+        }));
+      } catch (_) {}
+    }
+
     setTaskTitle('');
     setIsAddTaskModalOpen(false);
   };

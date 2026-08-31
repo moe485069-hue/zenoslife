@@ -1,5 +1,125 @@
 
 // ----------------------------------------------------
+// CALENDAR, CHECKLIST & ALARM NOTIFICATION ENGINE
+// ----------------------------------------------------
+db.reminders = db.reminders || [];
+
+async function addReminder(userId, title, timeStr, dateStr = null) {
+  const reminderItem = {
+    id: 'rem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    userId: String(userId),
+    title: title.trim(),
+    time: timeStr.trim(), // e.g. "10:00"
+    date: dateStr || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' }),
+    completed: false,
+    lastNotified: null,
+    createdAt: Date.now()
+  };
+
+  db.reminders.push(reminderItem);
+  saveDb();
+
+  const isEn = db.users[userId]?.lang === 'en';
+  const confirmMsg = isEn
+    ? `⏰ <b>Alarm & Reminder Set!</b>\n\n📌 Task: <b>${reminderItem.title}</b>\n🕒 Time: <b>${reminderItem.time}</b>\n\n<i>You will receive a notification right at ${reminderItem.time}!</i>`
+    : `⏰🔔 <b>یادآور و آلارم با موفقیت تنظیم شد!</b>\n\n📌 عنوان تسک: <b>${reminderItem.title}</b>\n🕒 زمان اعلان: ساعت <b>${reminderItem.time}</b>\n\n<i>سر ساعت تعیین‌شده، ربات فوراً در تلگرام به شما پیام هشدار می‌دهد.</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: confirmMsg,
+    parse_mode: 'HTML'
+  });
+}
+
+function checkDueReminders() {
+  const now = new Date();
+  const currentHourMin = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
+  const todayDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tehran' });
+
+  for (const rem of db.reminders) {
+    if (!rem.completed && rem.time === currentHourMin && rem.lastNotified !== todayDateStr) {
+      rem.lastNotified = todayDateStr;
+      saveDb();
+
+      const notifText = `⏰🔔 <b>یادآور تقویم و برنامه زنوسلایف!</b>\n\n` +
+        `📌 <b>عنوان تسک:</b> <b>${rem.title}</b>\n` +
+        `🕒 <b>زمان تعیین‌شده:</b> ساعت <b>${rem.time}</b>\n\n` +
+        `<i>آیا این کار را انجام دادید؟</i>`;
+
+      callTgApi('sendMessage', {
+        chat_id: rem.userId,
+        text: notifText,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✅ انجام شد (+۲۰ XP و +۱۰ سکه) 🪙', callback_data: `complete_reminder_${rem.id}` }],
+            [{ text: '⏳ ۱۰ دقیقه بعد یادآوری کن', callback_data: `snooze_reminder_${rem.id}` }]
+          ]
+        }
+      }).catch(() => {});
+    }
+  }
+}
+
+// Background alarm interval (every 30s)
+setInterval(checkDueReminders, 30000);
+
+async function handleCompleteReminder(userId, remId) {
+  const rem = db.reminders.find(r => r.id === remId);
+  if (!rem) return;
+
+  rem.completed = true;
+  const user = db.users[userId];
+  if (user) {
+    user.coins = (user.coins || 0) + 10;
+    addXp(userId, 20);
+    saveDb();
+  }
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: `🎉 <b>آفرین به اراده شما!</b>\nتسک «<b>${rem.title}</b>» با موفقیت انجام شد و <b>+۲۰ XP و +۱۰ سکه پاداش</b> دریافت کردید! 🪙✨`,
+    parse_mode: 'HTML'
+  });
+}
+
+async function handleSnoozeReminder(userId, remId) {
+  const rem = db.reminders.find(r => r.id === remId);
+  if (!rem) return;
+
+  const now = new Date(Date.now() + 10 * 60000);
+  rem.time = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
+  rem.lastNotified = null;
+  saveDb();
+
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: `⏳ <b>یادآور به تعویق افتاد:</b>\nزنگ بعدی ساعت <b>${rem.time}</b> ارسال خواهد شد.`,
+    parse_mode: 'HTML'
+  });
+}
+
+async function sendRemindersList(chatId, userId) {
+  const userReminders = (db.reminders || []).filter(r => r.userId === String(userId) && !r.completed);
+
+  if (userReminders.length === 0) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: '⏰ <b>هیچ یادآور فعالی در تقویم شما ثبت نشده است.</b>\n\nبرای ثبت یادآور، کافیست دستور زیر را بفرستید:\n<code>/remind 10:00 مطالعه کتاب</code>',
+      parse_mode: 'HTML'
+    });
+  }
+
+  const listText = userReminders.map((r, i) => `${i + 1}. 🕒 ساعت <b>${r.time}</b> - <b>${r.title}</b>`).join('\n');
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: `⏰ <b>یادآورها و آلارم‌های فعال شما در تقویم:</b>\n\n${listText}\n\n<i>برای افزودن یادآور جدید:</i>\n<code>/remind 10:00 عنوان تسک</code>`,
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
 // IN-BOT ONLINE MULTIPLAYER GAME MATCHMAKING
 // ----------------------------------------------------
 const onlineGameQueue = {
@@ -2576,6 +2696,24 @@ async function handleMessage(msg) {
 
   if (text === '/admin') return sendAdminPanel(chatId, userId);
   if (text === '/search' || text === t(userId, 'btnSearch')) return sendUserSearchMenu(chatId, userId);
+  if (text.startsWith('/remind') || text.startsWith('/alarm') || text.startsWith('/reminder')) {
+    const parts = text.replace(/\/remind|\/alarm|\/reminder/, '').trim().split(' ');
+    const timeStr = parts[0];
+    const taskTitle = parts.slice(1).join(' ');
+
+    if (!timeStr || !taskTitle || !timeStr.includes(':')) {
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: '⏰ <b>نحوه ثبت یادآور و آلارم:</b>\n\n<code>/remind 10:00 ورزش صبحگاهی</code>\n<code>/remind 22:30 مطالعه کتاب</code>',
+        parse_mode: 'HTML'
+      });
+    }
+
+    return addReminder(userId, taskTitle, timeStr);
+  }
+  if (text === '/calendar' || text === '/reminders' || text === '⏰ یادآورها و تقویم') {
+    return sendRemindersList(chatId, userId);
+  }
   if (text === '/wheel' || text === '🎡 گردونه شانس روزانه' || text === '🎡 Lucky Wheel') return sendLuckyWheelPrompt(chatId, userId);
   if (text === '/lang') return startLanguageChoice(chatId, userId);
   if (text === '/vip' || text === '/buy' || text === '/wallet' || text === '/ref' || text === t(userId, 'btnFinanceHub') || text === '💎 VIP، کیف‌پول و درآمدزایی 🎁' || text === '💎 VIP, Wallet & Earn 🎁' || text === t(userId, 'btnCoins') || text === t(userId, 'btnVip') || text === t(userId, 'btnReferral')) return sendFinanceAndVipHub(chatId, userId);
@@ -2609,6 +2747,16 @@ async function handleCallbackQuery(cq) {
   const userId = String(cq.from.id);
   const data = cq.data;
   callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
+
+  // Reminder Callbacks
+  if (data.startsWith('complete_reminder_')) {
+    const remId = data.replace('complete_reminder_', '');
+    return handleCompleteReminder(userId, remId);
+  }
+  if (data.startsWith('snooze_reminder_')) {
+    const remId = data.replace('snooze_reminder_', '');
+    return handleSnoozeReminder(userId, remId);
+  }
 
   // Admin Callbacks
   if (data === 'admin_refresh_stats') return sendAdminPanel(chatId, userId);
