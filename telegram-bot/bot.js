@@ -1,5 +1,239 @@
 
 // ----------------------------------------------------
+// ADVANCED IN-CHAT PROFILE ACTION ENGINES
+// ----------------------------------------------------
+
+// 1. Gift Coins to Partner
+async function sendGiftCoinsMenu(chatId, userId, partnerId) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const partner = db.users[partnerId];
+  if (!partner) return;
+
+  const text = isEn
+    ? `🪙 <b>Gift Coins to ${partner.name}:</b>\nChoose an amount to transfer from your balance or buy with Stars:`
+    : `🪙 <b>اهدای سکه به «${partner.name}»:</b>\nمقدار سکه مدنظر برای اهدا از حساب خود یا خرید مستقیم با ستاره را انتخاب کنید:`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '🪙 ۵۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_50` },
+          { text: '🪙 ۱۰۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_100` }
+        ],
+        [
+          { text: '💰 ۵۰۰ سکه (از موجودی)', callback_data: `transfer_coins_${partnerId}_500` }
+        ],
+        [
+          { text: '⭐ خرید ۱,۰۰۰ سکه برای کاربر (۳۵ ستاره)', callback_data: `buy_gift_stars_${partnerId}_1000` }
+        ]
+      ]
+    }
+  });
+}
+
+async function handleTransferCoins(userId, partnerId, amount) {
+  const sender = db.users[userId];
+  const receiver = db.users[partnerId];
+  if (!sender || !receiver) return;
+
+  if ((sender.coins || 0) < amount) {
+    return callTgApi('sendMessage', {
+      chat_id: userId,
+      text: t(userId, 'lowCoinsNotice', { cost: amount, coins: sender.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  sender.coins -= amount;
+  receiver.coins = (receiver.coins || 0) + amount;
+  addXp(userId, Math.round(amount / 5));
+  saveDb();
+
+  const isSenderEn = sender.lang === 'en';
+  const isReceiverEn = receiver.lang === 'en';
+
+  callTgApi('sendMessage', {
+    chat_id: userId,
+    text: isSenderEn
+      ? `✅ Successfully sent <b>${amount} Coins</b> to ${receiver.name}!`
+      : `✅ مقدار <b>${amount.toLocaleString()} سکه</b> با موفقیت به «${receiver.name}» اهدا شد!`,
+    parse_mode: 'HTML'
+  });
+
+  callTgApi('sendMessage', {
+    chat_id: partnerId,
+    text: isReceiverEn
+      ? `🎁 <b>${sender.name} gifted you ${amount} Coins!</b>\n🪙 Balance: <b>${receiver.coins.toLocaleString()}</b>`
+      : `🎁 <b>هم‌صحبت شما «${sender.name}» مقدار ${amount.toLocaleString()} سکه به شما هدیه داد!</b>\n🪙 موجودی جدید: <b>${receiver.coins.toLocaleString()}</b> سکه`,
+    parse_mode: 'HTML'
+  });
+}
+
+// 2. Gift VIP to Partner
+async function sendGiftVipMenu(chatId, userId, partnerId) {
+  const partner = db.users[partnerId];
+  if (!partner) return;
+
+  if (partner.is_vip) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: `👑 <b>کاربر «${partner.name}» هم‌اکنون دارای اشتراک فعال VIP است.</b>`,
+      parse_mode: 'HTML'
+    });
+  }
+
+  const text = `👑 <b>خرید و فعال‌سازی اشتراک VIP برای «${partner.name}»:</b>\nبا خرید VIP، هم‌صحبت شما به تالار VIP دسترسی خواهد داشت!`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🥉 هدیه VIP هفتگی (۷۵ ستاره ⭐)', callback_data: `gift_vip_invoice_${partnerId}_7` }],
+        [{ text: '🥈 هدیه VIP ماهانه (۲۵۰ ستاره ⭐)', callback_data: `gift_vip_invoice_${partnerId}_30` }]
+      ]
+    }
+  });
+}
+
+// 3. Friend Request System
+async function handleSendFriendRequest(senderId, partnerId) {
+  const sender = db.users[senderId];
+  const receiver = db.users[partnerId];
+  if (!sender || !receiver) return;
+
+  sender.friends = sender.friends || [];
+  receiver.friends = receiver.friends || [];
+
+  if (sender.friends.includes(partnerId)) {
+    return callTgApi('sendMessage', {
+      chat_id: senderId,
+      text: '👥 شما و این کاربر از قبل در لیست دوستان یکدیگر هستید!'
+    });
+  }
+
+  const isReceiverEn = receiver.lang === 'en';
+  const reqText = isReceiverEn
+    ? `👥 <b>Friend Request from ${sender.name}!</b>\nWould you like to add ${sender.name} to your friends list for permanent free direct chats?`
+    : `👥 <b>درخواست دوستی جدید از «${sender.name}»!</b>\nآیا مایلید ایشان را به لیست دوستان خود اضافه کنید تا بتوانید همیشه با هم چت رایگان مستقیم داشته باشید؟`;
+
+  callTgApi('sendMessage', {
+    chat_id: partnerId,
+    text: reqText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isReceiverEn ? '✅ Accept Friend' : '✅ قبول درخواست دوستی', callback_data: `accept_friend_${senderId}` },
+          { text: isReceiverEn ? '❌ Decline' : '❌ رد درخواست', callback_data: `decline_friend_${senderId}` }
+        ]
+      ]
+    }
+  }).catch(() => {});
+
+  return callTgApi('sendMessage', {
+    chat_id: senderId,
+    text: '⏳ درخواست دوستی برای هم‌صحبت ارسال شد. به محض تایید، به لیست دوستان یکدیگر اضافه می‌شوید.'
+  });
+}
+
+async function handleAcceptFriend(receiverId, senderId) {
+  const receiver = db.users[receiverId];
+  const sender = db.users[senderId];
+  if (!receiver || !sender) return;
+
+  receiver.friends = receiver.friends || [];
+  sender.friends = sender.friends || [];
+
+  if (!receiver.friends.includes(senderId)) receiver.friends.push(senderId);
+  if (!sender.friends.includes(receiverId)) sender.friends.push(receiverId);
+  saveDb();
+
+  const msg = '🎉 <b>شما اکنون با یکدیگر دوست شدید!</b>\nمی‌توانید همیشه از بخش دوستان به صورت رایگان به هم پیام دهید.';
+  callTgApi('sendMessage', { chat_id: receiverId, text: msg, parse_mode: 'HTML' });
+  callTgApi('sendMessage', { chat_id: senderId, text: msg, parse_mode: 'HTML' });
+}
+
+// 4. Block Partner
+async function handleBlockPartner(userId, partnerId) {
+  const user = db.users[userId];
+  if (user) {
+    user.blocked = user.blocked || [];
+    if (!user.blocked.includes(partnerId)) {
+      user.blocked.push(partnerId);
+      saveDb();
+    }
+  }
+
+  await stopChat(userId, userId);
+  return callTgApi('sendMessage', {
+    chat_id: userId,
+    text: '🚫 <b>کاربر با موفقیت بلاک شد.</b>\nشما دیگر هرگز در چت ناشناس به این کاربر متصل نخواهید شد.',
+    parse_mode: 'HTML'
+  });
+}
+
+// 5. Report Partner & Admin Logging
+async function promptReportReason(chatId, userId, partnerId) {
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: '🚩 <b>لطفاً علت گزارش تخلف کاربر را انتخاب کنید:</b>',
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '⚠️ مزاحمت، فحاشی یا رفتار نامناسب', callback_data: `submit_report_${partnerId}_harassment` }],
+        [{ text: '🔞 ارسال محتوا یا عکس نامناسب', callback_data: `submit_report_${partnerId}_nsfw` }],
+        [{ text: '📢 تبلیغات و اسپم', callback_data: `submit_report_${partnerId}_spam` }],
+        [{ text: '❌ انصراف', callback_data: 'cancel_report' }]
+      ]
+    }
+  });
+}
+
+async function handleSubmitReport(reporterId, targetId, reason) {
+  const reporter = db.users[reporterId];
+  const target = db.users[targetId];
+
+  const reportItem = {
+    id: crypto.randomUUID(),
+    reporterId,
+    reporterName: reporter?.name || reporterId,
+    targetId,
+    targetName: target?.name || targetId,
+    reason,
+    timestamp: Date.now(),
+    status: 'pending'
+  };
+
+  db.reports = db.reports || [];
+  db.reports.push(reportItem);
+  saveDb();
+
+  // Notify Admins
+  const reasonFa = reason === 'harassment' ? 'مزاحمت و فحاشی' : reason === 'nsfw' ? 'محتوای نامناسب' : 'اسپم و تبلیغات';
+  const adminAlert = `🚩 <b>گزارش تخلف جدید ثبت شد!</b>\n\n` +
+    `👤 <b>شاکی:</b> ${reporter?.name || 'User'} (<code>${reporterId}</code>)\n` +
+    `⚠️ <b>متخلف:</b> ${target?.name || 'User'} (<code>${targetId}</code>)\n` +
+    `📝 <b>علت:</b> ${reasonFa}\n` +
+    `⏳ زمان: ${new Date().toLocaleTimeString('fa-IR')}`;
+
+  for (const admId of HARDCODED_ADMINS) {
+    callTgApi('sendMessage', { chat_id: admId, text: adminAlert, parse_mode: 'HTML' }).catch(() => {});
+  }
+
+  await stopChat(reporterId, reporterId);
+  return callTgApi('sendMessage', {
+    chat_id: reporterId,
+    text: '✅ <b>گزارش تخلف شما ثبت و برای مدیران سیستم ارسال شد.</b>\nمکالمه با کاربر متوقف گردید.',
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
 // VIRTUAL GIFTS & ICEBREAKERS ENGINE
 // ----------------------------------------------------
 const ICEBREAKER_QUESTIONS = [
@@ -883,6 +1117,8 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
   for (let i = 0; i < waitingQueue.length; i++) {
     const cand = waitingQueue[i];
     if (cand.userId === userId) continue;
+    if (user.blocked && user.blocked.includes(cand.userId)) continue;
+    if (candUser.blocked && candUser.blocked.includes(userId)) continue;
 
     const candUser = db.users[cand.userId];
     if (!candUser) continue;
@@ -1041,6 +1277,7 @@ async function inspectPartnerProfile(chatId, userId) {
   const isEn = db.users[userId]?.lang === 'en';
   const genderIcon = partnerUser.gender === 'female' ? '👩' : '👨';
   const avatar = getUserAvatar(partnerUser);
+  const isPartnerVip = partnerUser.is_vip;
 
   const caption = isEn
     ? `🪪 <b>Your Partner's Profile:</b>\n\n` +
@@ -1049,27 +1286,45 @@ async function inspectPartnerProfile(chatId, userId) {
       `• Age: <b>${partnerUser.age}</b>\n` +
       `• Region: <b>${partnerUser.province}</b>\n` +
       `• Level: <b>Level ${partnerUser.level || 1} (${partnerUser.xp || 0} XP)</b>\n` +
-      `• Karma: <b>⭐ ${partnerUser.karma || 100} pts</b> ${partnerUser.is_vip ? '👑 VIP' : ''}`
+      `• Karma: <b>⭐ ${partnerUser.karma || 100} pts</b> ${isPartnerVip ? '👑 VIP Member' : ''}`
     : `🪪 <b>مشخصات هم‌صحبت شما:</b>\n\n` +
       `• نام: <b>${partnerUser.name}</b>\n` +
       `• جنسیت: <b>${genderIcon} ${partnerUser.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
       `• رده سنی: <b>${partnerUser.age}</b>\n` +
       `• استان: <b>${partnerUser.province}</b>\n` +
       `• سطح: <b>سطح ${partnerUser.level || 1} (${partnerUser.xp || 0} XP)</b>\n` +
-      `• امتیاز کارما: <b>⭐ ${partnerUser.karma || 100} امتیاز</b> ${partnerUser.is_vip ? '👑 VIP' : ''}`;
+      `• امتیاز کارما: <b>⭐ ${partnerUser.karma || 100} امتیاز</b> ${isPartnerVip ? '👑 عضو ویژه VIP' : ''}`;
+
+  const inlineMarkup = {
+    inline_keyboard: [
+      [
+        { text: isEn ? '🪙 Gift Coins' : '🪙 اهدای سکه به کاربر', callback_data: `gift_coins_menu_${partnerId}` },
+        { text: isPartnerVip ? (isEn ? '👑 Partner is VIP' : '👑 کاربر VIP است') : (isEn ? '👑 Gift VIP Pass' : '👑 فعال‌سازی VIP برای کاربر'), callback_data: `gift_vip_menu_${partnerId}` }
+      ],
+      [
+        { text: isEn ? '👥 Add to Friends' : '👥 افزودن به لیست دوستان', callback_data: `add_friend_req_${partnerId}` }
+      ],
+      [
+        { text: isEn ? '🚫 Block Partner' : '🚫 بلاک هم‌صحبت', callback_data: `block_partner_${partnerId}` },
+        { text: isEn ? '🚩 Report Abuse' : '🚩 گزارش و ریپورت', callback_data: `report_partner_${partnerId}` }
+      ]
+    ]
+  };
 
   try {
     return await callTgApi('sendPhoto', {
       chat_id: chatId,
       photo: avatar,
       caption: caption,
-      parse_mode: 'HTML'
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
     });
   } catch (_) {
     return callTgApi('sendMessage', {
       chat_id: chatId,
       text: caption,
-      parse_mode: 'HTML'
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
     });
   }
 }
@@ -1862,11 +2117,13 @@ async function sendAdminPanel(chatId, userId) {
     `• <code>/grantvip &lt;شناسه_کاربر&gt; &lt;روز&gt;</code> - اعطای اشتراک VIP\n` +
     `• <code>/revokevip &lt;شناسه_کاربر&gt;</code> - لغو اشتراک VIP\n` +
     `• <code>/setcoins &lt;شناسه_کاربر&gt; &lt;تعداد&gt;</code> - تنظیم موجودی سکه\n` +
+    `• <code>/ban &lt;شناسه_کاربر&gt;</code> - مسدودسازی کاربر متخلف\n` +
     `• <code>/broadcast &lt;متن_پیام&gt;</code> - ارسال پیام همگانی به تمام اعضا`;
 
   const adminMarkup = {
     inline_keyboard: [
       [{ text: '🔄 به‌روزرسانی آمار زنده', callback_data: 'admin_refresh_stats' }],
+      [{ text: '🚩 مشاهده گزارش‌های تخلف (' + ((db.reports || []).filter(r => r.status === 'pending').length) + ' مورد)', callback_data: 'admin_view_reports' }],
       [{ text: '👑 مشاهده تالار VIP', callback_data: 'enter_vip_lounge' }],
       [{ text: '🔙 بازگشت به منوی اصلی', callback_data: 'back_to_dashboard' }]
     ]
@@ -2096,6 +2353,65 @@ async function handleCallbackQuery(cq) {
 
   // Admin Callbacks
   if (data === 'admin_refresh_stats') return sendAdminPanel(chatId, userId);
+  if (data === 'admin_view_reports') {
+    const pending = (db.reports || []).filter(r => r.status === 'pending');
+    if (pending.length === 0) {
+      return callTgApi('sendMessage', { chat_id: chatId, text: '✅ هیچ گزارش تخلف بررسی‌نشده‌ای وجود ندارد.' });
+    }
+    const reportList = pending.slice(0, 5).map(r => `🚩 متخلف: <b>${r.targetName}</b> (<code>${r.targetId}</code>)\nشاکی: ${r.reporterName}\nعلت: ${r.reason}`).join('\n\n');
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: `🚩 <b>لیست گزارش‌های اخیر:</b>\n\n${reportList}`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '🔙 بازگشت به پنل', callback_data: 'admin_refresh_stats' }]]
+      }
+    });
+  }
+
+  // Profile In-Chat Actions
+  if (data.startsWith('gift_coins_menu_')) {
+    const partnerId = data.replace('gift_coins_menu_', '');
+    return sendGiftCoinsMenu(chatId, userId, partnerId);
+  }
+  if (data.startsWith('gift_vip_menu_')) {
+    const partnerId = data.replace('gift_vip_menu_', '');
+    return sendGiftVipMenu(chatId, userId, partnerId);
+  }
+  if (data.startsWith('transfer_coins_')) {
+    const parts = data.replace('transfer_coins_', '').split('_');
+    const partnerId = parts[0];
+    const amount = parseInt(parts[1], 10);
+    return handleTransferCoins(userId, partnerId, amount);
+  }
+  if (data.startsWith('add_friend_req_')) {
+    const partnerId = data.replace('add_friend_req_', '');
+    return handleSendFriendRequest(userId, partnerId);
+  }
+  if (data.startsWith('accept_friend_')) {
+    const senderId = data.replace('accept_friend_', '');
+    return handleAcceptFriend(userId, senderId);
+  }
+  if (data.startsWith('decline_friend_')) {
+    return callTgApi('sendMessage', { chat_id: userId, text: '❌ درخواست دوستی رد شد.' });
+  }
+  if (data.startsWith('block_partner_')) {
+    const partnerId = data.replace('block_partner_', '');
+    return handleBlockPartner(userId, partnerId);
+  }
+  if (data.startsWith('report_partner_')) {
+    const partnerId = data.replace('report_partner_', '');
+    return promptReportReason(chatId, userId, partnerId);
+  }
+  if (data.startsWith('submit_report_')) {
+    const parts = data.replace('submit_report_', '').split('_');
+    const targetId = parts[0];
+    const reason = parts[1];
+    return handleSubmitReport(userId, targetId, reason);
+  }
+  if (data === 'cancel_report') {
+    return callTgApi('sendMessage', { chat_id: chatId, text: '✅ گزارش لغو شد.' });
+  }
   if (data === 'back_to_dashboard') return sendMainDashboard(chatId, userId);
 
   // VIP Lounge Callbacks
