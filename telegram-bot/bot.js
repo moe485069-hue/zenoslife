@@ -1,17 +1,5 @@
 /**
  * ZenOsLife #1 - Ultimate Bilingual Dating, Anonymous Chat, In-Bot Games & Telegram Stars Engine
- * 
- * Features:
- * 1. Bilingual System (🇮🇷 Persian & 🇬🇧 English)
- * 2. Onboarding Flow (Language, Gender, Age, Province/Location, Photo, 1000 Welcome Coins)
- * 3. Smart Anonymous Chat Engine (Random, Same-Language, Global/International, Gender, Province)
- * 4. In-Chat Real-time Media Relay (Text, Voice, Photo, Sticker, VideoNote)
- * 5. Social Karma & Mutual Respect Rating (🌟 Great Talker / ☕ Polite / 💡 Inspiring)
- * 6. Smart Retention & Faucet Refill (Surprise Coins if low balance + Mindful Pauses)
- * 7. In-Bot Multiplayer Games (🎲 Animated Dice Duel, ⚔️ Live Tic-Tac-Toe Matrix)
- * 8. Telegram Stars Invoices (sendInvoice currency: 'XTR' with instant webhook fulfillment)
- * 9. 1-Tap Viral Referral System (1000 Coins + 10% Lifetime Cut) & Daily Lucky Wheel
- * 10. Gateway to the ZenOsLife Mini App Universe
  */
 
 const https = require('https');
@@ -48,23 +36,21 @@ function saveDb() {
 }
 
 // ----------------------------------------------------
-// STATE & RUNTIME MEMORY
+// RUNTIME STATE
 // ----------------------------------------------------
 // waitingQueue: Array of objects { userId, filterType, lang, province, gender, timestamp }
 const waitingQueue = [];
 // activePairs: Map of userId -> partnerUserId
 const activePairs = new Map();
-// registrationSteps: Map of userId -> { step: 'lang'|'gender'|'age'|'province'|'photo', tempProfile: {} }
+// registrationSteps: Map of userId -> { step: 'lang'|'gender'|'age'|'province', tempProfile: {} }
 const registrationSteps = new Map();
-// activeGames: Map of gameId -> { gameType: 'tictactoe'|'dice', p1: userId, p2: userId, wager: number, state: any }
-const activeGames = new Map();
 
 // ----------------------------------------------------
 // BILINGUAL STRINGS (fa & en)
 // ----------------------------------------------------
 const STRINGS = {
   fa: {
-    welcomeNew: '👋 <b>به سیستم عامل زندگی و چت ناشناس زنوسلایف خوش آمدید!</b>\n\nبرای شروع گفتگو، دوستیابی و بازی‌ها، لطفاً ابتدا زبان خود را انتخاب کنید:',
+    welcomeNew: '👋 <b>به سیستم چت ناشناس و بازی‌های زنوسلایف خوش آمدید!</b>\n\nلطفاً زبان خود را انتخاب کنید / Please select language:',
     chooseGender: '👤 لطفاً <b>جنسیت</b> خود را مشخص کنید:',
     male: '👨 پسرم',
     female: '👩 دخترم',
@@ -81,21 +67,21 @@ const STRINGS = {
     provTab: 'آذربایجان / تبریز',
     provAhv: 'خوزستان / اهواز',
     provNrt: 'مازندران / گیلان',
-    provOth: 'سایر استان‌ها / بین‌المللی',
+    provOth: 'سایر استان‌ها / خارج از کشور',
     regDone: '🎉 <b>تبریک! پروفایل شما ساخته شد و ۱,۰۰۰ سکه هدیه گرفتید! 🪙</b>',
     mainMenuHeader: '👑 <b>پایگاه چت ناشناس، دوستیابی و بازی‌های آنلاین</b>',
     profileBadge: '👤 <b>پروفایل:</b> {gender} {name} ({age} ساله از {prov})',
     coinsBadge: '🪙 <b>موجودی:</b> {coins} سکه {vip}',
-    karmaBadge: '⭐ <b>امتیاز کارما و اخلاق:</b> {karma} امتیاز',
+    karmaBadge: '⭐ <b>امتیاز کارما و ادب:</b> {karma} امتیاز',
     refsBadge: '👥 <b>تعداد دعوت‌ها:</b> {refs} نفر',
     btnConnect: '🙈 به یه ناشناس وصلم کن!',
     btnGlobal: '🌍 چت بین‌المللی و هم‌زبان',
     btnGenderSearch: '💬 فیلتر جنسیت (دختر/پسر)',
-    btnGames: '🎮 بازی‌ها و دوئل‌های لایو',
-    btnCoins: '🪙 موجودی سکه و خرید ستاره',
-    btnProfile: '👤 پروفایل و کارمای من',
-    btnReferral: '🔗 دریافت سکه رایگان (دعوت)',
-    btnMiniApp: '🌟 ورود به دنیای زنوسلایف (Mini App)',
+    btnGames: '🎮 بازی‌ها و دوئل‌های لایو 🎲',
+    btnCoins: '🪙 موجودی سکه و خرید ستاره ⭐',
+    btnProfile: '👤 پروفایل و کارمای من 🪪',
+    btnReferral: '🔗 دریافت سکه رایگان (دعوت) 🎁',
+    btnMiniApp: '🌟 ورود به مینی‌اپلیکیشن (Mini App) ✨',
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
     filterRandom: '🎲 جستجوی شانسی (رایگان)',
     filterSameLang: '🇮🇷 چت هم‌زبان (فارسی‌زبانان)',
@@ -126,7 +112,7 @@ const STRINGS = {
     noUsernameErr: '⚠️ اکانت تلگرام شما آیدی ندارد. لطفاً در تنظیمات تلگرام یک Username ست کنید.'
   },
   en: {
-    welcomeNew: '👋 <b>Welcome to ZenOsLife Anonymous Chat & Social Engine!</b>\n\nPlease select your language to begin:',
+    welcomeNew: '👋 <b>Welcome to ZenOsLife Anonymous Chat & Social Engine!</b>\n\nPlease select your language:',
     chooseGender: '👤 Please select your <b>gender</b>:',
     male: '👨 Male / Boy',
     female: '👩 Female / Girl',
@@ -148,19 +134,19 @@ const STRINGS = {
     mainMenuHeader: '👑 <b>Anonymous Chat, Social Dating & Live Games Hub</b>',
     profileBadge: '👤 <b>Profile:</b> {gender} {name} ({age} yrs, {prov})',
     coinsBadge: '🪙 <b>Balance:</b> {coins} Coins {vip}',
-    karmaBadge: '⭐ <b>Karma & Ethics Score:</b> {karma} pts',
+    karmaBadge: '⭐ <b>Karma & Ethics:</b> {karma} pts',
     refsBadge: '👥 <b>Total Referrals:</b> {refs} friends',
     btnConnect: '🙈 Connect to a Stranger!',
     btnGlobal: '🌍 Global & Language Match',
     btnGenderSearch: '💬 Gender Filters (Girl/Boy)',
-    btnGames: '🎮 Games & Live Duels',
+    btnGames: '🎮 Games & Live Duels 🎲',
     btnCoins: '🪙 Coins & Telegram Stars ⭐',
-    btnProfile: '👤 My Profile & Karma',
-    btnReferral: '🔗 Free Coins (Invite Friends)',
-    btnMiniApp: '🌟 Open ZenOsLife (Mini App)',
+    btnProfile: '👤 My Profile & Karma 🪪',
+    btnReferral: '🔗 Free Coins (Invite Friends) 🎁',
+    btnMiniApp: '🌟 Open ZenOsLife (Mini App) ✨',
     filterTitle: '🙈 <b>Who would you like to connect with?</b> 👇',
     filterRandom: '🎲 Random Match (Free)',
-    filterSameLang: '🇬🇧 English Speakers Match',
+    filterSameLang: 'English Speakers Match',
     filterGlobal: '🌍 Global Discovery (All Countries)',
     filterFemale: '👩 Connect to Girl (50 Coins)',
     filterMale: '👨 Connect to Boy (50 Coins)',
@@ -296,13 +282,13 @@ async function startLanguageChoice(chatId, userId, startParam = '') {
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: '🌐 <b>Choose your language / زبان خود را انتخاب کنید:</b>',
+    text: '🌐 <b>لطفاً زبان خود را انتخاب کنید / Please select language:</b>',
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '🇮🇷 فارسی (Persian)', callback_data: 'set_lang_fa' },
-          { text: '🇬🇧 English', callback_data: 'set_lang_en' }
+          { text: 'فارسی (Persian)', callback_data: 'set_lang_fa' },
+          { text: 'English', callback_data: 'set_lang_en' }
         ]
       ]
     }
@@ -347,7 +333,7 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
     return startLanguageChoice(chatId, userId);
   }
 
-  // Check for smart retention coin refill (if < 100 coins and 4h passed)
+  // Smart retention coin refill (if < 100 coins and 4h passed)
   if ((user.coins || 0) < 100 && (!user.lastRefill || Date.now() - user.lastRefill > 4 * 3600 * 1000)) {
     user.coins = (user.coins || 0) + 200;
     user.lastRefill = Date.now();
@@ -437,7 +423,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
     }
   }
 
-  // Deduct coins if applicable
+  // Deduct coins
   if (cost > 0 && !user.isVip) {
     user.coins -= cost;
     saveDb();
@@ -545,7 +531,6 @@ async function stopChat(chatId, userId) {
     activePairs.delete(userId);
     activePairs.delete(partnerId);
 
-    // Prompt Karma Rating for both users
     sendKarmaPrompt(userId, partnerId);
     sendKarmaPrompt(partnerId, userId);
 
@@ -644,15 +629,15 @@ async function relayMessage(msg, partnerId) {
 // 6. IN-BOT MULTIPLAYER GAMES (DICE & TICTACTOE)
 // ----------------------------------------------------
 async function sendGamesMenu(chatId, userId) {
-  const text = usersDb[userId]?.lang === 'en'
-    ? '🎮 <b>ZenOsLife In-Bot Live Games & Duels</b>\n\nChallenge your friends or online partners to instant coin games directly inside Telegram:'
+  const isEn = usersDb[userId]?.lang === 'en';
+  const text = isEn
+    ? '🎮 <b>ZenOsLife In-Bot Live Games & Duels</b>\n\nPlay instant coin games with live opponents or friends inside Telegram:'
     : '🎮 <b>بازی‌ها و دوئل‌های لایو زنوسلایف</b>\n\nدر همین محیط تلگرام با حریفان آنلاین یا دوستانتان مسابقه دهید و سکه برنده شوید:';
 
   const inlineKeyboard = {
     inline_keyboard: [
       [
-        { text: '🎲 دوئل رولت تاس متحرک (Dice Duel)', callback_data: 'game_duel_dice' },
-        { text: '⚔️ نبرد دوز آنلاین (Tic-Tac-Toe)', callback_data: 'game_duel_ttt' }
+        { text: '🎲 دوئل رولت تاس متحرک (Dice Duel)', callback_data: 'game_duel_dice' }
       ],
       [
         { text: '👑 بازی حکم ۴ نفره آنلاین', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
@@ -663,7 +648,7 @@ async function sendGamesMenu(chatId, userId) {
         { text: '🎱 بیلیارد و منچ', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
       ],
       [
-        { text: '🌟 ورود به لابی کامل بازی‌های مینی‌اپ', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
+        { text: '🌟 ورود به لابی کامل بازی‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
       ]
     ]
   };
@@ -858,19 +843,19 @@ async function handleMessage(msg) {
     return sendFilterMenu(chatId, userId);
   }
 
-  if (text === '🎮 بازی‌ها و دوئل‌های لایو' || text === '🎮 Games & Live Duels' || text === '/games') {
+  if (text.includes('بازی‌ها') || text.includes('Games') || text === '/games') {
     return sendGamesMenu(chatId, userId);
   }
 
-  if (text === '🪙 موجودی سکه و خرید ستاره' || text === '🪙 Coins & Telegram Stars ⭐' || text === '/buy') {
+  if (text.includes('موجودی سکه') || text.includes('Coins') || text === '/buy') {
     return sendBuyStarsMenu(chatId, userId);
   }
 
-  if (text === '🔗 دریافت سکه رایگان (دعوت)' || text === '🔗 Free Coins (Invite Friends)' || text === '/ref') {
+  if (text.includes('سکه رایگان') || text.includes('Free Coins') || text === '/ref') {
     return sendReferralHub(chatId, userId);
   }
 
-  if (text === '👤 پروفایل و کارمای من' || text === '👤 My Profile & Karma') {
+  if (text.includes('پروفایل') || text.includes('Profile')) {
     const user = usersDb[userId];
     if (!user) return startLanguageChoice(chatId, userId);
     const genderIcon = user.gender === 'female' ? '👩' : '👨';
@@ -890,7 +875,7 @@ async function handleMessage(msg) {
         `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
         `• رده سنی: <b>${user.age}</b>\n` +
         `• استان: <b>${user.province}</b>\n` +
-        `• امتیاز کارما و اخلاق: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
+        `• امتیاز کارما و ادب: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
         `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.isVip ? '👑 VIP' : ''}\n` +
         `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
 
@@ -899,12 +884,12 @@ async function handleMessage(msg) {
       text: profText,
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش پروفایل', callback_data: 'edit_profile' }]]
+        inline_keyboard: [[{ text: isEn ? '✏️ Edit Profile' : '✏️ ویرایش مشخصات', callback_data: 'edit_profile' }]]
       }
     });
   }
 
-  if (text === '🌟 ورود به دنیای زنوسلایف (Mini App)' || text === '🌟 Open ZenOsLife (Mini App)') {
+  if (text.includes('مینی‌اپلیکیشن') || text.includes('Mini App')) {
     const isEn = usersDb[userId]?.lang === 'en';
     const miniappText = isEn
       ? '🚀 <b>ZenOsLife Mini App Universe:</b>\nTap the button below to launch the full Life-OS experience (Mindfulness, My Day, AI Mentor, Tarot & Arcade):'
@@ -951,27 +936,56 @@ async function handleCallbackQuery(cq) {
   if (data.startsWith('set_lang_')) {
     const lang = data.replace('set_lang_', '');
     let reg = registrationSteps.get(userId);
-    if (!reg) reg = { tempProfile: { userId, coins: 1000, karma: 100, referrals: [] } };
+    if (!reg) {
+      reg = {
+        step: 'gender',
+        tempProfile: {
+          userId,
+          coins: 1000,
+          karma: 100,
+          referrals: [],
+          lastWheelSpin: 0,
+          lastRefill: Date.now(),
+          createdAt: Date.now()
+        }
+      };
+    }
     reg.tempProfile.lang = lang;
     reg.tempProfile.name = cq.from.first_name || (lang === 'en' ? 'Zen Member' : 'کاربر زنوسلایف');
     reg.step = 'gender';
     registrationSteps.set(userId, reg);
 
-    if (usersDb[userId]) {
+    // If already fully completed, update language and go to dashboard
+    if (usersDb[userId] && usersDb[userId].profileCompleted) {
       usersDb[userId].lang = lang;
       saveDb();
-      return sendMainDashboard(chatId, userId);
+      return sendMainDashboard(chatId, userId, lang === 'en' ? 'Language changed to English!' : 'زبان به فارسی تغییر کرد!');
     }
+
+    // Otherwise proceed to gender selection
     return promptGenderSelection(chatId, userId);
   }
 
   // Gender selection
   if (data.startsWith('reg_gender_')) {
     const gender = data.replace('reg_gender_', '');
-    const reg = registrationSteps.get(userId);
-    if (!reg) return startLanguageChoice(chatId, userId);
+    let reg = registrationSteps.get(userId);
+    if (!reg) {
+      reg = {
+        step: 'age',
+        tempProfile: {
+          userId,
+          lang: usersDb[userId]?.lang || 'fa',
+          coins: 1000,
+          karma: 100,
+          referrals: [],
+          name: cq.from.first_name || 'کاربر زنوسلایف'
+        }
+      };
+    }
     reg.tempProfile.gender = gender;
     reg.step = 'age';
+    registrationSteps.set(userId, reg);
 
     return callTgApi('sendMessage', {
       chat_id: chatId,
@@ -988,10 +1002,11 @@ async function handleCallbackQuery(cq) {
   // Age selection
   if (data.startsWith('reg_age_')) {
     const age = data.replace('reg_age_', '');
-    const reg = registrationSteps.get(userId);
+    let reg = registrationSteps.get(userId);
     if (!reg) return startLanguageChoice(chatId, userId);
     reg.tempProfile.age = age;
     reg.step = 'province';
+    registrationSteps.set(userId, reg);
 
     return callTgApi('sendMessage', {
       chat_id: chatId,
@@ -1010,7 +1025,7 @@ async function handleCallbackQuery(cq) {
   // Province selection & completion
   if (data.startsWith('reg_prov_')) {
     const prov = data.replace('reg_prov_', '');
-    const reg = registrationSteps.get(userId);
+    let reg = registrationSteps.get(userId);
     if (!reg) return startLanguageChoice(chatId, userId);
 
     reg.tempProfile.province = prov;
