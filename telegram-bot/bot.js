@@ -1,5 +1,100 @@
 
 // ----------------------------------------------------
+// IN-BOT ONLINE MULTIPLAYER GAME MATCHMAKING
+// ----------------------------------------------------
+const onlineGameQueue = {
+  rps: [],
+  dice: [],
+  trivia: []
+};
+
+async function promptGameModeChoice(chatId, userId, gameType) {
+  const isEn = db.users[userId]?.lang === 'en';
+  const gameNames = {
+    rps: { fa: '🪨📄✂️ سنگ، کاغذ، قیچی', en: '🪨 Rock-Paper-Scissors' },
+    dice: { fa: '🎲 دوئل رولت تاس متحرک', en: '🎲 Animated Dice Duel' },
+    trivia: { fa: '🧠 مسابقه اطلاعات عمومی و هوش', en: '🧠 Trivia Battle' }
+  };
+
+  const game = gameNames[gameType] || { fa: 'بازی آنلاین', en: 'Online Game' };
+
+  const promptText = isEn
+    ? `🎮 <b>${game.en}</b>\n\nChoose how you want to play:`
+    : `🎮 <b>${game.fa}</b>\n\nحالت بازی را انتخاب کنید:`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: promptText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: isEn ? '🤖 Play vs Smart AI Bot (Instant)' : '🤖 بازی با ربات هوشمند (آفلاین / فوری)', callback_data: `play_bot_${gameType}` }],
+        [{ text: isEn ? '👥 Match with Online Player (Live)' : '👥 جستجوی بازیکن آنلاین (Matchmaking زنده)', callback_data: `match_online_${gameType}` }],
+        [{ text: isEn ? '🔙 Back to Games' : '🔙 بازگشت به لیست بازی‌ها', callback_data: 'back_to_games_menu' }]
+      ]
+    }
+  });
+}
+
+async function executeGameMatchmaking(chatId, userId, gameType) {
+  const user = db.users[userId];
+  const isEn = user?.lang === 'en';
+
+  if (!onlineGameQueue[gameType]) onlineGameQueue[gameType] = [];
+
+  // Check if already in queue
+  if (onlineGameQueue[gameType].includes(userId)) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: isEn ? '🔍 You are already searching for an opponent...' : '🔍 شما در صف جستجوی حریف قرار دارید. لطفاً چند لحظه شکیبا باشید...'
+    });
+  }
+
+  // Look for waiting opponent
+  const oppIndex = onlineGameQueue[gameType].findIndex(uid => uid !== userId);
+
+  if (oppIndex > -1) {
+    const opponentId = onlineGameQueue[gameType].splice(oppIndex, 1)[0];
+    const oppUser = db.users[opponentId];
+
+    const matchNotice1 = isEn
+      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${oppUser?.name || 'Player'}</b> (Lvl ${oppUser?.level || 1})\n⚡ Starting match...`
+      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${oppUser?.name || 'کاربر زنوسلایف'}</b> (سطح ${oppUser?.level || 1})\n⚡ بازی آغاز شد...`;
+
+    const matchNotice2 = isEn
+      ? `🎉 <b>Opponent Found!</b>\nPlaying vs: <b>${user?.name || 'Player'}</b> (Lvl ${user?.level || 1})\n⚡ Starting match...`
+      : `🎉 <b>حریف آنلاین پیدا شد!</b>\nحریف شما: <b>${user?.name || 'کاربر زنوسلایف'}</b> (سطح ${user?.level || 1})\n⚡ بازی آغاز شد...`;
+
+    callTgApi('sendMessage', { chat_id: userId, text: matchNotice1, parse_mode: 'HTML' });
+    callTgApi('sendMessage', { chat_id: opponentId, text: matchNotice2, parse_mode: 'HTML' });
+
+    if (gameType === 'rps') return startLiveInChatRps(userId, opponentId);
+    if (gameType === 'dice') return startLiveInChatDice(userId, opponentId);
+    if (gameType === 'trivia') return startLiveInChatTrivia(userId, opponentId);
+    return;
+  }
+
+  // Enqueue user
+  onlineGameQueue[gameType].push(userId);
+
+  const searchNotice = isEn
+    ? '🔍 <b>Searching for an online opponent...</b>\n⏳ Matching you with a live player...'
+    : '🔍 <b>در حال جستجوی بازیکن آنلاین...</b>\n⏳ لطفاً چند لحظه شکیبا باشید تا به یک رقیب متصل شوید:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: searchNotice,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🤖 بازی فوری با ربات (بدون معطلی)', callback_data: `play_bot_${gameType}` }],
+        [{ text: '❌ انصراف از جستجو', callback_data: `cancel_game_search_${gameType}` }]
+      ]
+    }
+  });
+}
+
+// ----------------------------------------------------
 // IN-BOT MOOD & VIBE MATCHMAKING (HUMAN-CENTRIC)
 // ----------------------------------------------------
 const MOOD_DESCRIPTIONS = {
@@ -2117,10 +2212,13 @@ async function sendGamesMenu(chatId, userId) {
 
   const inlineKeyboard = {
     inline_keyboard: [
-      // Fast In-Bot 1v1 Duels
+      // Fast In-Bot 1v1 Duels with Mode Selector
       [
-        { text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'game_rps_start' },
-        { text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'game_dice_start' }
+        { text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'prompt_mode_rps' },
+        { text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'prompt_mode_dice' }
+      ],
+      [
+        { text: isEn ? '🧠 Trivia Battle' : '🧠 مسابقه اطلاعات عمومی و هوش', callback_data: 'prompt_mode_trivia' }
       ],
       // Classic Board & Multi-player
       [
@@ -2851,6 +2949,81 @@ async function handleCallbackQuery(cq) {
     callTgApi('sendMessage', { chat_id: senderId, text: '❌ کاربر درخواست چت مستقیم شما را رد کرد.' }).catch(() => {});
     return callTgApi('sendMessage', { chat_id: userId, text: '✅ درخواست چت رد شد.' });
   }
+
+  // Game Mode Selection & Matchmaking Callbacks
+  if (data.startsWith('prompt_mode_')) {
+    const gameType = data.replace('prompt_mode_', '');
+    return promptGameModeChoice(chatId, userId, gameType);
+  }
+  if (data.startsWith('match_online_')) {
+    const gameType = data.replace('match_online_', '');
+    return executeGameMatchmaking(chatId, userId, gameType);
+  }
+  if (data.startsWith('play_bot_')) {
+    const gameType = data.replace('play_bot_', '');
+    if (gameType === 'rps') {
+      const isEn = db.users[userId]?.lang === 'en';
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: isEn ? '🪨 <b>Rock-Paper-Scissors vs AI: Make your move:</b>' : '🪨📄✂️ <b>بازی با ربات هوشمند: حرکت خود را انتخاب کنید:</b>',
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🪨 سنگ', callback_data: 'rps_bot_rock' }, { text: '📄 کاغذ', callback_data: 'rps_bot_paper' }, { text: '✂️ قیچی', callback_data: 'rps_bot_scissors' }]
+          ]
+        }
+      });
+    }
+    if (gameType === 'dice') {
+      return startLiveInChatDice(userId, 'bot_ai');
+    }
+  }
+  if (data.startsWith('rps_bot_')) {
+    const move = data.replace('rps_bot_', '');
+    const botMoves = ['rock', 'paper', 'scissors'];
+    const botMove = botMoves[Math.floor(Math.random() * botMoves.length)];
+    const moveIcons = { rock: '🪨', paper: '📄', scissors: '✂️' };
+
+    let outcome = 'tie';
+    if (move === botMove) outcome = 'tie';
+    else if ((move === 'rock' && botMove === 'scissors') || (move === 'paper' && botMove === 'rock') || (move === 'scissors' && botMove === 'paper')) outcome = 'win';
+    else outcome = 'lose';
+
+    const user = db.users[userId];
+    if (outcome === 'win') {
+      user.coins = (user.coins || 0) + 50;
+      addXp(userId, 25);
+      saveDb();
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: `🎉 <b>پیروزی! شما برنده شدید! (+۵۰ سکه و +۲۵ XP)</b>\nشما: ${moveIcons[move]} | ربات: ${moveIcons[botMove]}\n🪙 موجودی: <b>${user.coins.toLocaleString()}</b> سکه`,
+        parse_mode: 'HTML'
+      });
+    } else if (outcome === 'lose') {
+      addXp(userId, 5);
+      saveDb();
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: `😢 <b>شکست! ربات برنده شد. (+۵ XP)</b>\nشما: ${moveIcons[move]} | ربات: ${moveIcons[botMove]}`,
+        parse_mode: 'HTML'
+      });
+    } else {
+      return callTgApi('sendMessage', {
+        chat_id: chatId,
+        text: `🤝 <b>مساوی شد!</b>\nشما: ${moveIcons[move]} | ربات: ${moveIcons[botMove]}`,
+        parse_mode: 'HTML'
+      });
+    }
+  }
+  if (data.startsWith('cancel_game_search_')) {
+    const gameType = data.replace('cancel_game_search_', '');
+    if (onlineGameQueue[gameType]) {
+      const idx = onlineGameQueue[gameType].indexOf(userId);
+      if (idx > -1) onlineGameQueue[gameType].splice(idx, 1);
+    }
+    return callTgApi('sendMessage', { chat_id: chatId, text: '✅ جستجوی حریف لغو شد.' });
+  }
+  if (data === 'back_to_games_menu') return sendGamesMenu(chatId, userId);
 
   // Mood & Trivia Callbacks
   if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);

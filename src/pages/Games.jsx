@@ -244,7 +244,7 @@ const GAME_DEFS = [
   }
 ];
 
-const MULTIPLAYER_IDS = ['hokm', 'backgammon', 'ludo', 'pasur', 'billiards', 'cosmic_chess', 'tic_tac_toe', 'cosmic_pong'];
+const MULTIPLAYER_IDS = ['hokm', 'backgammon', 'ludo', 'snakes', 'soccer', 'ocho', 'golf', 'pasur', 'billiards', 'cosmic_chess', 'tic_tac_toe', 'cosmic_pong'];
 
 const CATEGORIES = [
   { id: 'all', labelFa: 'همه بازی‌ها', icon: '🎮' },
@@ -458,6 +458,128 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar }) {
   );
 }
 
+
+// Game Mode Selector & Matchmaking Modal
+function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTimer, setSearchTimer] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (isSearching) {
+      interval = setInterval(() => setSearchTimer(t => t + 1), 1000);
+    } else {
+      setSearchTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [isSearching]);
+
+  if (!isOpen || !game) return null;
+
+  const handleStartOnlineSearch = () => {
+    setIsSearching(true);
+    soundEngine.playDiceRoll?.();
+    haptics.impact?.('heavy');
+
+    // Simulate matchmaking find (2.5s)
+    setTimeout(() => {
+      setIsSearching(false);
+      soundEngine.playSuccess?.();
+      haptics.success?.();
+      onSelectMode('online');
+      onClose();
+    }, 2800);
+  };
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4" onClick={onClose} dir="rtl">
+        <motion.div
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 50, opacity: 0 }}
+          onClick={e => e.stopPropagation()}
+          className="w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1a0c2e] via-[#12071f] to-[#0a0312] border-2 border-purple-500/40 p-6 text-center shadow-2xl space-y-4"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl">{game.icon}</span>
+              <div className="text-right">
+                <h3 className="text-base font-black text-white">{game.titleFa}</h3>
+                <span className="text-[10px] text-purple-300 font-bold">{game.maxPlayers} نفره • {game.level}</span>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-slate-400 hover:text-white">
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Searching Online Radar */}
+          {isSearching ? (
+            <div className="py-8 space-y-4">
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-purple-500/40 animate-ping" />
+                <div className="absolute inset-2 rounded-full border-2 border-pink-500/60 animate-pulse" />
+                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/50">
+                  {game.icon}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-white animate-pulse">در حال جستجوی بازیکن آنلاین...</h4>
+                <p className="text-xs text-purple-300 mt-1">زمان جستجو: {searchTimer} ثانیه</p>
+              </div>
+              <button
+                onClick={() => setIsSearching(false)}
+                className="px-4 py-2 rounded-xl bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
+              >
+                انصراف
+              </button>
+            </div>
+          ) : (
+            /* Mode Options */
+            <div className="space-y-2.5 pt-1">
+              {/* Option 1: Play vs AI Bot */}
+              <button
+                onClick={() => { onSelectMode('bot'); onClose(); }}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-950/80 border border-purple-500/40 hover:border-purple-400 text-right flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-purple-950/40"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-xl text-purple-300 group-hover:scale-110 transition-transform">
+                    🤖
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white group-hover:text-purple-300">بازی با ربات هوشمند</h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">آفلاین، سریع و بدون معطلی با هوش مصنوعی</p>
+                  </div>
+                </div>
+                <ChevronLeft size={18} className="text-purple-400" />
+              </button>
+
+              {/* Option 2: Live Online Matchmaking */}
+              <button
+                onClick={handleStartOnlineSearch}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-pink-900/60 to-purple-950/80 border border-pink-500/40 hover:border-pink-400 text-right flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-pink-950/40"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-pink-600/30 border border-pink-400/40 flex items-center justify-center text-xl text-pink-300 group-hover:scale-110 transition-transform">
+                    👥
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white group-hover:text-pink-300">جستجوی حریف آنلاین</h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">اتصال زنده به بازیکنان حاضر در ربات</p>
+                  </div>
+                </div>
+                <ChevronLeft size={18} className="text-pink-400" />
+              </button>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
 export default function Games() {
   const navigate = useNavigate();
   const { coins, isVip } = useAppStore();
@@ -468,6 +590,8 @@ export default function Games() {
   const [liveRooms, setLiveRooms] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
+  const [selectedGameForMode, setSelectedGameForMode] = useState(null);
+  const [showModeModal, setShowModeModal] = useState(false);
   const [showTournamentsModal, setShowTournamentsModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
 
@@ -493,7 +617,21 @@ export default function Games() {
   const handleGameClick = (game) => {
     soundEngine.playTap?.();
     haptics.tap?.();
-    navigate(MULTIPLAYER_IDS.includes(game.id) ? `${game.path}?mode=bot` : game.path);
+    if (MULTIPLAYER_IDS.includes(game.id)) {
+      setSelectedGameForMode(game);
+      setShowModeModal(true);
+    } else {
+      navigate(game.path);
+    }
+  };
+
+  const handleModeSelected = (mode) => {
+    if (!selectedGameForMode) return;
+    if (mode === 'bot') {
+      navigate(`${selectedGameForMode.path}?mode=bot`);
+    } else {
+      navigate(`${selectedGameForMode.path}?mode=online&matchmaking=true`);
+    }
   };
 
   const filteredGames = activeCategory === 'all'
@@ -752,6 +890,14 @@ export default function Games() {
         <Plus size={18} />
         <span>ساخت بازی آنلاین</span>
       </motion.button>
+
+      {/* Game Mode Selector Modal */}
+      <GameModeModal
+        isOpen={showModeModal}
+        onClose={() => setShowModeModal(false)}
+        game={selectedGameForMode}
+        onSelectMode={handleModeSelected}
+      />
 
       {/* Modals */}
       <CreateRoomModal
