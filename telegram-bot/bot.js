@@ -1,5 +1,49 @@
 
 // ----------------------------------------------------
+// CONSOLIDATED FINANCE, VIP & REWARDS HUB
+// ----------------------------------------------------
+async function sendFinanceAndVipHub(chatId, userId) {
+  const user = db.users[userId] || { coins: 0 };
+  const isEn = user.lang === 'en';
+  const coinsText = (user.coins || 0).toLocaleString();
+  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
+  const refCount = (user.referrals || []).length;
+
+  const hubText = isEn
+    ? `💎 <b>VIP, Wallet & Earnings Hub</b>\n\n` +
+      `🪙 <b>Coin Balance:</b> <b>${coinsText} Coins</b>\n` +
+      `👑 <b>VIP Status:</b> <b>${vipText}</b>\n` +
+      `👥 <b>Friends Invited:</b> <b>${refCount} Users</b> (10% Lifetime Cut)\n\n` +
+      `<i>Select an option below:</i>`
+    : `💎 <b>مرکز مالی، اشتراک VIP و درآمدزایی زنوسلایف</b>\n\n` +
+      `🪙 <b>موجودی سکه شما:</b> <b>${coinsText} سکه</b>\n` +
+      `👑 <b>وضعیت اشتراک:</b> <b>${vipText}</b>\n` +
+      `👥 <b>تعداد دعوت‌ها:</b> <b>${refCount} نفر</b> (۱۰٪ پورسانت مادام‌العمر)\n\n` +
+      `<i>یکی از بخش‌های زیر را انتخاب کنید:</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: hubText,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isEn ? '🪙 Buy Coins with Stars ⭐' : '🪙 خرید سکه با ستاره ⭐', callback_data: 'buy_stars' },
+          { text: isEn ? '👑 VIP Membership Plans' : '👑 پلن‌های اشتراک VIP 🌟', callback_data: 'buy_vip_plans' }
+        ],
+        [
+          { text: isEn ? '🎁 Invite Friends & Earn' : '🎁 لینک دعوت و کسب درآمد', callback_data: 'show_referral' },
+          { text: isEn ? '🎡 Daily Lucky Wheel' : '🎡 گردونه شانس روزانه', callback_data: 'spin_wheel_action' }
+        ],
+        [
+          { text: isEn ? '🏆 Leaderboards & Ranks' : '🏆 جدول برترین‌ها و جوایز', callback_data: 'view_leaderboard_hub' }
+        ]
+      ]
+    }
+  });
+}
+
+// ----------------------------------------------------
 // ADVANCED IN-CHAT PROFILE ACTION ENGINES
 // ----------------------------------------------------
 
@@ -545,7 +589,9 @@ const I18N = {
                 '🏆 <b>سطح:</b> Level {lvl} ({xp} XP) | ⭐ <b>کارما:</b> {karma}\n' +
                 '🪙 <b>موجودی:</b> {coins} سکه | 🔥 <b>استریک روزانه:</b> {streak} روز {vipBadge}',
     btnChat: '💬 چت ناشناس و دوستیابی',
-    btnGames: '🎮 بازی‌ها و دوئل‌های 1v1 🎲',
+    btnGames: '🎮 بازی‌ها و دوئل‌های آنلاین 🎲',
+    btnFinanceHub: '💎 VIP، کیف‌پول و درآمدزایی 🎁',
+    btnProfileHub: '👤 پروفایل و تنظیمات ⚙️',
     btnCoins: '🪙 کیف پول و خرید ستاره ⭐',
     btnVip: '👑 عضویت و پلن‌های VIP',
     btnVipChat: '👑 چت‌روم گروهی VIP',
@@ -660,7 +706,9 @@ const I18N = {
                 '🏆 <b>Level:</b> Level {lvl} ({xp} XP) | ⭐ <b>Karma:</b> {karma}\n' +
                 '🪙 <b>Balance:</b> {coins} Coins | 🔥 <b>Daily Streak:</b> {streak} Days {vipBadge}',
     btnChat: '💬 Anonymous Chat & Dating',
-    btnGames: '🎮 1v1 Games & Duels 🎲',
+    btnGames: '🎮 Online Games & Duels 🎲',
+    btnFinanceHub: '💎 VIP, Wallet & Earn 🎁',
+    btnProfileHub: '👤 Profile & Settings ⚙️',
     btnCoins: '🪙 Wallet & Telegram Stars ⭐',
     btnVip: '👑 VIP Plans & Membership',
     btnVipChat: '👑 VIP Group Lounge',
@@ -1000,10 +1048,9 @@ async function sendProfileEditMenu(chatId, userId) {
 function getMainReplyKeyboard(userId) {
   return {
     keyboard: [
-      [{ text: t(userId, 'btnChat') }, { text: t(userId, 'btnGames') }],
-      [{ text: t(userId, 'btnCoins') }, { text: t(userId, 'btnVip') }],
-      [{ text: t(userId, 'btnProfile') }, { text: t(userId, 'btnReferral') }],
-      [{ text: t(userId, 'btnLeaderboard') }, { text: t(userId, 'btnSettings') }],
+      [{ text: t(userId, 'btnChat') }],
+      [{ text: t(userId, 'btnGames') }],
+      [{ text: t(userId, 'btnFinanceHub') }, { text: t(userId, 'btnProfileHub') }],
       [{ text: t(userId, 'btnMiniApp') }]
     ],
     resize_keyboard: true
@@ -2312,18 +2359,11 @@ async function handleMessage(msg) {
   if (text === '/search' || text === t(userId, 'btnSearch')) return sendUserSearchMenu(chatId, userId);
   if (text === '/wheel' || text === '🎡 گردونه شانس روزانه' || text === '🎡 Lucky Wheel') return sendLuckyWheelPrompt(chatId, userId);
   if (text === '/lang') return startLanguageChoice(chatId, userId);
-  if (text === '/vip') return sendVipPlansMenu(chatId, userId);
-  if (text === '/buy') return sendBuyStarsMenu(chatId, userId);
-  if (text === '/rank') return sendLeaderboard(chatId, userId);
-  if (text === '/ref') return sendReferralHub(chatId, userId);
-  if (text === '/games' || text === t(userId, 'btnGames')) return sendGamesMenu(chatId, userId);
-  if (text === '/chat' || text === t(userId, 'btnChat')) return sendFilterMenu(chatId, userId);
-  if (text === t(userId, 'btnCoins')) return sendBuyStarsMenu(chatId, userId);
-  if (text === t(userId, 'btnVip')) return sendVipPlansMenu(chatId, userId);
-  if (text === t(userId, 'btnReferral')) return sendReferralHub(chatId, userId);
-  if (text === t(userId, 'btnLeaderboard')) return sendLeaderboard(chatId, userId);
-  if (text === t(userId, 'btnSettings')) return startLanguageChoice(chatId, userId);
-  if (text === t(userId, 'btnProfile')) return sendProfileCard(chatId, userId);
+  if (text === '/vip' || text === '/buy' || text === '/wallet' || text === '/ref' || text === t(userId, 'btnFinanceHub') || text === '💎 VIP، کیف‌پول و درآمدزایی 🎁' || text === '💎 VIP, Wallet & Earn 🎁' || text === t(userId, 'btnCoins') || text === t(userId, 'btnVip') || text === t(userId, 'btnReferral')) return sendFinanceAndVipHub(chatId, userId);
+  if (text === '/profile' || text === '/settings' || text === t(userId, 'btnProfileHub') || text === '👤 پروفایل و تنظیمات ⚙️' || text === '👤 Profile & Settings ⚙️' || text === t(userId, 'btnProfile') || text === t(userId, 'btnSettings')) return sendProfileCard(chatId, userId);
+  if (text === '/games' || text === t(userId, 'btnGames') || text === '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' || text === '🎮 Online Games & Duels 🎲') return sendGamesMenu(chatId, userId);
+  if (text === '/chat' || text === t(userId, 'btnChat') || text === '💬 چت ناشناس و دوستیابی' || text === '💬 Anonymous Chat & Dating') return sendFilterMenu(chatId, userId);
+  if (text === '/rank' || text === t(userId, 'btnLeaderboard')) return sendLeaderboard(chatId, userId);
 
   if (text === t(userId, 'btnMiniApp')) {
     const user = db.users[userId];
@@ -2353,6 +2393,7 @@ async function handleCallbackQuery(cq) {
 
   // Admin Callbacks
   if (data === 'admin_refresh_stats') return sendAdminPanel(chatId, userId);
+  if (data === 'view_leaderboard_hub') return sendLeaderboard(chatId, userId);
   if (data === 'admin_view_reports') {
     const pending = (db.reports || []).filter(r => r.status === 'pending');
     if (pending.length === 0) {
