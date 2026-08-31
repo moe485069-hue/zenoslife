@@ -1686,21 +1686,47 @@ async function acceptDirectChatRequest(targetId, senderId) {
 // 16. GAMES & MONETIZATION
 // ----------------------------------------------------
 async function sendGamesMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const menuTitle = isEn
+    ? '🎮 <b>ZenOsLife Royal Gaming & Tournament Arena</b>\n\nSelect a game to play with Smart AI Bots or Real Users:'
+    : '🎮 <b>مرکز بازی‌ها و دوئل‌های 1v1 و گروهی زنوسلایف</b>\n\nیک بازی را برای شروع انتخاب کنید (قابلیت بازی با ربات هوشمند یا بازیکنان آنلاین):';
+
   const inlineKeyboard = {
     inline_keyboard: [
-      [{ text: t(userId, 'gameRps'), callback_data: 'game_rps_start' }],
-      [{ text: t(userId, 'gameDice'), callback_data: 'game_dice_start' }],
+      // Fast In-Bot 1v1 Duels
       [
-        { text: t(userId, 'gameHokm'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
-        { text: t(userId, 'gameBackgammon'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }
+        { text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'game_rps_start' },
+        { text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'game_dice_start' }
       ],
-      [{ text: t(userId, 'btnMiniApp'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
+      // Classic Board & Multi-player
+      [
+        { text: isEn ? '🎯 Ludo (2-4P)' : '🎯 منچ (۲ تا ۴ نفره)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/ludo` } },
+        { text: isEn ? '🐍 Snakes & Ladders' : '🐍🪜 مار و پله (۲ تا ۴ نفره)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/snakes-and-ladders` } }
+      ],
+      // Sports & Arcade
+      [
+        { text: isEn ? '⚽ Finger Soccer (2-4P)' : '⚽ فوتبال انگشتی و تیمی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/finger-soccer` } },
+        { text: isEn ? '🎱 8-Ball Billiards' : '🎱 بیلیارد و اسنوکر', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/billiards` } }
+      ],
+      // Cards & Classics
+      [
+        { text: isEn ? '🌈 Ocho (Uno Cards)' : '🌈 اوچو و اونو کارتی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/ocho` } },
+        { text: isEn ? '⛳ Mini Golf Royal' : '⛳ مینی گلف رویال', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/mini-golf` } }
+      ],
+      // Persian Favorites
+      [
+        { text: isEn ? '👑 Royal Hokm (4P)' : '👑 حکم ۴ نفره شاهانه', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
+        { text: isEn ? '🎲 Persian Backgammon' : '🎲 تخته نرد اصیل ایرانی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }
+      ],
+      // Full Arcade Portal
+      [{ text: isEn ? '🌟 All 15+ Arcade Games (Mini App)' : '🌟 ورود به آرکید جامع ۱۵+ بازی (Mini App)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
     ]
   };
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: t(userId, 'gamesTitle'),
+    text: menuTitle,
     parse_mode: 'HTML',
     reply_markup: inlineKeyboard
   });

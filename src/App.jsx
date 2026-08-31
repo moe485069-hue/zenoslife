@@ -86,6 +86,10 @@ const Ludo = lazyRetry(() => import('./pages/games/Ludo'));
 const Pasur = lazyRetry(() => import('./pages/games/Pasur'));
 const Billiards = lazyRetry(() => import('./pages/games/Billiards'));
 const Hokm = lazyRetry(() => import('./pages/games/Hokm'));
+const SnakesAndLadders = lazyRetry(() => import('./pages/games/SnakesAndLadders'));
+const FingerSoccer = lazyRetry(() => import('./pages/games/FingerSoccer'));
+const Ocho = lazyRetry(() => import('./pages/games/Ocho'));
+const MiniGolf = lazyRetry(() => import('./pages/games/MiniGolf'));
 const ChatRooms = lazyRetry(() => import('./pages/ChatRooms'));
 
 // Loading spinner component
@@ -389,6 +393,14 @@ export default function App() {
             <Route path="/games/pasur" element={<Pasur />} />
             <Route path="/games/billiards" element={<Billiards />} />
             <Route path="/games/hokm" element={<Hokm />} />
+            <Route path="/games/snakes-and-ladders" element={<SnakesAndLadders />} />
+            <Route path="/games/snakes" element={<SnakesAndLadders />} />
+            <Route path="/games/finger-soccer" element={<FingerSoccer />} />
+            <Route path="/games/soccer" element={<FingerSoccer />} />
+            <Route path="/games/ocho" element={<Ocho />} />
+            <Route path="/games/uno" element={<Ocho />} />
+            <Route path="/games/mini-golf" element={<MiniGolf />} />
+            <Route path="/games/golf" element={<MiniGolf />} />
             <Route path="/dashboard" element={<Home />} />
             <Route path="/home" element={<Home />} />
             <Route path="/mindfulness" element={<Mindfulness />} />
