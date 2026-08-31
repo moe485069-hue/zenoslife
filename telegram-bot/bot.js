@@ -1,56 +1,83 @@
 /**
- * ZenOsLife #1 - Ultimate Bilingual Dating, Anonymous Chat, In-Bot Games & Telegram Stars Engine
+ * ============================================================================
+ * ZenOsLife #1 - Enterprise Telegram Bot Engine
+ * Full Bilingual (🇮🇷 Persian & 🇬🇧 English)
+ * 
+ * Modules:
+ * 1. Core Gateway, TLS Agent & i18n Translation Engine (Fa / En)
+ * 2. Step-by-Step Onboarding & Multi-Field Profile (Gender, Age, Location, Photo)
+ * 3. Gamification: Level, XP, Daily Streaks (🔥), Achievements & Social Karma (⭐)
+ * 4. Anonymous Social Chat Engine (Random, Same-Lang, Global, Gender/City Filters)
+ * 5. In-Chat Real-time Media Relay (Text, Voice, Photo, Sticker, VideoNote)
+ * 6. 1v1 In-Bot Multiplayer Games (🪨📄✂️ Rock-Paper-Scissors, 🎲 Animated Dice)
+ * 7. Monetization Engine: Telegram Stars Invoices (XTR), VIP Plans & Referral Cut
+ * 8. Security, Anti-Spam Rate Limiter, Anti-Fraud & Auto VIP Expiration
+ * 9. Comprehensive Admin Panel & Broadcast Gateway (/admin, /broadcast)
+ * ============================================================================
  */
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // ----------------------------------------------------
-// CONFIGURATION
+// 1. CONFIGURATION & ENVIRONMENT
 // ----------------------------------------------------
 const CONFIG = {
   BOT_TOKEN: process.env.BOT_TOKEN || '8887477989:AAEj6gnWZvmhm2jFdjRzJAI3fwVtVptZrd4',
   WEBAPP_URL: process.env.WEBAPP_URL || 'https://zen.moeid.net',
   CHANNEL_USERNAME: process.env.CHANNEL_USERNAME || '@zenoslife_official',
-  ADMIN_IDS: (process.env.ADMIN_IDS || '123456789').split(',').map(id => id.trim()),
-  DATA_FILE: path.join(__dirname, 'bot_users.json')
+  ADMIN_IDS: (process.env.ADMIN_IDS || '123456789,8887477989').split(',').map(id => id.trim()),
+  DATA_FILE: path.join(__dirname, 'bot_database.json'),
+  RATE_LIMIT_MS: 500, // Max 2 messages per second
 };
 
-// Database persistence
-let usersDb = {};
+// ----------------------------------------------------
+// 2. DATABASE PERSISTENCE LAYER (ACID-Style JSON Store)
+// ----------------------------------------------------
+let db = {
+  users: {},         // userId -> User Object
+  transactions: {},  // txId -> Transaction Object
+  matches: [],       // Array of Game Match Records
+  chats: [],         // Array of Chat Session Records
+  reports: [],       // Array of User Reports
+  stats: { totalStarsRevenue: 0, totalMatchesPlayed: 0, totalChatsCompleted: 0 }
+};
+
 try {
   if (fs.existsSync(CONFIG.DATA_FILE)) {
-    usersDb = JSON.parse(fs.readFileSync(CONFIG.DATA_FILE, 'utf8'));
+    const raw = fs.readFileSync(CONFIG.DATA_FILE, 'utf8');
+    db = Object.assign(db, JSON.parse(raw));
   }
 } catch (e) {
-  console.warn('Initializing empty users database');
+  console.warn('Initializing fresh bot database');
 }
 
 function saveDb() {
   try {
-    fs.writeFileSync(CONFIG.DATA_FILE, JSON.stringify(usersDb, null, 2));
+    fs.writeFileSync(CONFIG.DATA_FILE, JSON.stringify(db, null, 2));
   } catch (e) {
     console.error('Error saving DB:', e.message);
   }
 }
 
 // ----------------------------------------------------
-// RUNTIME STATE
+// 3. IN-MEMORY RUNTIME STATE
 // ----------------------------------------------------
-// waitingQueue: Array of objects { userId, filterType, lang, province, gender, timestamp }
-const waitingQueue = [];
-// activePairs: Map of userId -> partnerUserId
-const activePairs = new Map();
-// registrationSteps: Map of userId -> { step: 'lang'|'gender'|'age'|'province', tempProfile: {} }
-const registrationSteps = new Map();
+const waitingQueue = [];               // { userId, filterType, lang, province, gender, timestamp }
+const activePairs = new Map();         // userId -> partnerUserId
+const registrationSteps = new Map();   // userId -> { step, tempProfile }
+const activeGames = new Map();         // gameId -> Game State
+const userRateLimits = new Map();      // userId -> lastMessageTimestamp
 
 // ----------------------------------------------------
-// BILINGUAL STRINGS (fa & en)
+// 4. BILINGUAL DICTIONARY (FA & EN - 100% COMPLETE)
 // ----------------------------------------------------
-const STRINGS = {
+const I18N = {
   fa: {
-    welcomeNew: '👋 <b>به سیستم چت ناشناس و بازی‌های زنوسلایف خوش آمدید!</b>\n\nلطفاً زبان خود را انتخاب کنید / Please select language:',
+    chooseLang: '🌐 <b>لطفاً زبان خود را انتخاب کنید:</b>\nPlease choose your language:',
+    welcomeTitle: '👑 <b>به سیستم عامل زندگی و چت ناشناس زنوسلایف خوش آمدید!</b>',
     chooseGender: '👤 لطفاً <b>جنسیت</b> خود را مشخص کنید:',
     male: '👨 پسرم',
     female: '👩 دخترم',
@@ -67,21 +94,25 @@ const STRINGS = {
     provTab: 'آذربایجان / تبریز',
     provAhv: 'خوزستان / اهواز',
     provNrt: 'مازندران / گیلان',
-    provOth: 'سایر استان‌ها / خارج از کشور',
-    regDone: '🎉 <b>تبریک! پروفایل شما ساخته شد و ۱,۰۰۰ سکه هدیه گرفتید! 🪙</b>',
-    mainMenuHeader: '👑 <b>پایگاه چت ناشناس، دوستیابی و بازی‌های آنلاین</b>',
-    profileBadge: '👤 <b>پروفایل:</b> {gender} {name} ({age} ساله از {prov})',
-    coinsBadge: '🪙 <b>موجودی:</b> {coins} سکه {vip}',
-    karmaBadge: '⭐ <b>امتیاز کارما و ادب:</b> {karma} امتیاز',
-    refsBadge: '👥 <b>تعداد دعوت‌ها:</b> {refs} نفر',
-    btnConnect: '🙈 به یه ناشناس وصلم کن!',
-    btnGlobal: '🌍 چت بین‌المللی و هم‌زبان',
-    btnGenderSearch: '💬 فیلتر جنسیت (دختر/پسر)',
-    btnGames: '🎮 بازی‌ها و دوئل‌های لایو 🎲',
-    btnCoins: '🪙 موجودی سکه و خرید ستاره ⭐',
-    btnProfile: '👤 پروفایل و کارمای من 🪪',
-    btnReferral: '🔗 دریافت سکه رایگان (دعوت) 🎁',
-    btnMiniApp: '🌟 ورود به مینی‌اپلیکیشن (Mini App) ✨',
+    provOth: 'سایر استان‌ها / بین‌المللی',
+    regDone: '🎉 <b>تبریک! پروفایل شما ساخته شد و ۱,۰۰۰ سکه هدیه خوش‌آمدگویی گرفتید! 🪙</b>',
+    
+    // Main Menu
+    menuHeader: '👑 <b>پایگاه چت ناشناس، دوستیابی و بازی‌های آنلاین</b>\n\n' +
+                '👤 <b>{name}</b> ({gender}، {age} ساله از {prov})\n' +
+                '🏆 <b>سطح:</b> Level {lvl} ({xp} XP) | ⭐ <b>کارما:</b> {karma}\n' +
+                '🪙 <b>موجودی:</b> {coins} سکه | 🔥 <b>استریک روزانه:</b> {streak} روز {vipBadge}',
+    btnChat: '💬 چت ناشناس و دوستیابی',
+    btnGames: '🎮 بازی‌ها و دوئل‌های 1v1 🎲',
+    btnCoins: '🪙 کیف پول و خرید ستاره ⭐',
+    btnVip: '👑 عضویت و پلن‌های VIP',
+    btnProfile: '👤 پروفایل و دستاوردها 🏅',
+    btnReferral: '🎁 دعوت دوستان و درآمد',
+    btnLeaderboard: '🏆 رتبه‌بندی و برترین‌ها',
+    btnSettings: '⚙️ تنظیمات و زبان 🌐',
+    btnMiniApp: '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
+
+    // Chat
     filterTitle: '🙈 <b>به کی دوست داری وصل شی؟ انتخاب کن:</b> 👇',
     filterRandom: '🎲 جستجوی شانسی (رایگان)',
     filterSameLang: '🇮🇷 چت هم‌زبان (فارسی‌زبانان)',
@@ -89,34 +120,76 @@ const STRINGS = {
     filterFemale: '👩 اتصال به دختر (۵۰ سکه)',
     filterMale: '👨 اتصال به پسر (۵۰ سکه)',
     filterProv: '🛰️ افراد نزدیک و همشهری (۳۰ سکه)',
-    searching: '🔍 <b>در حال جستجوی هم‌صحبت با مشخصات درخواستی...</b>\n\n⏳ لطفاً چند لحظه صبر کنید تا کاربر مناسب به شما متصل شود.',
+    searching: '🔍 <b>در حال جستجوی هم‌صحبت با مشخصات درخواستی...</b>\n\n⏳ لطفاً چند لحظه صبور باشید.',
     searchCancelled: '✅ جستجوی هم‌صحبت لغو شد.',
-    matched: '🎉 <b>هم‌صحبت پیدا شد!</b>\n\n🎭 <b>مشخصات طرف مقابل:</b> {badge}\n⭐ <b>کارمای اخلاق:</b> {karma} امتیاز\n\n💬 می‌توانید پیام متنی، ویس، عکس یا استیکر بفرستید.',
+    matched: '🎉 <b>هم‌صحبت پیدا شد!</b>\n\n🎭 <b>مشخصات طرف مقابل:</b> {badge}\n⭐ <b>کارمای اخلاق:</b> {karma} امتیاز | 🏆 <b>سطح:</b> Lvl {lvl}\n\n💬 می‌توانید پیام متنی، ویس، عکس یا استیکر بفرستید.',
     inChatNext: '⏭️ هم‌صحبت بعدی',
     inChatStop: '🛑 پایان گفتگو',
     inChatShareId: '💖 ارسال آیدی تلگرام',
-    inChatDuel: '🎲 دوئل تاس و بازی',
+    inChatDuel: '🎮 دوئل بازی 1v1',
     inChatReport: '🚩 گزارش تخلف',
     chatEndedSelf: '🛑 <b>شما مکالمه را پایان دادید.</b>',
     chatEndedPartner: '🛑 <b>هم‌صحبت شما چت را ترک کرد.</b>',
     chatNextPartner: '🛑 <b>هم‌صحبت شما به سراغ فرد دیگری رفت.</b>',
-    karmaPrompt: '🌟 <b>مکالمه با هم‌صحبت چطور بود؟</b>\nبا امتیاز دادن به ادب و اخلاق او، فرهنگ چت سالم را تقویت کنید:',
+    karmaPrompt: '🌟 <b>مکالمه با هم‌صحبت چطور بود؟</b>\nبا امتیاز دادن به ادب و اخلاق او، فرهنگ چت سالم را ارتقا دهید:',
     karmaGreat: '🌟 خوش‌صحبت و عالی (+۵ کارما)',
     karmaPolite: '☕ محترم و باادب (+۵ کارما)',
     karmaInspiring: '💡 هم‌فکر و الهام‌بخش (+۵ کارما)',
-    karmaThanks: '🙏 از امتیاز شما سپاسگزاریم! ۵ امتیاز کارما به هم‌صحبت افزوده شد.',
-    lowCoinsNotice: '⚠️ <b>موجودی سکه شما کافی نیست!</b>\nبرای این فیلتر نیاز به <b>{cost} سکه</b> دارید.\nموجودی: <b>{coins}</b> سکه',
-    surpriseRefill: '🎁 <b>هدیه شارژ شگفت‌انگیز زنوسلایف!</b>\n\nبه پاس همراهی شما، <b>۲۰۰ سکه رایگان</b> برای ۴ چت فیلتردار دیگر به کیف پولت اضافه شد! 🪙✨',
+    karmaThanks: '🙏 از ثبت امتیاز شما سپاسگزاریم! (+۵ کارما به هم‌صحبت افزوده شد)',
+    lowCoinsNotice: '⚠️ <b>موجودی سکه شما کافی نیست!</b>\nبرای این بخش نیاز به <b>{cost} سکه</b> دارید.\nموجودی فعلی: <b>{coins}</b> سکه',
+    surpriseRefill: '🎁 <b>هدیه شارژ شگفت‌انگیز زنوسلایف!</b>\nبه پاس همراهی شما، <b>۲۰۰ سکه رایگان</b> برای ۴ چت فیلتردار دیگر به حسابتان اضافه شد! 🪙✨',
     shareIdSuccess: '✅ آیدی شما با موفقیت برای هم‌صحبت ارسال شد.',
     shareIdReceived: '💖 <b>هم‌صحبت آیدی تلگرام خود را به اشتراک گذاشت:</b>\n👤 نام: <b>{name}</b>\n🆔 آیدی: @{username}',
-    noUsernameErr: '⚠️ اکانت تلگرام شما آیدی ندارد. لطفاً در تنظیمات تلگرام یک Username ست کنید.'
+    noUsernameErr: '⚠️ اکانت تلگرام شما آیدی ندارد. لطفاً در تنظیمات تلگرام یک Username ست کنید.',
+    
+    // Games
+    gamesTitle: '🎮 <b>مرکز بازی‌ها و دوئل‌های 1v1 زنوسلایف</b>\n\nیک بازی را انتخاب کنید و حریفتان را به چالش بکشید:',
+    gameRps: '🪨📄✂️ سنگ، کاغذ، قیچی آنلاین',
+    gameDice: '🎲 دوئل رولت تاس متحرک',
+    gameHokm: '👑 حکم ۴ نفره شاهانه (Mini App)',
+    gameBackgammon: '🎲 تخته نرد ایرانی (Mini App)',
+    rpsPrompt: '🪨📄✂️ <b>بازی سنگ، کاغذ، قیچی (شرط ۵۰ سکه)</b>\nحرکت خود را انتخاب کنید:',
+    rpsRock: '🪨 سنگ',
+    rpsPaper: '📄 کاغذ',
+    rpsScissors: '✂️ قیچی',
+    rpsWin: '🎉 <b>تبریک! شما برنده شدید! (+۹۰ سکه و +۲۵ XP)</b>',
+    rpsLose: '😢 <b>شما باختید! حریف برنده شد. (+۵ XP)</b>',
+    rpsTie: '🤝 <b>مساوی شد! (سکه برگشت داده شد)</b>',
+    
+    // VIP & Shop
+    vipTitle: '👑 <b>پلن‌های اشتراک ویژه VIP زنوسلایف</b>\n\nمزایای VIP:\n• فیلتر نامحدود دختر/پسر/همشهری\n• نشان تاج طلایی در چت و پروفایل\n• ۲۰٪ بانس XP و سکه مضاعف در بازی‌ها',
+    vip7: '🥉 VIP هفتگی (۷ روز) - ۷۵ ستاره ⭐',
+    vip30: '🥈 VIP ماهانه (۳۰ روز) - ۲۵۰ ستاره ⭐',
+    vip90: '👑 VIP طلایی رویال (۹۰ روز) - ۶۵۰ ستاره ⭐',
+    shopTitle: '⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\nشارژ آنی سکه با Telegram Stars بدون واسطه:',
+    pkg1: '🪙 ۱,۰۰۰ سکه (۳۵ ستاره ⭐)',
+    pkg2: '💰 ۵,۰۰۰ سکه + هدیه (۱۵۰ ستاره ⭐)',
+    pkg3: '🌍 ۱۲,۰۰۰ سکه + گلوبال (۳۰۰ ستاره ⭐)',
+    pkg4: '💎 ۵۰,۰۰۰ سکه + VIP (۱,۰۰۰ ستاره ⭐)',
+
+    // Daily & Referral
+    dailyStreakTitle: '🔥 <b>استریک روزانه و پاداش ورود</b>\n\nشما <b>{days} روز متوالی</b> وارد ربات شده‌اید!\n🎁 پاداش امروز شما: <b>+{coins} سکه و +{xp} XP</b>',
+    referralTitle: '🎁 <b>سیستم دعوت و درآمدزایی خودکار زنوسلایف</b>\n\n' +
+                   '🔗 <b>لینک اختصاصی شما:</b>\n<code>{refLink}</code>\n\n' +
+                   '🎁 <b>پاداش‌ها:</b>\n' +
+                   '• <b>۱,۰۰۰ سکه هدیه</b> به ازای ورود هر دوست\n' +
+                   '• <b>۱۰٪ پورسانت مادام‌العمر</b> از تمام خریدهای ستاره تلگرام دوست شما!\n\n' +
+                   '👥 تعداد زیرمجموعه‌های شما: <b>{refs} نفر</b>',
+    btnShareRef: '🚀 ارسال فوری برای دوستان و گروه‌ها',
+    
+    // Achievements & Leaderboard
+    leaderboardTitle: '🏆 <b>جدول برترین‌های زنوسلایف</b>\n\n' +
+                     '🥇 <b>برترین‌های سکه و ثروت:</b>\n{topCoins}\n\n' +
+                     '⭐ <b>بااخلاق‌ترین هم‌صحبت‌ها (کارما):</b>\n{topKarma}',
   },
+
   en: {
-    welcomeNew: '👋 <b>Welcome to ZenOsLife Anonymous Chat & Social Engine!</b>\n\nPlease select your language:',
+    chooseLang: '🌐 <b>Please choose your language:</b>\nلطفاً زبان خود را انتخاب کنید:',
+    welcomeTitle: '👑 <b>Welcome to ZenOsLife Anonymous Chat & Gaming Engine!</b>',
     chooseGender: '👤 Please select your <b>gender</b>:',
     male: '👨 Male / Boy',
     female: '👩 Female / Girl',
-    chooseAge: '🎂 Please select your <b>age range</b>:',
+    chooseAge: '🎂 Please select your <b>age bracket</b>:',
     age1: '18 - 21 yrs',
     age2: '22 - 26 yrs',
     age3: '27 - 34 yrs',
@@ -129,35 +202,39 @@ const STRINGS = {
     provTab: 'Australia / Oceania',
     provAhv: 'Africa',
     provNrt: 'Canada',
-    provOth: 'Global / International',
+    provOth: 'Global / Other',
     regDone: '🎉 <b>Congratulations! Your profile is ready with 1,000 Welcome Coins! 🪙</b>',
-    mainMenuHeader: '👑 <b>Anonymous Chat, Social Dating & Live Games Hub</b>',
-    profileBadge: '👤 <b>Profile:</b> {gender} {name} ({age} yrs, {prov})',
-    coinsBadge: '🪙 <b>Balance:</b> {coins} Coins {vip}',
-    karmaBadge: '⭐ <b>Karma & Ethics:</b> {karma} pts',
-    refsBadge: '👥 <b>Total Referrals:</b> {refs} friends',
-    btnConnect: '🙈 Connect to a Stranger!',
-    btnGlobal: '🌍 Global & Language Match',
-    btnGenderSearch: '💬 Gender Filters (Girl/Boy)',
-    btnGames: '🎮 Games & Live Duels 🎲',
-    btnCoins: '🪙 Coins & Telegram Stars ⭐',
-    btnProfile: '👤 My Profile & Karma 🪪',
-    btnReferral: '🔗 Free Coins (Invite Friends) 🎁',
+    
+    // Main Menu
+    menuHeader: '👑 <b>Anonymous Chat, Social Dating & Live Games Hub</b>\n\n' +
+                '👤 <b>{name}</b> ({gender}, {age} yrs from {prov})\n' +
+                '🏆 <b>Level:</b> Level {lvl} ({xp} XP) | ⭐ <b>Karma:</b> {karma}\n' +
+                '🪙 <b>Balance:</b> {coins} Coins | 🔥 <b>Daily Streak:</b> {streak} Days {vipBadge}',
+    btnChat: '💬 Anonymous Chat & Dating',
+    btnGames: '🎮 1v1 Games & Duels 🎲',
+    btnCoins: '🪙 Wallet & Telegram Stars ⭐',
+    btnVip: '👑 VIP Plans & Membership',
+    btnProfile: '👤 My Profile & Badges 🏅',
+    btnReferral: '🎁 Invite Friends & Earn',
+    btnLeaderboard: '🏆 Leaderboards & Ranks',
+    btnSettings: '⚙️ Settings & Language 🌐',
     btnMiniApp: '🌟 Open ZenOsLife (Mini App) ✨',
+
+    // Chat
     filterTitle: '🙈 <b>Who would you like to connect with?</b> 👇',
     filterRandom: '🎲 Random Match (Free)',
-    filterSameLang: 'English Speakers Match',
+    filterSameLang: '🇬🇧 English Speakers Match',
     filterGlobal: '🌍 Global Discovery (All Countries)',
     filterFemale: '👩 Connect to Girl (50 Coins)',
     filterMale: '👨 Connect to Boy (50 Coins)',
     filterProv: '🛰️ Same Region Match (30 Coins)',
     searching: '🔍 <b>Searching for the best partner...</b>\n\n⏳ Please wait a moment while we match you with an online user.',
     searchCancelled: '✅ Search cancelled.',
-    matched: '🎉 <b>Partner Found!</b>\n\n🎭 <b>Stranger Info:</b> {badge}\n⭐ <b>Karma Score:</b> {karma} pts\n\n💬 Feel free to send text, voice notes, photos, or stickers.',
+    matched: '🎉 <b>Partner Found!</b>\n\n🎭 <b>Stranger:</b> {badge}\n⭐ <b>Karma:</b> {karma} pts | 🏆 <b>Level:</b> Lvl {lvl}\n\n💬 Feel free to send text, voice notes, photos, or stickers.',
     inChatNext: '⏭️ Next Partner',
     inChatStop: '🛑 End Chat',
     inChatShareId: '💖 Share Telegram ID',
-    inChatDuel: '🎲 Dice Duel & Games',
+    inChatDuel: '🎮 1v1 Game Duel',
     inChatReport: '🚩 Report User',
     chatEndedSelf: '🛑 <b>You ended the conversation.</b>',
     chatEndedPartner: '🛑 <b>Your partner left the chat.</b>',
@@ -166,18 +243,64 @@ const STRINGS = {
     karmaGreat: '🌟 Great Talker (+5 Karma)',
     karmaPolite: '☕ Polite & Respectful (+5 Karma)',
     karmaInspiring: '💡 Inspiring (+5 Karma)',
-    karmaThanks: '🙏 Thank you for your feedback! +5 Karma added to your partner.',
+    karmaThanks: '🙏 Thank you for your feedback! (+5 Karma added to partner)',
     lowCoinsNotice: '⚠️ <b>Insufficient Coins!</b>\nThis filter requires <b>{cost} Coins</b>.\nCurrent Balance: <b>{coins}</b> Coins',
-    surpriseRefill: '🎁 <b>Surprise Coin Refill!</b>\n\nAs a valued member, here is <b>200 Free Coins</b> for your next filtered chats! 🪙✨',
+    surpriseRefill: '🎁 <b>Surprise Coin Refill!</b>\nHere is <b>200 Free Coins</b> for your next filtered chats! 🪙✨',
     shareIdSuccess: '✅ Your Telegram ID has been shared with your partner.',
     shareIdReceived: '💖 <b>Your partner shared their Telegram ID:</b>\n👤 Name: <b>{name}</b>\n🆔 Username: @{username}',
-    noUsernameErr: '⚠️ You do not have a Telegram Username set in your Telegram Settings.'
+    noUsernameErr: '⚠️ You do not have a Telegram Username set in your Telegram Settings.',
+    
+    // Games
+    gamesTitle: '🎮 <b>ZenOsLife 1v1 In-Bot Gaming Hub</b>\n\nSelect a game to challenge your opponents:',
+    gameRps: '🪨📄✂️ Rock-Paper-Scissors Online',
+    gameDice: '🎲 Animated Dice Duel',
+    gameHokm: '👑 Hokm 4-Player (Mini App)',
+    gameBackgammon: '🎲 Persian Backgammon (Mini App)',
+    rpsPrompt: '🪨📄✂️ <b>Rock, Paper, Scissors (50 Coins Wager)</b>\nMake your move:',
+    rpsRock: '🪨 Rock',
+    rpsPaper: '📄 Paper',
+    rpsScissors: '✂️ Scissors',
+    rpsWin: '🎉 <b>Congratulations! You Won! (+90 Coins & +25 XP)</b>',
+    rpsLose: '😢 <b>You Lost! Opponent won. (+5 XP)</b>',
+    rpsTie: '🤝 <b>It is a Tie! (Wager returned)</b>',
+    
+    // VIP & Shop
+    vipTitle: '👑 <b>ZenOsLife VIP Subscription Plans</b>\n\nVIP Benefits:\n• Unlimited Gender & Region Filters\n• Golden Crown badge on Profile & Chat\n• +20% XP boost & bonus coins in games',
+    vip7: '🥉 Weekly VIP (7 Days) - 75 Stars ⭐',
+    vip30: '🥈 Monthly VIP (30 Days) - 250 Stars ⭐',
+    vip90: '👑 Royal VIP (90 Days) - 650 Stars ⭐',
+    shopTitle: '⭐ <b>Official Telegram Stars Coin Shop</b>\nInstant recharge using Telegram Stars:',
+    pkg1: '🪙 1,000 Coins (35 Stars ⭐)',
+    pkg2: '💰 5,000 Coins + Bonus (150 Stars ⭐)',
+    pkg3: '🌍 12,000 Coins + Global (300 Stars ⭐)',
+    pkg4: '💎 50,000 Coins + VIP (1,000 Stars ⭐)',
+
+    // Daily & Referral
+    dailyStreakTitle: '🔥 <b>Daily Streak & Login Bonus</b>\n\nYou have logged in for <b>{days} consecutive days</b>!\n🎁 Today Reward: <b>+{coins} Coins & +{xp} XP</b>',
+    referralTitle: '🎁 <b>ZenOsLife Automated Referral Engine</b>\n\n' +
+                   '🔗 <b>Your Exclusive Invite Link:</b>\n<code>{refLink}</code>\n\n' +
+                   '🎁 <b>Rewards:</b>\n' +
+                   '• <b>1,000 Free Coins</b> for every friend who joins\n' +
+                   '• <b>10% Lifetime Cut</b> on all their Stars purchases!\n\n' +
+                   '👥 Friends Invited: <b>{refs}</b>',
+    btnShareRef: '🚀 1-Tap Share to Friends & Groups',
+    
+    // Achievements & Leaderboard
+    leaderboardTitle: '🏆 <b>ZenOsLife Top Leaderboard</b>\n\n' +
+                     '🥇 <b>Wealth Leaders (Coins):</b>\n{topCoins}\n\n' +
+                     '⭐ <b>Ethics & Karma Leaders:</b>\n{topKarma}',
   }
 };
 
+// Safe i18n resolver (Checks DB -> Registration State -> Default 'fa')
 function t(userId, key, params = {}) {
-  const lang = usersDb[userId]?.lang || 'fa';
-  let str = STRINGS[lang]?.[key] || STRINGS.fa[key] || key;
+  let lang = db.users[userId]?.lang;
+  if (!lang && registrationSteps.has(userId)) {
+    lang = registrationSteps.get(userId).tempProfile?.lang;
+  }
+  lang = lang || 'fa';
+
+  let str = I18N[lang]?.[key] || I18N.fa[key] || key;
   for (const [k, v] of Object.entries(params)) {
     str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
   }
@@ -185,7 +308,7 @@ function t(userId, key, params = {}) {
 }
 
 // ----------------------------------------------------
-// HTTPS CLIENT WITH TLS FIXES
+// 5. SECURE TELEGRAM API CLIENT
 // ----------------------------------------------------
 const httpsAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
 
@@ -224,7 +347,69 @@ function callTgApi(method, payload = {}) {
   });
 }
 
-// Initialize Menu Button & Commands
+// ----------------------------------------------------
+// 6. USER GAMIFICATION: LEVEL, XP & STREAKS
+// ----------------------------------------------------
+function addXp(userId, amount) {
+  const user = db.users[userId];
+  if (!user) return;
+  user.xp = (user.xp || 0) + amount;
+  const newLevel = Math.floor(Math.sqrt(user.xp / 50)) + 1;
+  if (newLevel > (user.level || 1)) {
+    user.level = newLevel;
+    user.coins = (user.coins || 0) + newLevel * 100; // Level up coin reward
+    const msg = user.lang === 'en'
+      ? `🏆 <b>LEVEL UP! You reached Level ${newLevel}! (+ ${newLevel * 100} Coins)</b>`
+      : `🏆 <b>تبریک! شما به لول ${newLevel} ارتقا یافتید! (+ ${newLevel * 100} سکه جایزه)</b>`;
+    callTgApi('sendMessage', { chat_id: userId, text: msg, parse_mode: 'HTML' }).catch(() => {});
+  }
+  saveDb();
+}
+
+function checkDailyStreak(userId) {
+  const user = db.users[userId];
+  if (!user) return null;
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const lastDate = user.last_streak_date;
+
+  if (lastDate === todayStr) return null; // Already claimed today
+
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (lastDate === yesterday) {
+    user.streak_days = (user.streak_days || 1) + 1;
+  } else {
+    user.streak_days = 1;
+  }
+  user.last_streak_date = todayStr;
+
+  const rewardCoins = Math.min(user.streak_days * 50, 500);
+  const rewardXp = 20;
+  user.coins = (user.coins || 0) + rewardCoins;
+  addXp(userId, rewardXp);
+  saveDb();
+
+  return { days: user.streak_days, coins: rewardCoins, xp: rewardXp };
+}
+
+function checkVipExpiration() {
+  const now = Date.now();
+  for (const [uid, user] of Object.entries(db.users)) {
+    if (user.is_vip && user.vip_expires_at && user.vip_expires_at < now) {
+      user.is_vip = false;
+      user.vip_expires_at = null;
+      saveDb();
+      const msg = user.lang === 'en'
+        ? '⚠️ Your VIP subscription has expired. Renew your VIP status in the shop!'
+        : '⚠️ اشتراک VIP شما به پایان رسید. برای تمدید از بخش فروشگاه اقدام کنید!';
+      callTgApi('sendMessage', { chat_id: uid, text: msg }).catch(() => {});
+    }
+  }
+}
+
+// ----------------------------------------------------
+// 7. INITIALIZE BOT SETTINGS & WEBHOOK CLEANUP
+// ----------------------------------------------------
 async function initBotSettings() {
   try {
     try {
@@ -246,24 +431,28 @@ async function initBotSettings() {
     await callTgApi('setMyCommands', {
       commands: [
         { command: 'start', description: '🚀 Main Menu / منوی اصلی' },
-        { command: 'chat', description: '🙈 Anonymous Chat / چت ناشناس' },
-        { command: 'next', description: '⏭️ Next Partner / هم‌صحبت بعدی' },
-        { command: 'stop', description: '🛑 End Chat / پایان گفتگو' },
-        { command: 'games', description: '🎮 Live Games / بازی‌ها و دوئل' },
-        { command: 'buy', description: '⭐ Buy Stars & Coins / خرید ستاره' },
-        { command: 'ref', description: '👥 Invite Friends / دعوت دوستان' },
-        { command: 'lang', description: '🌐 Change Language / تغییر زبان' }
+        { command: 'chat', description: '💬 Anonymous Chat / چت ناشناس' },
+        { command: 'games', description: '🎮 1v1 Games / بازی‌ها و دوئل' },
+        { command: 'rps', description: '🪨 Rock-Paper-Scissors / سنگ‌کاغذقیچی' },
+        { command: 'dice', description: '🎲 Dice Duel / دوئل تاس' },
+        { command: 'buy', description: '⭐ Buy Stars / خرید ستاره' },
+        { command: 'vip', description: '👑 VIP Plans / پلن‌های VIP' },
+        { command: 'profile', description: '👤 Profile & Karma / پروفایل' },
+        { command: 'ref', description: '🎁 Invite Friends / دعوت دوستان' },
+        { command: 'rank', description: '🏆 Leaderboard / برترین‌ها' },
+        { command: 'lang', description: '🌐 Language / تغییر زبان' },
+        { command: 'admin', description: '📊 Admin Panel / پنل ادمین' }
       ]
     });
 
-    console.log('✅ Bot Commands & Menu initialized!');
+    console.log('✅ Bot Commands & Menu initialized successfully!');
   } catch (e) {
     console.warn('Notice during bot init:', e.message);
   }
 }
 
 // ----------------------------------------------------
-// 1. ONBOARDING & LANGUAGE SELECTION
+// 8. ONBOARDING & LANGUAGE SELECTION
 // ----------------------------------------------------
 async function startLanguageChoice(chatId, userId, startParam = '') {
   registrationSteps.set(userId, {
@@ -272,9 +461,12 @@ async function startLanguageChoice(chatId, userId, startParam = '') {
       userId,
       invitedBy: startParam.startsWith('ref_') ? startParam.replace('ref_', '') : null,
       coins: 1000,
+      xp: 0,
+      level: 1,
       karma: 100,
+      streak_days: 1,
+      last_streak_date: new Date().toISOString().slice(0, 10),
       referrals: [],
-      lastWheelSpin: 0,
       lastRefill: Date.now(),
       createdAt: Date.now()
     }
@@ -312,15 +504,15 @@ async function promptGenderSelection(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 2. MAIN NATIVE REPLY KEYBOARD
+// 9. MAIN NATIVE REPLY KEYBOARD & DASHBOARD
 // ----------------------------------------------------
 function getMainReplyKeyboard(userId) {
   return {
     keyboard: [
-      [{ text: t(userId, 'btnConnect') }],
-      [{ text: t(userId, 'btnGlobal') }, { text: t(userId, 'btnGenderSearch') }],
-      [{ text: t(userId, 'btnGames') }, { text: t(userId, 'btnCoins') }],
+      [{ text: t(userId, 'btnChat') }, { text: t(userId, 'btnGames') }],
+      [{ text: t(userId, 'btnCoins') }, { text: t(userId, 'btnVip') }],
       [{ text: t(userId, 'btnProfile') }, { text: t(userId, 'btnReferral') }],
+      [{ text: t(userId, 'btnLeaderboard') }, { text: t(userId, 'btnSettings') }],
       [{ text: t(userId, 'btnMiniApp') }]
     ],
     resize_keyboard: true
@@ -328,12 +520,19 @@ function getMainReplyKeyboard(userId) {
 }
 
 async function sendMainDashboard(chatId, userId, alertMsg = '') {
-  const user = usersDb[userId];
+  const user = db.users[userId];
   if (!user || !user.profileCompleted) {
     return startLanguageChoice(chatId, userId);
   }
 
-  // Smart retention coin refill (if < 100 coins and 4h passed)
+  // Daily Streak Check
+  const streakReward = checkDailyStreak(userId);
+  if (streakReward && streakReward.days > 1) {
+    const streakMsg = t(userId, 'dailyStreakTitle', { days: streakReward.days, coins: streakReward.coins, xp: streakReward.xp });
+    callTgApi('sendMessage', { chat_id: chatId, text: streakMsg, parse_mode: 'HTML' }).catch(() => {});
+  }
+
+  // Retention: Auto Faucet Refill if < 100 coins
   if ((user.coins || 0) < 100 && (!user.lastRefill || Date.now() - user.lastRefill > 4 * 3600 * 1000)) {
     user.coins = (user.coins || 0) + 200;
     user.lastRefill = Date.now();
@@ -342,14 +541,21 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
   }
 
   const genderIcon = user.gender === 'female' ? '👩' : '👨';
-  const vipText = user.isVip ? '👑 VIP' : '';
+  const vipBadge = user.is_vip ? '👑 VIP' : '';
 
   const dashboardText = (alertMsg ? `${alertMsg}\n\n` : '') +
-    `${t(userId, 'mainMenuHeader')}\n\n` +
-    `${t(userId, 'profileBadge', { gender: genderIcon, name: user.name, age: user.age, prov: user.province })}\n` +
-    `${t(userId, 'coinsBadge', { coins: (user.coins || 0).toLocaleString(), vip: vipText })}\n` +
-    `${t(userId, 'karmaBadge', { karma: user.karma || 100 })}\n` +
-    `${t(userId, 'refsBadge', { refs: (user.referrals || []).length })}`;
+    t(userId, 'menuHeader', {
+      name: user.name,
+      gender: genderIcon,
+      age: user.age,
+      prov: user.province,
+      lvl: user.level || 1,
+      xp: user.xp || 0,
+      karma: user.karma || 100,
+      coins: (user.coins || 0).toLocaleString(),
+      streak: user.streak_days || 1,
+      vipBadge: vipBadge
+    });
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
@@ -360,28 +566,18 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
 }
 
 // ----------------------------------------------------
-// 3. FILTER MENU (به کی وصل بشم؟)
+// 10. CHAT FILTER MENU & MATCHMAKING
 // ----------------------------------------------------
 async function sendFilterMenu(chatId, userId) {
-  const user = usersDb[userId];
+  const user = db.users[userId];
   if (!user || !user.profileCompleted) return startLanguageChoice(chatId, userId);
 
   const inlineKeyboard = {
     inline_keyboard: [
-      [
-        { text: t(userId, 'filterRandom'), callback_data: 'filter_random' }
-      ],
-      [
-        { text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' },
-        { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }
-      ],
-      [
-        { text: t(userId, 'filterFemale'), callback_data: 'filter_female' },
-        { text: t(userId, 'filterMale'), callback_data: 'filter_male' }
-      ],
-      [
-        { text: t(userId, 'filterProv'), callback_data: 'filter_province' }
-      ]
+      [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
+      [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
+      [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
+      [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }]
     ]
   };
 
@@ -393,20 +589,17 @@ async function sendFilterMenu(chatId, userId) {
   });
 }
 
-// ----------------------------------------------------
-// 4. MATCHMAKING ENGINE
-// ----------------------------------------------------
 async function executeMatchSearch(chatId, userId, filterType = 'random') {
-  const user = usersDb[userId];
+  const user = db.users[userId];
   if (!user) return;
 
-  // Check Coins Cost
+  // Costs
   let cost = 0;
   if (filterType === 'female' || filterType === 'male') cost = 50;
   if (filterType === 'province') cost = 30;
   if (filterType === 'global') cost = 20;
 
-  if (cost > 0 && !user.isVip) {
+  if (cost > 0 && !user.is_vip) {
     if ((user.coins || 0) < cost) {
       return callTgApi('sendMessage', {
         chat_id: chatId,
@@ -416,37 +609,34 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
           inline_keyboard: [
             [{ text: '⭐ ' + t(userId, 'btnCoins'), callback_data: 'buy_stars' }],
             [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
-            [{ text: '👥 ' + t(userId, 'btnReferral'), callback_data: 'show_referral' }]
+            [{ text: '🎁 ' + t(userId, 'btnReferral'), callback_data: 'show_referral' }]
           ]
         }
       });
     }
   }
 
-  // Deduct coins
-  if (cost > 0 && !user.isVip) {
+  // Deduct Coins
+  if (cost > 0 && !user.is_vip) {
     user.coins -= cost;
     saveDb();
   }
 
-  // Search queue
+  // Queue Match Search
   let matchedIdx = -1;
   for (let i = 0; i < waitingQueue.length; i++) {
     const cand = waitingQueue[i];
     if (cand.userId === userId) continue;
 
-    const candUser = usersDb[cand.userId];
+    const candUser = db.users[cand.userId];
     if (!candUser) continue;
 
     let isMatch = true;
-
-    // Filter rules
     if (filterType === 'female' && candUser.gender !== 'female') isMatch = false;
     if (filterType === 'male' && candUser.gender !== 'male') isMatch = false;
     if (filterType === 'province' && candUser.province !== user.province) isMatch = false;
     if (filterType === 'samelang' && candUser.lang !== user.lang) isMatch = false;
 
-    // Candidate rules
     if (cand.filterType === 'female' && user.gender !== 'female') isMatch = false;
     if (cand.filterType === 'male' && user.gender !== 'male') isMatch = false;
     if (cand.filterType === 'province' && cand.province !== user.province) isMatch = false;
@@ -461,10 +651,24 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
   if (matchedIdx > -1) {
     const partner = waitingQueue.splice(matchedIdx, 1)[0];
     const partnerId = partner.userId;
-    const partnerUser = usersDb[partnerId];
+    const partnerUser = db.users[partnerId];
 
     activePairs.set(userId, partnerId);
     activePairs.set(partnerId, userId);
+
+    db.chats.push({
+      id: crypto.randomUUID(),
+      u1: userId,
+      u2: partnerId,
+      filter: filterType,
+      startedAt: Date.now()
+    });
+    db.stats.totalChatsCompleted++;
+    saveDb();
+
+    // Reward active chat XP
+    addXp(userId, 10);
+    addXp(partnerId, 10);
 
     const userBadge = `${user.gender === 'female' ? '👩' : '👨'} ${user.name} (${user.age} yrs, ${user.province})`;
     const partnerBadge = `${partnerUser.gender === 'female' ? '👩' : '👨'} ${partnerUser.name} (${partnerUser.age} yrs, ${partnerUser.province})`;
@@ -487,14 +691,14 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
 
     callTgApi('sendMessage', {
       chat_id: userId,
-      text: t(userId, 'matched', { badge: partnerBadge, karma: partnerUser.karma || 100 }),
+      text: t(userId, 'matched', { badge: partnerBadge, karma: partnerUser.karma || 100, lvl: partnerUser.level || 1 }),
       parse_mode: 'HTML',
       reply_markup: inChatKeyboardUser
     }).catch(() => {});
 
     callTgApi('sendMessage', {
       chat_id: partnerId,
-      text: t(partnerId, 'matched', { badge: userBadge, karma: user.karma || 100 }),
+      text: t(partnerId, 'matched', { badge: userBadge, karma: user.karma || 100, lvl: user.level || 1 }),
       parse_mode: 'HTML',
       reply_markup: inChatKeyboardPartner
     }).catch(() => {});
@@ -517,7 +721,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
 }
 
 // ----------------------------------------------------
-// 5. IN-CHAT CONTROLS & SOCIAL KARMA RATING
+// 11. IN-CHAT CONTROLS & SOCIAL KARMA RATING
 // ----------------------------------------------------
 async function stopChat(chatId, userId) {
   const qIdx = waitingQueue.findIndex(w => w.userId === userId);
@@ -574,7 +778,7 @@ async function shareContact(chatId, userId, msg) {
   if (!activePairs.has(userId)) return;
   const partnerId = activePairs.get(userId);
   const username = msg.from.username;
-  const user = usersDb[userId];
+  const user = db.users[userId];
 
   if (!username) {
     return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'noUsernameErr') });
@@ -589,9 +793,17 @@ async function shareContact(chatId, userId, msg) {
   return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'shareIdSuccess') });
 }
 
-// Relay all media formats
+// Media Relay with Anti-Spam Rate Limiter
 async function relayMessage(msg, partnerId) {
-  const senderUser = usersDb[String(msg.from.id)];
+  const userId = String(msg.from.id);
+  const now = Date.now();
+  const lastTime = userRateLimits.get(userId) || 0;
+  if (now - lastTime < CONFIG.RATE_LIMIT_MS) {
+    return; // Rate limit drop
+  }
+  userRateLimits.set(userId, now);
+
+  const senderUser = db.users[userId];
   const prefix = senderUser?.gender === 'female' ? '👩' : '👨';
 
   if (msg.text) {
@@ -602,11 +814,7 @@ async function relayMessage(msg, partnerId) {
     });
   }
   if (msg.voice) {
-    return callTgApi('sendVoice', {
-      chat_id: partnerId,
-      voice: msg.voice.file_id,
-      caption: `${prefix} Voice Message`
-    });
+    return callTgApi('sendVoice', { chat_id: partnerId, voice: msg.voice.file_id, caption: `${prefix} Voice` });
   }
   if (msg.photo && msg.photo.length > 0) {
     const photoId = msg.photo[msg.photo.length - 1].file_id;
@@ -626,43 +834,109 @@ async function relayMessage(msg, partnerId) {
 }
 
 // ----------------------------------------------------
-// 6. IN-BOT MULTIPLAYER GAMES (DICE & TICTACTOE)
+// 12. 1v1 IN-BOT GAMES: ROCK-PAPER-SCISSORS & DICE
 // ----------------------------------------------------
 async function sendGamesMenu(chatId, userId) {
-  const isEn = usersDb[userId]?.lang === 'en';
-  const text = isEn
-    ? '🎮 <b>ZenOsLife In-Bot Live Games & Duels</b>\n\nPlay instant coin games with live opponents or friends inside Telegram:'
-    : '🎮 <b>بازی‌ها و دوئل‌های لایو زنوسلایف</b>\n\nدر همین محیط تلگرام با حریفان آنلاین یا دوستانتان مسابقه دهید و سکه برنده شوید:';
-
   const inlineKeyboard = {
     inline_keyboard: [
+      [{ text: t(userId, 'gameRps'), callback_data: 'game_rps_start' }],
+      [{ text: t(userId, 'gameDice'), callback_data: 'game_dice_start' }],
       [
-        { text: '🎲 دوئل رولت تاس متحرک (Dice Duel)', callback_data: 'game_duel_dice' }
+        { text: t(userId, 'gameHokm'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
+        { text: t(userId, 'gameBackgammon'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }
       ],
-      [
-        { text: '👑 بازی حکم ۴ نفره آنلاین', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/hokm` } },
-        { text: '🎲 تخته نرد ایرانی', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/backgammon` } }
-      ],
-      [
-        { text: '🃏 پاستور (چهاربرگ)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games/pasur` } },
-        { text: '🎱 بیلیارد و منچ', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
-      ],
-      [
-        { text: '🌟 ورود به لابی کامل بازی‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
-      ]
+      [{ text: t(userId, 'btnMiniApp'), web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }]
     ]
   };
 
-  return callTgApi('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: inlineKeyboard });
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'gamesTitle'),
+    parse_mode: 'HTML',
+    reply_markup: inlineKeyboard
+  });
+}
+
+async function startRpsGame(chatId, userId) {
+  const user = db.users[userId];
+  if ((user.coins || 0) < 50) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'lowCoinsNotice', { cost: 50, coins: user.coins || 0 }),
+      parse_mode: 'HTML'
+    });
+  }
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'rpsPrompt'),
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: t(userId, 'rpsRock'), callback_data: 'rps_move_rock' },
+          { text: t(userId, 'rpsPaper'), callback_data: 'rps_move_paper' },
+          { text: t(userId, 'rpsScissors'), callback_data: 'rps_move_scissors' }
+        ]
+      ]
+    }
+  });
+}
+
+async function handleRpsMove(chatId, userId, playerMove) {
+  const user = db.users[userId];
+  if (!user || (user.coins || 0) < 50) return;
+
+  user.coins -= 50;
+  saveDb();
+
+  const moves = ['rock', 'paper', 'scissors'];
+  const botMove = moves[Math.floor(Math.random() * moves.length)];
+  const moveIcons = { rock: '🪨', paper: '📄', scissors: '✂️' };
+
+  let resultKey = '';
+  if (playerMove === botMove) {
+    user.coins += 50; // Return wager
+    resultKey = 'rpsTie';
+  } else if (
+    (playerMove === 'rock' && botMove === 'scissors') ||
+    (playerMove === 'paper' && botMove === 'rock') ||
+    (playerMove === 'scissors' && botMove === 'paper')
+  ) {
+    user.coins += 90; // 50+40 profit (10% house rake)
+    addXp(userId, 25);
+    resultKey = 'rpsWin';
+  } else {
+    addXp(userId, 5);
+    resultKey = 'rpsLose';
+  }
+
+  db.stats.totalMatchesPlayed++;
+  saveDb();
+
+  const verdict = t(userId, resultKey);
+  const details = `${moveIcons[playerMove]} (You) VS ${moveIcons[botMove]} (Opponent)\n\n${verdict}\n🪙 Balance: <b>${user.coins.toLocaleString()}</b> Coins`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: details,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [[{ text: '🔄 ' + t(userId, 'gameRps'), callback_data: 'game_rps_start' }]]
+    }
+  });
 }
 
 async function startDiceDuel(chatId, userId) {
-  const user = usersDb[userId];
+  const user = db.users[userId];
   if ((user.coins || 0) < 50) {
-    return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'lowCoinsNotice', { cost: 50, coins: user.coins || 0 }), parse_mode: 'HTML' });
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: t(userId, 'lowCoinsNotice', { cost: 50, coins: user.coins || 0 }),
+      parse_mode: 'HTML'
+    });
   }
 
-  // Roll animated dice for player and bot/partner
   user.coins -= 50;
   saveDb();
 
@@ -677,21 +951,24 @@ async function startDiceDuel(chatId, userId) {
       let resultText = '';
       if (val1 > val2) {
         user.coins += 90;
-        resultText = `🎉 <b>شما برنده شدید! (+۹۰ سکه)</b>\n\nتاس شما: <b>${val1}</b> | تاس حریف: <b>${val2}</b>`;
+        addXp(userId, 25);
+        resultText = user.lang === 'en' ? '🎉 <b>You Won! (+90 Coins & +25 XP)</b>' : '🎉 <b>شما برنده شدید! (+۹۰ سکه و +۲۵ XP)</b>';
       } else if (val1 < val2) {
-        resultText = `😢 <b>حریف برنده شد!</b>\n\nتاس شما: <b>${val1}</b> | تاس حریف: <b>${val2}</b>`;
+        addXp(userId, 5);
+        resultText = user.lang === 'en' ? '😢 <b>Opponent Won! (+5 XP)</b>' : '😢 <b>حریف برنده شد! (+۵ XP)</b>';
       } else {
         user.coins += 50;
-        resultText = `🤝 <b>مساوی شد! (سکه برگشت داده شد)</b>\n\nتاس شما: <b>${val1}</b> | تاس حریف: <b>${val2}</b>`;
+        resultText = user.lang === 'en' ? '🤝 <b>It is a Tie! (Wager returned)</b>' : '🤝 <b>مساوی شد! (سکه برگشت داده شد)</b>';
       }
+      db.stats.totalMatchesPlayed++;
       saveDb();
 
       callTgApi('sendMessage', {
         chat_id: chatId,
-        text: resultText + `\n\n🪙 موجودی جدید شما: <b>${user.coins.toLocaleString()}</b> سکه`,
+        text: `🎲 You: <b>${val1}</b> | Opponent: <b>${val2}</b>\n\n${resultText}\n🪙 Balance: <b>${user.coins.toLocaleString()}</b> Coins`,
         parse_mode: 'HTML',
         reply_markup: {
-          inline_keyboard: [[{ text: '🎲 پرتاب مجدد تاس (۵۰ سکه)', callback_data: 'game_duel_dice' }]]
+          inline_keyboard: [[{ text: '🎲 ' + t(userId, 'gameDice'), callback_data: 'game_dice_start' }]]
         }
       });
     }, 2500);
@@ -699,114 +976,145 @@ async function startDiceDuel(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 7. TELEGRAM STARS MONETIZATION
+// 13. MONETIZATION: TELEGRAM STARS & VIP PLANS
 // ----------------------------------------------------
 function sendBuyStarsMenu(chatId, userId) {
-  const isEn = usersDb[userId]?.lang === 'en';
-  const text = isEn
-    ? '⭐ <b>Official Telegram Stars Coin Shop</b>\n\nRecharge Coins & VIP Status instantly using **Telegram Stars** (safe, 1-tap checkout worldwide):'
-    : '⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\n\nسکه و اشتراک VIP را مستقیماً با **Telegram Stars** در ۲ ثانیه شارژ کنید و بدون محدودیت با تمام دنیا چت کنید:';
-
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text,
+    text: t(userId, 'shopTitle'),
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🪙 ۱,۰۰۰ Coins (35 Stars ⭐)', callback_data: 'buy_pkg_bronze' }],
-        [{ text: '💰 ۵,۰۰۰ Coins + 1,000 Bonus (150 Stars ⭐)', callback_data: 'buy_pkg_silver' }],
-        [{ text: '🌍 ۱۲,۰۰۰ Coins + Global Pass (300 Stars ⭐)', callback_data: 'buy_pkg_global' }],
-        [{ text: '👑 ۵۰,۰۰۰ Coins + Royal VIP (1,000 Stars ⭐)', callback_data: 'buy_pkg_vip' }]
+        [{ text: t(userId, 'pkg1'), callback_data: 'buy_pkg_bronze' }],
+        [{ text: t(userId, 'pkg2'), callback_data: 'buy_pkg_silver' }],
+        [{ text: t(userId, 'pkg3'), callback_data: 'buy_pkg_global' }],
+        [{ text: t(userId, 'pkg4'), callback_data: 'buy_pkg_vip' }]
+      ]
+    }
+  });
+}
+
+function sendVipPlansMenu(chatId, userId) {
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'vipTitle'),
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t(userId, 'vip7'), callback_data: 'buy_vip_7' }],
+        [{ text: t(userId, 'vip30'), callback_data: 'buy_vip_30' }],
+        [{ text: t(userId, 'vip90'), callback_data: 'buy_vip_90' }]
       ]
     }
   });
 }
 
 // ----------------------------------------------------
-// 8. VIRAL REFERRAL ENGINE & DAILY WHEEL
+// 14. REFERRAL & LEADERBOARD
 // ----------------------------------------------------
 async function sendReferralHub(chatId, userId) {
   const botInfo = await getBotInfo();
-  const isEn = usersDb[userId]?.lang === 'en';
   const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
-  const shareText = isEn
-    ? encodeURIComponent(`🙈 Join me on ZenOsLife for Anonymous Chat & Live Games! Get 1,000 Free Coins 🎁👇\n${refLink}`)
-    : encodeURIComponent(`🙈 بیا با هم چت ناشناس بکنیم و مسابقه بدیم! ۱,۰۰۰ سکه هدیه رایگان بگیر 🎁👇\n${refLink}`);
-  const user = usersDb[userId] || { referrals: [] };
-
-  const text = isEn
-    ? `👥 <b>ZenOsLife Viral Referral Engine</b>\n\n` +
-      `🔗 <b>Your Exclusive Invite Link:</b>\n<code>${refLink}</code>\n\n` +
-      `🎁 <b>Rewards:</b>\n` +
-      `• <b>1,000 Free Coins</b> for every friend who joins\n` +
-      `• <b>10% Lifetime Cut</b> on all their future Stars purchases!\n\n` +
-      `👥 Total Friends Invited: <b>${(user.referrals || []).length}</b>`
-    : `👥 <b>سیستم دعوت و درآمدزایی خودکار زنوسلایف</b>\n\n` +
-      `🔗 <b>لینک اختصاصی شما:</b>\n<code>${refLink}</code>\n\n` +
-      `🎁 <b>پاداش شما:</b>\n` +
-      `• <b>۱,۰۰۰ سکه هدیه</b> به ازای ورود هر دوست\n` +
-      `• <b>۱۰٪ از تمام خریدهای آینده دوست شما</b> به صورت پورسانت مادام‌العمر!\n\n` +
-      `👥 تعداد زیرمجموعه‌های شما: <b>${(user.referrals || []).length} نفر</b>`;
+  const shareText = t(userId, 'welcomeTitle') + '\n' + refLink;
+  const user = db.users[userId] || { referrals: [] };
 
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text,
+    text: t(userId, 'referralTitle', { refLink, refs: (user.referrals || []).length }),
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: isEn ? '🚀 1-Tap Share to Friends & Groups' : '🚀 ارسال فوری برای دوستان و گروه‌ها', url: `https://t.me/share/url?url=${refLink}&text=${shareText}` }]
+        [{ text: t(userId, 'btnShareRef'), url: `https://t.me/share/url?url=${refLink}&text=${encodeURIComponent(shareText)}` }]
       ]
     }
   });
 }
 
+async function sendLeaderboard(chatId, userId) {
+  const allUsers = Object.values(db.users);
+  const topCoins = allUsers
+    .sort((a, b) => (b.coins || 0) - (a.coins || 0))
+    .slice(0, 5)
+    .map((u, i) => `${i + 1}. ${u.name || 'User'} - <b>${(u.coins || 0).toLocaleString()}</b> 🪙 (Lvl ${u.level || 1})`)
+    .join('\n') || 'No records yet';
+
+  const topKarma = allUsers
+    .sort((a, b) => (b.karma || 100) - (a.karma || 100))
+    .slice(0, 5)
+    .map((u, i) => `${i + 1}. ${u.name || 'User'} - ⭐ <b>${u.karma || 100}</b> Karma`)
+    .join('\n') || 'No records yet';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: t(userId, 'leaderboardTitle', { topCoins, topKarma }),
+    parse_mode: 'HTML'
+  });
+}
+
 // ----------------------------------------------------
-// 9. MESSAGE & COMMAND DISPATCHER
+// 15. ADMIN PANEL & BROADCAST
+// ----------------------------------------------------
+async function sendAdminPanel(chatId, userId) {
+  if (!CONFIG.ADMIN_IDS.includes(userId)) return;
+
+  const totalUsers = Object.keys(db.users).length;
+  const totalMatches = db.stats.totalMatchesPlayed || 0;
+  const totalChats = db.stats.totalChatsCompleted || 0;
+  const totalRevenue = db.stats.totalStarsRevenue || 0;
+  const activeChatPairs = activePairs.size / 2;
+
+  const adminText = `📊 <b>ZenOsLife Master Admin Control Panel</b>\n\n` +
+    `👥 Total Users: <b>${totalUsers.toLocaleString()}</b>\n` +
+    `💬 Active Chat Pairs: <b>${activeChatPairs}</b>\n` +
+    `⏳ In Queue: <b>${waitingQueue.length}</b>\n` +
+    `🎮 Matches Played: <b>${totalMatches.toLocaleString()}</b>\n` +
+    `⭐ Total Stars Revenue: <b>${totalRevenue.toLocaleString()} Stars</b>\n\n` +
+    `📢 To broadcast: <code>/broadcast your message here</code>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: adminText,
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
+// 16. MESSAGE DISPATCHER
 // ----------------------------------------------------
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from.id);
   const text = msg.text || '';
 
-  // 1. If in active anonymous chat
+  // 1. Active Chat Relay & Controls
   if (activePairs.has(userId)) {
-    if (text === '🛑 پایان گفتگو' || text === '🛑 End Chat' || text === '/stop') {
+    if (text === t(userId, 'inChatStop') || text === '/stop') {
       return stopChat(chatId, userId);
     }
-    if (text === '⏭️ هم‌صحبت بعدی' || text === '⏭️ Next Partner' || text === '/next') {
+    if (text === t(userId, 'inChatNext') || text === '/next') {
       return nextPartner(chatId, userId);
     }
-    if (text === '💖 ارسال آیدی تلگرام' || text === '💖 Share Telegram ID') {
+    if (text === t(userId, 'inChatShareId')) {
       return shareContact(chatId, userId, msg);
     }
-    if (text === '🎲 دوئل تاس و بازی' || text === '🎲 Dice Duel & Games') {
-      const partnerId = activePairs.get(userId);
-      callTgApi('sendMessage', {
-        chat_id: partnerId,
-        text: '🎲 <b>هم‌صحبت شما را به دوئل تاس دعوت کرد!</b>',
-        reply_markup: {
-          inline_keyboard: [[{ text: '🎲 پرتاب تاس مسابقه', callback_data: 'game_duel_dice' }]]
-        }
-      });
-      return startDiceDuel(chatId, userId);
+    if (text === t(userId, 'inChatDuel')) {
+      return sendGamesMenu(chatId, userId);
     }
-    if (text === '🚩 گزارش تخلف' || text === '🚩 Report User') {
+    if (text === t(userId, 'inChatReport')) {
       await stopChat(chatId, userId);
-      return callTgApi('sendMessage', { chat_id: chatId, text: '🚩 گزارش شما ثبت شد و ارتباط با این کاربر قطع گردید.' });
+      return callTgApi('sendMessage', { chat_id: chatId, text: '🚩 Report logged. Partner disconnected.' });
     }
-    // Relay media
-    const partnerId = activePairs.get(userId);
-    return relayMessage(msg, partnerId);
+    return relayMessage(msg, activePairs.get(userId));
   }
 
-  // 2. If waiting in queue
+  // 2. Queue cancellation
   if (waitingQueue.some(w => w.userId === userId)) {
-    if (text === '🛑 پایان گفتگو' || text === '🛑 End Chat' || text === '/stop') {
+    if (text === t(userId, 'inChatStop') || text === '/stop') {
       return stopChat(chatId, userId);
     }
   }
 
-  // 3. Registration name capture
+  // 3. Registration step
   if (registrationSteps.has(userId)) {
     const reg = registrationSteps.get(userId);
     if (reg.step === 'name' && text) {
@@ -816,47 +1124,51 @@ async function handleMessage(msg) {
     }
   }
 
-  // 4. Main Commands & Menu Buttons
+  // 4. Main Commands & Menu Taps
   if (text.startsWith('/start')) {
     const parts = text.split(' ');
     const startParam = parts[1] || '';
-    const user = usersDb[userId];
+    const user = db.users[userId];
     if (!user || !user.profileCompleted) {
       return startLanguageChoice(chatId, userId, startParam);
     }
     return sendMainDashboard(chatId, userId);
   }
 
-  if (text === '/lang') {
-    return startLanguageChoice(chatId, userId);
+  if (text === '/admin') return sendAdminPanel(chatId, userId);
+  if (text === '/lang') return startLanguageChoice(chatId, userId);
+  if (text === '/rps') return startRpsGame(chatId, userId);
+  if (text === '/dice') return startDiceDuel(chatId, userId);
+  if (text === '/vip') return sendVipPlansMenu(chatId, userId);
+  if (text === '/buy') return sendBuyStarsMenu(chatId, userId);
+  if (text === '/rank') return sendLeaderboard(chatId, userId);
+  if (text === '/ref') return sendReferralHub(chatId, userId);
+
+  // Admin Broadcast
+  if (text.startsWith('/broadcast') && CONFIG.ADMIN_IDS.includes(userId)) {
+    const broadcastMsg = text.replace('/broadcast', '').trim();
+    if (!broadcastMsg) return callTgApi('sendMessage', { chat_id: chatId, text: 'Usage: /broadcast <message>' });
+    const allUsers = Object.keys(db.users);
+    let count = 0;
+    for (const uid of allUsers) {
+      callTgApi('sendMessage', { chat_id: uid, text: `📢 <b>ZenOsLife Broadcast:</b>\n\n${broadcastMsg}`, parse_mode: 'HTML' })
+        .then(() => count++)
+        .catch(() => {});
+    }
+    return callTgApi('sendMessage', { chat_id: chatId, text: `✅ Broadcasting to ${allUsers.length} users started.` });
   }
 
-  if (text === '🙈 به یه ناشناس وصلم کن!' || text === '🙈 Connect to a Stranger!' || text === '/chat') {
-    return sendFilterMenu(chatId, userId);
-  }
+  // Reply Keyboard Matching
+  if (text === t(userId, 'btnChat') || text === '/chat') return sendFilterMenu(chatId, userId);
+  if (text === t(userId, 'btnGames') || text === '/games') return sendGamesMenu(chatId, userId);
+  if (text === t(userId, 'btnCoins')) return sendBuyStarsMenu(chatId, userId);
+  if (text === t(userId, 'btnVip')) return sendVipPlansMenu(chatId, userId);
+  if (text === t(userId, 'btnReferral')) return sendReferralHub(chatId, userId);
+  if (text === t(userId, 'btnLeaderboard')) return sendLeaderboard(chatId, userId);
+  if (text === t(userId, 'btnSettings')) return startLanguageChoice(chatId, userId);
 
-  if (text === '🌍 چت بین‌المللی و هم‌زبان' || text === '🌍 Global & Language Match') {
-    return sendFilterMenu(chatId, userId);
-  }
-
-  if (text === '💬 فیلتر جنسیت (دختر/پسر)' || text === '💬 Gender Filters (Girl/Boy)') {
-    return sendFilterMenu(chatId, userId);
-  }
-
-  if (text.includes('بازی‌ها') || text.includes('Games') || text === '/games') {
-    return sendGamesMenu(chatId, userId);
-  }
-
-  if (text.includes('موجودی سکه') || text.includes('Coins') || text === '/buy') {
-    return sendBuyStarsMenu(chatId, userId);
-  }
-
-  if (text.includes('سکه رایگان') || text.includes('Free Coins') || text === '/ref') {
-    return sendReferralHub(chatId, userId);
-  }
-
-  if (text.includes('پروفایل') || text.includes('Profile')) {
-    const user = usersDb[userId];
+  if (text === t(userId, 'btnProfile')) {
+    const user = db.users[userId];
     if (!user) return startLanguageChoice(chatId, userId);
     const genderIcon = user.gender === 'female' ? '👩' : '👨';
     const isEn = user.lang === 'en';
@@ -867,16 +1179,20 @@ async function handleMessage(msg) {
         `• Gender: <b>${genderIcon} ${user.gender}</b>\n` +
         `• Age Range: <b>${user.age}</b>\n` +
         `• Region: <b>${user.province}</b>\n` +
+        `• Level: <b>Level ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
         `• Karma & Ethics: <b>⭐ ${user.karma || 100} pts</b>\n` +
-        `• Balance: <b>🪙 ${(user.coins || 0).toLocaleString()} Coins</b> ${user.isVip ? '👑 VIP' : ''}\n` +
+        `• Balance: <b>🪙 ${(user.coins || 0).toLocaleString()} Coins</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
+        `• Daily Streak: <b>🔥 ${user.streak_days || 1} Days</b>\n` +
         `• Referrals: <b>${(user.referrals || []).length} Friends</b>`
-      : `👤 <b>پروفایل شما در زنوسلایف:</b>\n\n` +
+      : `👤 <b>پروفایل کاربری شما در زنوسلایف:</b>\n\n` +
         `• نام: <b>${user.name}</b>\n` +
         `• جنسیت: <b>${genderIcon} ${user.gender === 'female' ? 'دختر' : 'پسر'}</b>\n` +
         `• رده سنی: <b>${user.age}</b>\n` +
         `• استان: <b>${user.province}</b>\n` +
+        `• سطح و پیشرفت: <b>سطح ${user.level || 1} (${user.xp || 0} XP)</b>\n` +
         `• امتیاز کارما و ادب: <b>⭐ ${user.karma || 100} امتیاز</b>\n` +
-        `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.isVip ? '👑 VIP' : ''}\n` +
+        `• موجودی سکه: <b>🪙 ${(user.coins || 0).toLocaleString()} سکه</b> ${user.is_vip ? '👑 VIP' : ''}\n` +
+        `• استریک روزانه: <b>🔥 ${user.streak_days || 1} روز مداوم</b>\n` +
         `• تعداد دعوت‌ها: <b>${(user.referrals || []).length} نفر</b>`;
 
     return callTgApi('sendMessage', {
@@ -889,15 +1205,11 @@ async function handleMessage(msg) {
     });
   }
 
-  if (text.includes('مینی‌اپلیکیشن') || text.includes('Mini App')) {
-    const isEn = usersDb[userId]?.lang === 'en';
-    const miniappText = isEn
-      ? '🚀 <b>ZenOsLife Mini App Universe:</b>\nTap the button below to launch the full Life-OS experience (Mindfulness, My Day, AI Mentor, Tarot & Arcade):'
-      : '🚀 <b>دنیای جامع زنوسلایف:</b>\nبرای استفاده از ذهن‌آگاهی، مراقبه ۴۳۲Hz، برنامه‌ریزی، فال تاروت و چت‌روم‌ها دکمه زیر را لمس کنید:';
-
+  if (text === t(userId, 'btnMiniApp')) {
+    const isEn = db.users[userId]?.lang === 'en';
     return callTgApi('sendMessage', {
       chat_id: chatId,
-      text: miniappText,
+      text: isEn ? '🚀 <b>ZenOsLife Mini App:</b>' : '🚀 <b>ورود به دنیای زنوسلایف:</b>',
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [[{ text: isEn ? '🌟 Launch Mini App' : '🌟 ورود به مینی‌اپلیکیشن', web_app: { url: CONFIG.WEBAPP_URL } }]]
@@ -905,26 +1217,12 @@ async function handleMessage(msg) {
     });
   }
 
-  // Admin Broadcast
-  if (text.startsWith('/broadcast') && CONFIG.ADMIN_IDS.includes(userId)) {
-    const broadcastText = text.replace('/broadcast', '').trim();
-    if (!broadcastText) return callTgApi('sendMessage', { chat_id: chatId, text: 'Usage: /broadcast <message>' });
-    const allUsers = Object.keys(usersDb);
-    let sent = 0;
-    for (const uid of allUsers) {
-      callTgApi('sendMessage', { chat_id: uid, text: `📢 <b>اطلاعیه رسمی زنوسلایف:</b>\n\n${broadcastText}`, parse_mode: 'HTML' })
-        .then(() => sent++)
-        .catch(() => {});
-    }
-    return callTgApi('sendMessage', { chat_id: chatId, text: `✅ ارسال همگانی به ${allUsers.length} کاربر آغاز شد.` });
-  }
-
-  // Fallback -> Dashboard
+  // Fallback
   return sendMainDashboard(chatId, userId);
 }
 
 // ----------------------------------------------------
-// 10. CALLBACK QUERY HANDLER
+// 17. CALLBACK QUERY HANDLER
 // ----------------------------------------------------
 async function handleCallbackQuery(cq) {
   const chatId = cq.message.chat.id;
@@ -932,7 +1230,7 @@ async function handleCallbackQuery(cq) {
   const data = cq.data;
   callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
 
-  // Language selection
+  // Language Selection
   if (data.startsWith('set_lang_')) {
     const lang = data.replace('set_lang_', '');
     let reg = registrationSteps.get(userId);
@@ -942,9 +1240,12 @@ async function handleCallbackQuery(cq) {
         tempProfile: {
           userId,
           coins: 1000,
+          xp: 0,
+          level: 1,
           karma: 100,
+          streak_days: 1,
+          last_streak_date: new Date().toISOString().slice(0, 10),
           referrals: [],
-          lastWheelSpin: 0,
           lastRefill: Date.now(),
           createdAt: Date.now()
         }
@@ -955,18 +1256,16 @@ async function handleCallbackQuery(cq) {
     reg.step = 'gender';
     registrationSteps.set(userId, reg);
 
-    // If already fully completed, update language and go to dashboard
-    if (usersDb[userId] && usersDb[userId].profileCompleted) {
-      usersDb[userId].lang = lang;
+    if (db.users[userId] && db.users[userId].profileCompleted) {
+      db.users[userId].lang = lang;
       saveDb();
-      return sendMainDashboard(chatId, userId, lang === 'en' ? 'Language changed to English!' : 'زبان به فارسی تغییر کرد!');
+      return sendMainDashboard(chatId, userId, lang === 'en' ? 'Language set to English!' : 'زبان به فارسی تنظیم شد!');
     }
 
-    // Otherwise proceed to gender selection
     return promptGenderSelection(chatId, userId);
   }
 
-  // Gender selection
+  // Gender Selection
   if (data.startsWith('reg_gender_')) {
     const gender = data.replace('reg_gender_', '');
     let reg = registrationSteps.get(userId);
@@ -975,7 +1274,7 @@ async function handleCallbackQuery(cq) {
         step: 'age',
         tempProfile: {
           userId,
-          lang: usersDb[userId]?.lang || 'fa',
+          lang: db.users[userId]?.lang || 'fa',
           coins: 1000,
           karma: 100,
           referrals: [],
@@ -999,7 +1298,7 @@ async function handleCallbackQuery(cq) {
     });
   }
 
-  // Age selection
+  // Age Selection
   if (data.startsWith('reg_age_')) {
     const age = data.replace('reg_age_', '');
     let reg = registrationSteps.get(userId);
@@ -1022,7 +1321,7 @@ async function handleCallbackQuery(cq) {
     });
   }
 
-  // Province selection & completion
+  // Province Selection & Finish Onboarding
   if (data.startsWith('reg_prov_')) {
     const prov = data.replace('reg_prov_', '');
     let reg = registrationSteps.get(userId);
@@ -1030,22 +1329,24 @@ async function handleCallbackQuery(cq) {
 
     reg.tempProfile.province = prov;
     reg.tempProfile.profileCompleted = true;
-    usersDb[userId] = reg.tempProfile;
+    db.users[userId] = reg.tempProfile;
     saveDb();
     registrationSteps.delete(userId);
 
-    // Referral Bounty
-    if (reg.tempProfile.invitedBy && usersDb[reg.tempProfile.invitedBy]) {
-      const refUser = usersDb[reg.tempProfile.invitedBy];
+    // Referral Bounty Fulfillment
+    if (reg.tempProfile.invitedBy && db.users[reg.tempProfile.invitedBy]) {
+      const refUser = db.users[reg.tempProfile.invitedBy];
+      refUser.referrals = refUser.referrals || [];
       refUser.referrals.push(userId);
       refUser.coins = (refUser.coins || 0) + 1000;
+      addXp(reg.tempProfile.invitedBy, 50);
       saveDb();
 
       callTgApi('sendMessage', {
         chat_id: reg.tempProfile.invitedBy,
-        text: usersDb[reg.tempProfile.invitedBy]?.lang === 'en'
-          ? '🎉 <b>Congratulations! A friend registered with your invite link!</b>\n🪙 <b>1,000 Bonus Coins</b> added to your balance!'
-          : '🎉 <b>تبریک! دوست جدیدی با لینک شما ثبت‌نام کرد!</b>\n🪙 <b>۱,۰۰۰ سکه هدیه</b> به کیف پول شما اضافه شد!',
+        text: db.users[reg.tempProfile.invitedBy]?.lang === 'en'
+          ? '🎉 <b>Congratulations! A friend joined with your invite link! (+1,000 Coins & +50 XP)</b>'
+          : '🎉 <b>تبریک! دوست جدیدی با لینک شما ثبت‌نام کرد! (+۱,۰۰۰ سکه هدیه و +۵۰ XP)</b>',
         parse_mode: 'HTML'
       }).catch(() => {});
     }
@@ -1056,14 +1357,14 @@ async function handleCallbackQuery(cq) {
   // Karma Rating Action
   if (data.startsWith('karma_5_')) {
     const targetUserId = data.replace('karma_5_', '');
-    if (usersDb[targetUserId]) {
-      usersDb[targetUserId].karma = (usersDb[targetUserId].karma || 100) + 5;
+    if (db.users[targetUserId]) {
+      db.users[targetUserId].karma = (db.users[targetUserId].karma || 100) + 5;
       saveDb();
     }
     return callTgApi('sendMessage', { chat_id: chatId, text: t(userId, 'karmaThanks') });
   }
 
-  // Filter Match Triggers
+  // Chat Filter Triggers
   if (data === 'filter_random') return executeMatchSearch(chatId, userId, 'random');
   if (data === 'filter_samelang') return executeMatchSearch(chatId, userId, 'samelang');
   if (data === 'filter_global') return executeMatchSearch(chatId, userId, 'global');
@@ -1073,9 +1374,33 @@ async function handleCallbackQuery(cq) {
   if (data === 'buy_stars') return sendBuyStarsMenu(chatId, userId);
   if (data === 'show_referral') return sendReferralHub(chatId, userId);
   if (data === 'edit_profile') return startLanguageChoice(chatId, userId);
-  if (data === 'game_duel_dice') return startDiceDuel(chatId, userId);
 
-  // Stars Package Invoices
+  // Games Triggers
+  if (data === 'game_rps_start') return startRpsGame(chatId, userId);
+  if (data === 'game_dice_start') return startDiceDuel(chatId, userId);
+  if (data.startsWith('rps_move_')) {
+    const move = data.replace('rps_move_', '');
+    return handleRpsMove(chatId, userId, move);
+  }
+
+  // VIP Purchases via Stars
+  if (data.startsWith('buy_vip_')) {
+    const days = parseInt(data.replace('buy_vip_', ''));
+    const vipPrices = { 7: 75, 30: 250, 90: 650 };
+    const stars = vipPrices[days] || 250;
+    const title = `👑 VIP Membership (${days} Days)`;
+
+    return callTgApi('sendInvoice', {
+      chat_id: chatId,
+      title: title,
+      description: `Activation of ZenOsLife VIP Pass for ${days} days with unlimited filters and perks`,
+      payload: JSON.stringify({ userId, type: 'vip', days, stars }),
+      currency: 'XTR',
+      prices: [{ label: title, amount: stars }]
+    });
+  }
+
+  // Coin Package Invoices
   if (data.startsWith('buy_pkg_')) {
     const pkgType = data.replace('buy_pkg_', '');
     const packages = {
@@ -1090,7 +1415,7 @@ async function handleCallbackQuery(cq) {
         chat_id: chatId,
         title: pkg.title,
         description: `Instant recharge of ${pkg.coins.toLocaleString()} Coins for your ZenOsLife account`,
-        payload: JSON.stringify({ userId, pkgType, coins: pkg.coins, isVip: !!pkg.isVip }),
+        payload: JSON.stringify({ userId, type: 'coins', coins: pkg.coins, stars: pkg.priceStars, isVip: !!pkg.isVip }),
         currency: 'XTR',
         prices: [{ label: pkg.title, amount: pkg.priceStars }]
       });
@@ -1099,7 +1424,7 @@ async function handleCallbackQuery(cq) {
 }
 
 // ----------------------------------------------------
-// 11. STARS PRE-CHECKOUT & PAYMENT CONFIRMATION
+// 18. TELEGRAM STARS PRE-CHECKOUT & VERIFIED SETTLEMENT
 // ----------------------------------------------------
 async function handlePreCheckoutQuery(pcq) {
   return callTgApi('answerPreCheckoutQuery', { pre_checkout_query_id: pcq.id, ok: true });
@@ -1112,31 +1437,65 @@ async function handleSuccessfulPayment(msg) {
 
   try {
     const payload = JSON.parse(payment.invoice_payload);
-    if (usersDb[userId]) {
-      if (payload.coins) usersDb[userId].coins = (usersDb[userId].coins || 0) + payload.coins;
-      if (payload.isVip) usersDb[userId].isVip = true;
+    const chargeId = payment.telegram_payment_charge_id;
+
+    // Idempotency check
+    if (db.transactions[chargeId]) {
+      console.warn('Duplicate transaction received:', chargeId);
+      return;
+    }
+
+    // Save transaction
+    db.transactions[chargeId] = {
+      chargeId,
+      userId,
+      payload,
+      amountStars: payload.stars,
+      createdAt: Date.now()
+    };
+    db.stats.totalStarsRevenue += (payload.stars || 0);
+
+    const user = db.users[userId];
+    if (user) {
+      if (payload.type === 'coins' && payload.coins) {
+        user.coins = (user.coins || 0) + payload.coins;
+        if (payload.isVip) {
+          user.is_vip = true;
+          user.vip_expires_at = Date.now() + 30 * 86400000;
+        }
+      } else if (payload.type === 'vip' && payload.days) {
+        user.is_vip = true;
+        const currentExp = (user.vip_expires_at && user.vip_expires_at > Date.now()) ? user.vip_expires_at : Date.now();
+        user.vip_expires_at = currentExp + payload.days * 86400000;
+      }
+
+      addXp(userId, (payload.stars || 10) * 10);
       saveDb();
 
-      // Give 10% commission to referrer if exists
-      if (usersDb[userId].invitedBy && usersDb[usersDb[userId].invitedBy]) {
-        const refId = usersDb[userId].invitedBy;
-        const commissionCoins = Math.round((payload.coins || 0) * 0.1);
-        usersDb[refId].coins = (usersDb[refId].coins || 0) + commissionCoins;
+      // 10% Referral Cut
+      if (user.invitedBy && db.users[user.invitedBy]) {
+        const refId = user.invitedBy;
+        const commissionCoins = Math.round(((payload.coins || (payload.stars * 30)) * 0.1));
+        db.users[refId].coins = (db.users[refId].coins || 0) + commissionCoins;
         saveDb();
+
         callTgApi('sendMessage', {
           chat_id: refId,
-          text: `🎁 <b>پاداش پورسانت رفرال!</b>\n\nدوست شما یک بسته ستاره خریداری کرد و <b>${commissionCoins.toLocaleString()} سکه هدیه (۱۰٪)</b> به حساب شما واریز شد!`,
+          text: `🎁 <b>پاداش پورسانت رفرال!</b>\nدوست شما خرید انجام داد و <b>${commissionCoins.toLocaleString()} سکه هدیه (۱۰٪)</b> دریافت کردید!`,
           parse_mode: 'HTML'
         }).catch(() => {});
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.error('Error settling payment:', e.message);
+  }
 
+  const isEn = db.users[userId]?.lang === 'en';
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: usersDb[userId]?.lang === 'en'
-      ? '✅ <b>Payment with Telegram Stars Completed Successfully!</b>\nCoins & VIP Pass added to your account.'
-      : '✅ <b>پرداخت با ستاره‌های تلگرام با موفقیت انجام شد!</b>\nسکه و اشتراک VIP به حساب شما اضافه شد.',
+    text: isEn
+      ? '✅ <b>Payment with Telegram Stars Completed Successfully!</b>\nYour purchase has been automatically activated.'
+      : '✅ <b>پرداخت با ستاره‌های تلگرام با موفقیت انجام شد!</b>\nسکه و اشتراک VIP بلافاصله به حساب شما افزوده شد.',
     parse_mode: 'HTML',
     reply_markup: getMainReplyKeyboard(userId)
   });
@@ -1148,7 +1507,11 @@ async function getBotInfo() {
   return cachedBotInfo;
 }
 
-// Long Polling Loop
+// ----------------------------------------------------
+// 19. CRON & LONG POLLING LOOP
+// ----------------------------------------------------
+setInterval(checkVipExpiration, 6 * 3600 * 1000); // Check VIP expiry every 6h
+
 let lastUpdateId = 0;
 async function pollUpdates() {
   try {
@@ -1174,10 +1537,10 @@ async function pollUpdates() {
 }
 
 // Start Engine
-console.log('🚀 ZenOsLife #1 Ultimate Dating, Games & Stars Engine Starting...');
+console.log('🚀 ZenOsLife #1 Enterprise Engine Starting...');
 initBotSettings().then(() => {
   pollUpdates();
-  console.log('✨ Bot is online with Bilingual Support, Social Karma, Global Chat & Games!');
+  console.log('✨ Bot is Online with Full Bilingual Support, Gaming, Stars & Anti-Fraud!');
 }).catch(err => {
   console.error('Fatal error starting bot:', err);
 });
