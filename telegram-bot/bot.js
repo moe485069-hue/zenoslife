@@ -171,8 +171,9 @@ const I18N = {
     dailyStreakTitle: '🔥 <b>استریک روزانه و پاداش ورود</b>\n\nشما <b>{days} روز متوالی</b> وارد ربات شده‌اید!\n🎁 پاداش امروز شما: <b>+{coins} سکه و +{xp} XP</b>',
     referralTitle: '🎁 <b>سیستم دعوت و درآمدزایی خودکار زنوسلایف</b>\n\n' +
                    '🔗 <b>لینک اختصاصی شما:</b>\n<code>{refLink}</code>\n\n' +
-                   '🎁 <b>پاداش‌ها:</b>\n' +
-                   '• <b>۱,۰۰۰ سکه هدیه</b> به ازای ورود هر دوست\n' +
+                   '🎁 <b>پاداش‌های شگفت‌انگیز:</b>\n' +
+                   '• <b>۱,۰۰۰ سکه هدیه برای شما</b> به ازای هر دعوت موفق\n' +
+                   '• <b>۱,۰۰۰ سکه هدیه برای دوست شما</b> در بدو ورود به ربات!\n' +
                    '• <b>۱۰٪ پورسانت مادام‌العمر</b> از تمام خریدهای ستاره تلگرام دوست شما!\n\n' +
                    '👥 تعداد زیرمجموعه‌های شما: <b>{refs} نفر</b>',
     btnShareRef: '🚀 ارسال فوری برای دوستان و گروه‌ها',
@@ -279,8 +280,9 @@ const I18N = {
     dailyStreakTitle: '🔥 <b>Daily Streak & Login Bonus</b>\n\nYou have logged in for <b>{days} consecutive days</b>!\n🎁 Today Reward: <b>+{coins} Coins & +{xp} XP</b>',
     referralTitle: '🎁 <b>ZenOsLife Automated Referral Engine</b>\n\n' +
                    '🔗 <b>Your Exclusive Invite Link:</b>\n<code>{refLink}</code>\n\n' +
-                   '🎁 <b>Rewards:</b>\n' +
-                   '• <b>1,000 Free Coins</b> for every friend who joins\n' +
+                   '🎁 <b>Awesome Rewards:</b>\n' +
+                   '• <b>1,000 Bonus Coins for you</b> for every successful invite\n' +
+                   '• <b>1,000 Welcome Coins for your friend</b> upon joining!\n' +
                    '• <b>10% Lifetime Cut</b> on all their Stars purchases!\n\n' +
                    '👥 Friends Invited: <b>{refs}</b>',
     btnShareRef: '🚀 1-Tap Share to Friends & Groups',
@@ -979,9 +981,18 @@ async function startDiceDuel(chatId, userId) {
 // 13. MONETIZATION: TELEGRAM STARS & VIP PLANS
 // ----------------------------------------------------
 function sendBuyStarsMenu(chatId, userId) {
+  const user = db.users[userId] || { coins: 0 };
+  const isEn = user.lang === 'en';
+  const coinsText = (user.coins || 0).toLocaleString();
+  const vipText = user.is_vip ? (isEn ? '👑 Active VIP' : '👑 VIP فعال') : (isEn ? 'Regular Member' : 'کاربر عادی');
+
+  const shopHeader = isEn
+    ? `🪙 <b>Current Balance:</b> <b>${coinsText} Coins</b> | <b>Status:</b> ${vipText}\n\n⭐ <b>Official Telegram Stars Coin Shop</b>\nInstant recharge using Telegram Stars:`
+    : `🪙 <b>موجودی فعلی شما:</b> <b>${coinsText} سکه</b> | <b>وضعیت:</b> ${vipText}\n\n⭐ <b>فروشگاه رسمی ستاره‌های تلگرام (Telegram Stars)</b>\nشارژ آنی سکه با Telegram Stars بدون واسطه:`;
+
   return callTgApi('sendMessage', {
     chat_id: chatId,
-    text: t(userId, 'shopTitle'),
+    text: shopHeader,
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
@@ -1015,19 +1026,45 @@ function sendVipPlansMenu(chatId, userId) {
 async function sendReferralHub(chatId, userId) {
   const botInfo = await getBotInfo();
   const refLink = `https://t.me/${botInfo.username}?start=ref_${userId}`;
-  const shareText = t(userId, 'welcomeTitle') + '\n' + refLink;
   const user = db.users[userId] || { referrals: [] };
+  const isEn = user.lang === 'en';
 
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: t(userId, 'referralTitle', { refLink, refs: (user.referrals || []).length }),
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t(userId, 'btnShareRef'), url: `https://t.me/share/url?url=${refLink}&text=${encodeURIComponent(shareText)}` }]
-      ]
-    }
-  });
+  const shareText = isEn
+    ? `👑 Join ZenOsLife Anonymous Chat & Games!\n\n` +
+      `🙈 Chat with boys & girls nearby\n` +
+      `🎮 Live 1v1 Games & Tournaments\n` +
+      `🎁 Get 1,000 FREE Welcome Coins with my invite link:\n\n${refLink}`
+    : `👑 به چت ناشناس و بازی‌های آنلاین زنوسلایف خوش اومدی!\n\n` +
+      `🙈 چت ناشناس با فیلتر دختر و پسر و همشهری\n` +
+      `🎮 بازی‌های سنگ‌کاغذقیچی، حکم و تخته‌نرد\n` +
+      `🎁 همین الان با لینک من عضو شو و ۱,۰۰۰ سکه هدیه رایگان بگیر:\n\n${refLink}`;
+
+  const captionText = t(userId, 'referralTitle', { refLink, refs: (user.referrals || []).length });
+
+  const replyMarkup = {
+    inline_keyboard: [
+      [{ text: t(userId, 'btnShareRef'), url: `https://t.me/share/url?url=${refLink}&text=${encodeURIComponent(shareText)}` }]
+    ]
+  };
+
+  const bannerPhotoUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80';
+
+  try {
+    return await callTgApi('sendPhoto', {
+      chat_id: chatId,
+      photo: bannerPhotoUrl,
+      caption: captionText,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  } catch (err) {
+    return callTgApi('sendMessage', {
+      chat_id: chatId,
+      text: captionText,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  }
 }
 
 async function sendLeaderboard(chatId, userId) {
