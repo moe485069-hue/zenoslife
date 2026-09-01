@@ -619,10 +619,7 @@ async function sendFilterMenu(chatId, userId) {
       [{ text: t(userId, 'filterRandom'), callback_data: 'filter_random' }],
       [{ text: isEn ? '🌈 Chat by Mood & Vibe 💫' : '🌈 چت بر اساس حس‌وحال و مود روحی 💫', callback_data: 'open_mood_menu' }],
       [{ text: t(userId, 'filterFemale'), callback_data: 'filter_female' }, { text: t(userId, 'filterMale'), callback_data: 'filter_male' }],
-      [{ text: t(userId, 'btnVipChat'), callback_data: 'enter_vip_lounge' }],
-      [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
-      [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }],
-      [{ text: t(userId, 'btnSearch'), callback_data: 'open_user_search' }]
+      [{ text: isEn ? '➕ Other Options & Filters...' : '➕ گزینه‌های دیگر و فیلترهای پیشرفته...', callback_data: 'open_other_filters' }]
     ]
   };
 
@@ -631,6 +628,27 @@ async function sendFilterMenu(chatId, userId) {
     text: t(userId, 'filterTitle'),
     parse_mode: 'HTML',
     reply_markup: inlineKeyboard
+  });
+}
+
+async function sendOtherFiltersMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const otherKeyboard = {
+    inline_keyboard: [
+      [{ text: t(userId, 'btnVipChat'), callback_data: 'enter_vip_lounge' }],
+      [{ text: t(userId, 'filterSameLang'), callback_data: 'filter_samelang' }, { text: t(userId, 'filterGlobal'), callback_data: 'filter_global' }],
+      [{ text: t(userId, 'filterProv'), callback_data: 'filter_province' }],
+      [{ text: t(userId, 'btnSearch'), callback_data: 'open_user_search' }],
+      [{ text: isEn ? '🔙 Back to Chat Menu' : '🔙 بازگشت به منوی اصلی چت', callback_data: 'back_to_chat_filters' }]
+    ]
+  };
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: isEn ? '⚙️ <b>Advanced Chat Options & Filters:</b>' : '⚙️ <b>گزینه‌های دیگر و فیلترهای تکمیلی چت:</b>',
+    parse_mode: 'HTML',
+    reply_markup: otherKeyboard
   });
 }
 
@@ -2044,6 +2062,7 @@ async function handleCallbackQuery(cq) {
   }
 
   // Mood & Trivia Callbacks
+  if (data === 'open_other_filters') return sendOtherFiltersMenu(chatId, userId);
   if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);
   if (data === 'back_to_chat_filters') return sendFilterMenu(chatId, userId);
   if (data.startsWith('mood_match_')) return executeMatchSearch(chatId, userId, `mood_${data.replace('mood_match_', '')}`);
