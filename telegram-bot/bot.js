@@ -1,3 +1,82 @@
+
+// ----------------------------------------------------
+// AUTOMATED HOURLY BACKUPS & SNAPSHOTS
+// ----------------------------------------------------
+const BACKUP_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+  try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (_) {}
+}
+
+function createDatabaseBackup() {
+  try {
+    if (!fs.existsSync(CONFIG.DATA_FILE)) return;
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(BACKUP_DIR, `backup_${dateStr}.json`);
+    fs.copyFileSync(CONFIG.DATA_FILE, backupPath);
+
+    // Keep last 48 backups
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('backup_')).sort();
+    if (files.length > 48) {
+      const toDelete = files.slice(0, files.length - 48);
+      for (const df of toDelete) {
+        try { fs.unlinkSync(path.join(BACKUP_DIR, df)); } catch (_) {}
+      }
+    }
+  } catch (e) {
+    console.warn('Backup notice:', e.message);
+  }
+}
+
+// Hourly backup interval
+setInterval(createDatabaseBackup, 3600 * 1000);
+setTimeout(createDatabaseBackup, 5000); // Initial backup on start
+
+// ----------------------------------------------------
+// FORCE CHANNEL MEMBERSHIP CHECK
+// ----------------------------------------------------
+db.settings = db.settings || { forceSubEnabled: true, forceSubChannel: '@zenoslife_official' };
+
+async function isUserChannelMember(userId) {
+  if (!db.settings.forceSubEnabled || !db.settings.forceSubChannel) return true;
+  if (isAdmin(userId)) return true;
+
+  try {
+    const member = await callTgApi('getChatMember', {
+      chat_id: db.settings.forceSubChannel,
+      user_id: userId
+    });
+    if (member && ['creator', 'administrator', 'member', 'restricted'].includes(member.status)) {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    // If bot is not admin in channel or error, do not block user
+    return true;
+  }
+}
+
+async function sendForceSubPrompt(chatId, userId) {
+  const channel = db.settings.forceSubChannel || '@zenoslife_official';
+  const cleanChannel = channel.replace('@', '');
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const text = isEn
+    ? `📢 <b>Channel Membership Required</b>\n\nTo use ZenOsLife anonymous chat, multiplayer games and rewards, please join our official channel first:\n\n👉 <b>${channel}</b>\n\n<i>After joining, tap the confirmation button below:</i>`
+    : `📢 <b>عضویت در کانال رسمی الزامی است!</b>\n\nبرای استفاده از چت ناشناس، بازی‌های آنلاین دونفره و دریافت ۱,۰۰۰ سکه هدیه، لطفاً ابتدا در کانال رسمی زنوسلایف عضو شوید:\n\n👉 <b>${channel}</b>\n\n<i>پس از عضویت، روی دکمه «عضو شدم / بررسی مجدد» کلیک کنید:</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: isEn ? '📢 Join Official Channel' : '📢 ورود و عضویت در کانال', url: `https://t.me/${cleanChannel}` }],
+        [{ text: isEn ? '🔄 I Joined / Re-check' : '🔄 عضو شدم / بررسی مجدد', callback_data: 'check_force_sub' }]
+      ]
+    }
+  });
+}
 /**
  * ============================================================================
  * 👑 ZenOsLife Enterprise Master Engine & Automated Monetization Backend
@@ -1741,13 +1820,18 @@ async function sendAdminPanel(chatId, userId) {
     `• <code>/revokevip &lt;شناسه_کاربر&gt;</code> - لغو اشتراک VIP\n` +
     `• <code>/setcoins &lt;شناسه_کاربر&gt; &lt;تعداد&gt;</code> - تنظیم موجودی سکه\n` +
     `• <code>/ban &lt;شناسه_کاربر&gt;</code> - مسدودسازی کاربر متخلف\n` +
+    `• <code>/setchannel &lt;@آیدی_کانال&gt;</code> - تغییر کانال عضویت اجباری\n` +
     `• <code>/broadcast &lt;متن_پیام&gt;</code> - ارسال پیام همگانی به تمام اعضا`;
 
   const adminMarkup = {
     inline_keyboard: [
       [{ text: '🔄 به‌روزرسانی آمار زنده', callback_data: 'admin_refresh_stats' }],
+      [
+        { text: db.settings.forceSubEnabled ? '🔒 قفل عضویت کانال: فعال ✅' : '🔓 قفل عضویت کانال: غیرفعال ❌', callback_data: 'admin_toggle_forcesub' },
+        { text: '💾 تهیه بکاپ فوری دیتابیس', callback_data: 'admin_manual_backup' }
+      ],
       [{ text: `🚩 مشاهده گزارش‌های تخلف (${pendingReports} مورد)`, callback_data: 'admin_view_reports' }],
-      [{ text: '👑 مشاهده تالار VIP', callback_data: 'enter_vip_lounge' }],
+      [{ text: '👑 ورود به تالار VIP', callback_data: 'enter_vip_lounge' }],
       [{ text: '🔙 بازگشت به منوی اصلی', callback_data: 'back_to_dashboard' }]
     ]
   };
@@ -1785,6 +1869,14 @@ async function handleMessage(msg) {
       return sendVipPlansMenu(chatId, userId);
     }
     return broadcastToVipLounge(msg, userId);
+  }
+
+  // Force Channel Check (except for admins and /start)
+  if (!text.startsWith('/admin') && !isAdmin(userId)) {
+    const isMember = await isUserChannelMember(userId);
+    if (!isMember) {
+      return sendForceSubPrompt(chatId, userId);
+    }
   }
 
   // 1. In-Chat Active Relay & Commands
@@ -1891,6 +1983,14 @@ async function handleMessage(msg) {
       return callTgApi('sendMessage', { chat_id: chatId, text: `✅ موجودی سکه کاربر ${targetUid} به ${amount.toLocaleString()} تغییر یافت.` });
     }
 
+    if (text.startsWith('/setchannel')) {
+      const newChannel = text.replace('/setchannel', '').trim();
+      if (!newChannel) return callTgApi('sendMessage', { chat_id: chatId, text: 'نحوه استفاده: /setchannel @zenoslife_official' });
+      db.settings.forceSubChannel = newChannel;
+      saveDb();
+      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ کانال عضویت اجباری به <b>${newChannel}</b> تغییر یافت.`, parse_mode: 'HTML' });
+    }
+
     if (text.startsWith('/ban')) {
       const parts = text.split(' ');
       const targetUid = parts[1];
@@ -1975,8 +2075,28 @@ async function handleCallbackQuery(cq) {
   const data = cq.data;
   callTgApi('answerCallbackQuery', { callback_query_id: cq.id }).catch(() => {});
 
+  // Force Sub Check Callback
+  if (data === 'check_force_sub') {
+    const isMember = await isUserChannelMember(userId);
+    if (isMember) {
+      callTgApi('sendMessage', { chat_id: chatId, text: '🎉 <b>عضویت شما تایید شد! به زنوسلایف خوش آمدید.</b>', parse_mode: 'HTML' });
+      return sendMainDashboard(chatId, userId);
+    } else {
+      return callTgApi('sendMessage', { chat_id: chatId, text: '❌ <b>هنوز در کانال عضو نشده‌اید!</b> لطفاً ابتدا عضو شده و مجدداً امتحان کنید.' });
+    }
+  }
+
   // Admin Callbacks
   if (data === 'admin_refresh_stats') return sendAdminPanel(chatId, userId);
+  if (data === 'admin_toggle_forcesub' && isAdmin(userId)) {
+    db.settings.forceSubEnabled = !db.settings.forceSubEnabled;
+    saveDb();
+    return sendAdminPanel(chatId, userId);
+  }
+  if (data === 'admin_manual_backup' && isAdmin(userId)) {
+    createDatabaseBackup();
+    return callTgApi('sendMessage', { chat_id: chatId, text: '✅ <b>نسخه پشتیبان (بکاپ) با موفقیت در سرور ذخیره شد!</b>', parse_mode: 'HTML' });
+  }
   if (data === 'admin_view_reports') {
     const pending = (db.reports || []).filter(r => r.status === 'pending');
     if (pending.length === 0) return callTgApi('sendMessage', { chat_id: chatId, text: '✅ هیچ گزارش تخلف بررسی‌نشده‌ای وجود ندارد.' });
