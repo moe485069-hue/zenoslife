@@ -1,82 +1,3 @@
-
-// ----------------------------------------------------
-// AUTOMATED HOURLY BACKUPS & SNAPSHOTS
-// ----------------------------------------------------
-const BACKUP_DIR = path.join(__dirname, 'backups');
-if (!fs.existsSync(BACKUP_DIR)) {
-  try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (_) {}
-}
-
-function createDatabaseBackup() {
-  try {
-    if (!fs.existsSync(CONFIG.DATA_FILE)) return;
-    const now = new Date();
-    const dateStr = now.toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(BACKUP_DIR, `backup_${dateStr}.json`);
-    fs.copyFileSync(CONFIG.DATA_FILE, backupPath);
-
-    // Keep last 48 backups
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('backup_')).sort();
-    if (files.length > 48) {
-      const toDelete = files.slice(0, files.length - 48);
-      for (const df of toDelete) {
-        try { fs.unlinkSync(path.join(BACKUP_DIR, df)); } catch (_) {}
-      }
-    }
-  } catch (e) {
-    console.warn('Backup notice:', e.message);
-  }
-}
-
-// Hourly backup interval
-setInterval(createDatabaseBackup, 3600 * 1000);
-setTimeout(createDatabaseBackup, 5000); // Initial backup on start
-
-// ----------------------------------------------------
-// FORCE CHANNEL MEMBERSHIP CHECK
-// ----------------------------------------------------
-db.settings = db.settings || { forceSubEnabled: true, forceSubChannel: '@zenoslife_official' };
-
-async function isUserChannelMember(userId) {
-  if (!db.settings.forceSubEnabled || !db.settings.forceSubChannel) return true;
-  if (isAdmin(userId)) return true;
-
-  try {
-    const member = await callTgApi('getChatMember', {
-      chat_id: db.settings.forceSubChannel,
-      user_id: userId
-    });
-    if (member && ['creator', 'administrator', 'member', 'restricted'].includes(member.status)) {
-      return true;
-    }
-    return false;
-  } catch (e) {
-    // If bot is not admin in channel or error, do not block user
-    return true;
-  }
-}
-
-async function sendForceSubPrompt(chatId, userId) {
-  const channel = db.settings.forceSubChannel || '@zenoslife_official';
-  const cleanChannel = channel.replace('@', '');
-  const isEn = db.users[userId]?.lang === 'en';
-
-  const text = isEn
-    ? `📢 <b>Channel Membership Required</b>\n\nTo use ZenOsLife anonymous chat, multiplayer games and rewards, please join our official channel first:\n\n👉 <b>${channel}</b>\n\n<i>After joining, tap the confirmation button below:</i>`
-    : `📢 <b>عضویت در کانال رسمی الزامی است!</b>\n\nبرای استفاده از چت ناشناس، بازی‌های آنلاین دونفره و دریافت ۱,۰۰۰ سکه هدیه، لطفاً ابتدا در کانال رسمی زنوسلایف عضو شوید:\n\n👉 <b>${channel}</b>\n\n<i>پس از عضویت، روی دکمه «عضو شدم / بررسی مجدد» کلیک کنید:</i>`;
-
-  return callTgApi('sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: isEn ? '📢 Join Official Channel' : '📢 ورود و عضویت در کانال', url: `https://t.me/${cleanChannel}` }],
-        [{ text: isEn ? '🔄 I Joined / Re-check' : '🔄 عضو شدم / بررسی مجدد', callback_data: 'check_force_sub' }]
-      ]
-    }
-  });
-}
 /**
  * ============================================================================
  * 👑 ZenOsLife Enterprise Master Engine & Automated Monetization Backend
@@ -89,7 +10,8 @@ async function sendForceSubPrompt(chatId, userId) {
  * 5. In-Chat Economy & Engagement (Virtual Gifts, Icebreakers, 1v1 Duels, Trivia)
  * 6. Multiplayer Matchmaking Core (Smart AI Bot Mode vs Live Online Users)
  * 7. Calendar, Checklist & Alarm Notification Push Engine (Asia/Tehran timezone)
- * 8. Full Persian Super Admin Command Center (/admin, /grantvip, /setcoins, /ban, /broadcast)
+ * 8. Force Channel Join System & Hourly Automated Backups
+ * 9. Full Persian Super Admin Command Center (/admin, /grantvip, /setcoins, /ban, /broadcast)
  * ============================================================================
  */
 
@@ -130,6 +52,7 @@ let db = {
   matches: [],       // Array of completed game match records
   reports: [],       // Array of abuse reports
   reminders: [],     // Array of calendar reminder items
+  settings: { forceSubEnabled: false, forceSubChannel: '@zenoslife_official' },
   stats: { totalStarsRevenue: 0, totalMatchesPlayed: 0, totalChatsCompleted: 0 }
 };
 
@@ -151,7 +74,38 @@ function saveDb() {
 }
 
 // ----------------------------------------------------
-// 3. IN-MEMORY RUNTIME STATE & REAL-TIME QUEUES
+// 3. AUTOMATED HOURLY BACKUPS
+// ----------------------------------------------------
+const BACKUP_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+  try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (_) {}
+}
+
+function createDatabaseBackup() {
+  try {
+    if (!fs.existsSync(CONFIG.DATA_FILE)) return;
+    const now = new Date();
+    const dateStr = now.toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(BACKUP_DIR, `backup_${dateStr}.json`);
+    fs.copyFileSync(CONFIG.DATA_FILE, backupPath);
+
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('backup_')).sort();
+    if (files.length > 48) {
+      const toDelete = files.slice(0, files.length - 48);
+      for (const df of toDelete) {
+        try { fs.unlinkSync(path.join(BACKUP_DIR, df)); } catch (_) {}
+      }
+    }
+  } catch (e) {
+    console.warn('Backup notice:', e.message);
+  }
+}
+
+setInterval(createDatabaseBackup, 3600 * 1000);
+setTimeout(createDatabaseBackup, 5000);
+
+// ----------------------------------------------------
+// 4. IN-MEMORY RUNTIME STATE & REAL-TIME QUEUES
 // ----------------------------------------------------
 const waitingQueue = [];               // Chat Matchmaking Queue
 const activePairs = new Map();         // In-Chat 1v1 Pairings: userId -> partnerUserId
@@ -164,7 +118,7 @@ const onlineGameQueues = {             // Game-specific Matchmaking Queues
 };
 
 // ----------------------------------------------------
-// 4. 3D AVATARS & VISUAL ASSETS
+// 5. 3D AVATARS & VISUAL ASSETS
 // ----------------------------------------------------
 const DEFAULT_AVATARS = {
   male: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=800&auto=format&fit=crop&q=80',
@@ -178,7 +132,7 @@ function getUserAvatar(user) {
 }
 
 // ----------------------------------------------------
-// 5. BILINGUAL DICTIONARIES (FA / EN)
+// 6. BILINGUAL DICTIONARIES (FA / EN)
 // ----------------------------------------------------
 const I18N = {
   fa: {
@@ -371,7 +325,7 @@ function t(userId, key, params = {}) {
 }
 
 // ----------------------------------------------------
-// 6. TELEGRAM HTTPS API CLIENT
+// 7. TELEGRAM HTTPS API CLIENT
 // ----------------------------------------------------
 const httpsAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
 
@@ -411,7 +365,50 @@ function callTgApi(method, payload = {}) {
 }
 
 // ----------------------------------------------------
-// 7. LEVEL, XP & RECURRING RETENTION
+// 8. FORCE CHANNEL MEMBERSHIP CHECK
+// ----------------------------------------------------
+async function isUserChannelMember(userId) {
+  if (!db.settings?.forceSubEnabled || !db.settings?.forceSubChannel) return true;
+  if (isAdmin(userId)) return true;
+
+  try {
+    const member = await callTgApi('getChatMember', {
+      chat_id: db.settings.forceSubChannel,
+      user_id: userId
+    });
+    if (member && ['creator', 'administrator', 'member', 'restricted'].includes(member.status)) {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return true; // Fallback gracefully if error so bot is never stuck
+  }
+}
+
+async function sendForceSubPrompt(chatId, userId) {
+  const channel = db.settings?.forceSubChannel || '@zenoslife_official';
+  const cleanChannel = channel.replace('@', '');
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const text = isEn
+    ? `📢 <b>Channel Membership Required</b>\n\nTo use ZenOsLife anonymous chat, multiplayer games and rewards, please join our official channel first:\n\n👉 <b>${channel}</b>\n\n<i>After joining, tap the confirmation button below:</i>`
+    : `📢 <b>عضویت در کانال رسمی الزامی است!</b>\n\nبرای استفاده از چت ناشناس، بازی‌های آنلاین دونفره و دریافت ۱,۰۰۰ سکه هدیه، لطفاً ابتدا در کانال رسمی زنوسلایف عضو شوید:\n\n👉 <b>${channel}</b>\n\n<i>پس از عضویت، روی دکمه «عضو شدم / بررسی مجدد» کلیک کنید:</i>`;
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: isEn ? '📢 Join Official Channel' : '📢 ورود و عضویت در کانال', url: `https://t.me/${cleanChannel}` }],
+        [{ text: isEn ? '🔄 I Joined / Re-check' : '🔄 عضو شدم / بررسی مجدد', callback_data: 'check_force_sub' }]
+      ]
+    }
+  });
+}
+
+// ----------------------------------------------------
+// 9. LEVEL, XP & RECURRING RETENTION
 // ----------------------------------------------------
 function addXp(userId, amount) {
   const user = db.users[userId];
@@ -471,7 +468,7 @@ function checkVipExpiration() {
 }
 
 // ----------------------------------------------------
-// 8. ONBOARDING & LANGUAGE SELECTION
+// 10. ONBOARDING & LANGUAGE SELECTION
 // ----------------------------------------------------
 async function startLanguageChoice(chatId, userId, startParam = '') {
   registrationSteps.set(userId, {
@@ -525,7 +522,7 @@ async function promptGenderSelection(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 9. PROFILE CARD & IN-CHAT PROFILE INSPECTION
+// 11. PROFILE CARD & IN-CHAT PROFILE INSPECTION
 // ----------------------------------------------------
 async function sendProfileCard(chatId, userId) {
   const user = db.users[userId];
@@ -611,7 +608,7 @@ async function sendProfileEditMenu(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 10. MAIN BOT DASHBOARD & KEYBOARD
+// 12. MAIN BOT DASHBOARD & KEYBOARD
 // ----------------------------------------------------
 function getMainReplyKeyboard(userId) {
   const user = db.users[userId];
@@ -620,16 +617,12 @@ function getMainReplyKeyboard(userId) {
 
   return {
     keyboard: [
-      // 1. Native In-Bot Chat
       [{ text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی' }],
-      // 2. Native In-Bot Games & Duels
       [{ text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' }],
-      // 3. Consolidated Finance & Profile Hubs
       [
         { text: isEn ? '💎 VIP, Wallet & Earn 🎁' : '💎 VIP، کیف‌پول و درآمدزایی 🎁' },
         { text: isEn ? '👤 Profile & Settings ⚙️' : '👤 پروفایل و تنظیمات ⚙️' }
       ],
-      // 4. Optional Mini App Portal
       [{
         text: isEn ? '🌟 Open ZenOsLife (Mini App) ✨' : '🌟 ورود به دنیای زنوسلایف (Mini App) ✨',
         web_app: { url: `${CONFIG.WEBAPP_URL}?lang=${lang}` }
@@ -686,7 +679,7 @@ async function sendMainDashboard(chatId, userId, alertMsg = '') {
 }
 
 // ----------------------------------------------------
-// 11. SOCIAL MATCHMAKING & MOOD ENGINE
+// 13. SOCIAL MATCHMAKING & MOOD ENGINE
 // ----------------------------------------------------
 async function sendFilterMenu(chatId, userId) {
   const user = db.users[userId];
@@ -890,7 +883,7 @@ async function executeMatchSearch(chatId, userId, filterType = 'random') {
 }
 
 // ----------------------------------------------------
-// 12. IN-CHAT CONTROLS, PROFILE & GIFTS
+// 14. IN-CHAT CONTROLS, PROFILE & GIFTS
 // ----------------------------------------------------
 async function stopChat(chatId, userId) {
   const qIdx = waitingQueue.findIndex(w => w.userId === userId);
@@ -1042,7 +1035,7 @@ async function relayMessage(msg, partnerId) {
 }
 
 // ----------------------------------------------------
-// 13. VIRTUAL GIFTS & ICEBREAKERS
+// 15. VIRTUAL GIFTS & ICEBREAKERS
 // ----------------------------------------------------
 const ICEBREAKER_QUESTIONS = [
   '💭 اگر قرار بود فقط یک آرزوت برآورده شه، الان چی می‌خواستی؟',
@@ -1138,7 +1131,7 @@ async function triggerIcebreakerQuestion(userId) {
 }
 
 // ----------------------------------------------------
-// 14. IN-BOT DUELS & MATCHMAKING
+// 16. IN-BOT DUELS & MATCHMAKING
 // ----------------------------------------------------
 async function promptGameModeChoice(chatId, userId, gameType) {
   const isEn = db.users[userId]?.lang === 'en';
@@ -1430,7 +1423,7 @@ async function handleTriviaAnswer(userId, quizId, selectedIdx) {
 }
 
 // ----------------------------------------------------
-// 15. CALENDAR, CHECKLIST & ALARM NOTIFICATIONS
+// 17. CALENDAR, CHECKLIST & ALARM NOTIFICATIONS
 // ----------------------------------------------------
 db.reminders = db.reminders || [];
 
@@ -1529,7 +1522,7 @@ async function handleSnoozeReminder(userId, remId) {
 }
 
 // ----------------------------------------------------
-// 16. FINANCE, VIP & STARS MONETIZATION HUB
+// 18. FINANCE, VIP & STARS MONETIZATION HUB
 // ----------------------------------------------------
 async function sendFinanceAndVipHub(chatId, userId) {
   const user = db.users[userId] || { coins: 0 };
@@ -1667,7 +1660,7 @@ async function sendLeaderboard(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 17. ROYAL VIP ANONYMOUS GROUP CHAT LOUNGE
+// 19. ROYAL VIP ANONYMOUS GROUP CHAT LOUNGE
 // ----------------------------------------------------
 async function enterVipLounge(chatId, userId) {
   const user = db.users[userId];
@@ -1787,7 +1780,38 @@ async function broadcastToVipLounge(msg, senderId) {
 }
 
 // ----------------------------------------------------
-// 18. SUPER ADMIN DASHBOARD (/admin)
+// 20. GAMES MENU & ROUTING
+// ----------------------------------------------------
+async function sendGamesMenu(chatId, userId) {
+  const isEn = db.users[userId]?.lang === 'en';
+
+  const text = isEn
+    ? '🎮 <b>ZenOsLife Games & Live 1v1 Duels Hub:</b>\nSelect a game to play vs Smart AI Bot or Online Players:'
+    : '🎮 <b>مرکز بازی‌ها و دوئل‌های آنلاین زنوسلایف:</b>\nیک بازی را برای رقابت با ربات هوشمند یا حریف آنلاین واقعی انتخاب کنید:';
+
+  return callTgApi('sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: isEn ? '🪨 Rock-Paper-Scissors' : '🪨📄✂️ سنگ، کاغذ، قیچی', callback_data: 'prompt_mode_rps' },
+          { text: isEn ? '🎲 Animated Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'prompt_mode_dice' }
+        ],
+        [
+          { text: isEn ? '🧠 Trivia Battle' : '🧠 مسابقه اطلاعات عمومی و هوش', callback_data: 'prompt_mode_trivia' }
+        ],
+        [
+          { text: isEn ? '🌐 Open Mini App Arcade (10+ Games)' : '🌟 ورود به آرکید بازی‌های مینی‌اپ (۱۰+ بازی)', web_app: { url: `${CONFIG.WEBAPP_URL}#/games` } }
+        ]
+      ]
+    }
+  });
+}
+
+// ----------------------------------------------------
+// 21. SUPER ADMIN DASHBOARD (/admin)
 // ----------------------------------------------------
 async function sendAdminPanel(chatId, userId) {
   if (!isAdmin(userId)) {
@@ -1827,7 +1851,7 @@ async function sendAdminPanel(chatId, userId) {
     inline_keyboard: [
       [{ text: '🔄 به‌روزرسانی آمار زنده', callback_data: 'admin_refresh_stats' }],
       [
-        { text: db.settings.forceSubEnabled ? '🔒 قفل عضویت کانال: فعال ✅' : '🔓 قفل عضویت کانال: غیرفعال ❌', callback_data: 'admin_toggle_forcesub' },
+        { text: db.settings?.forceSubEnabled ? '🔒 قفل عضویت کانال: فعال ✅' : '🔓 قفل عضویت کانال: غیرفعال ❌', callback_data: 'admin_toggle_forcesub' },
         { text: '💾 تهیه بکاپ فوری دیتابیس', callback_data: 'admin_manual_backup' }
       ],
       [{ text: `🚩 مشاهده گزارش‌های تخلف (${pendingReports} مورد)`, callback_data: 'admin_view_reports' }],
@@ -1845,14 +1869,22 @@ async function sendAdminPanel(chatId, userId) {
 }
 
 // ----------------------------------------------------
-// 19. MESSAGE ROUTER & DISPATCHER
+// 22. MESSAGE ROUTER & DISPATCHER
 // ----------------------------------------------------
 async function handleMessage(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from.id);
   const text = msg.text || '';
 
-  // 0. VIP Lounge Member Broadcast
+  // 0. Force Channel Check (Only if enabled and user is not admin)
+  if (db.settings?.forceSubEnabled && !text.startsWith('/admin') && !isAdmin(userId)) {
+    const isMember = await isUserChannelMember(userId);
+    if (!isMember) {
+      return sendForceSubPrompt(chatId, userId);
+    }
+  }
+
+  // 1. VIP Lounge Member Broadcast
   if (vipLoungeMembers.has(userId)) {
     if (text === '🛑 خروج از تالار VIP' || text === '🛑 Exit VIP Lounge' || text === '/exit') {
       return leaveVipLounge(chatId, userId);
@@ -1871,15 +1903,7 @@ async function handleMessage(msg) {
     return broadcastToVipLounge(msg, userId);
   }
 
-  // Force Channel Check (except for admins and /start)
-  if (!text.startsWith('/admin') && !isAdmin(userId)) {
-    const isMember = await isUserChannelMember(userId);
-    if (!isMember) {
-      return sendForceSubPrompt(chatId, userId);
-    }
-  }
-
-  // 1. In-Chat Active Relay & Commands
+  // 2. In-Chat Active Relay & Commands
   if (activePairs.has(userId)) {
     if (text === t(userId, 'inChatStop') || text === '/stop') return stopChat(chatId, userId);
     if (text === t(userId, 'inChatNext') || text === '/next') return nextPartner(chatId, userId);
@@ -1900,14 +1924,14 @@ async function handleMessage(msg) {
     return relayMessage(msg, activePairs.get(userId));
   }
 
-  // 2. Queue Cancellation
+  // 3. Queue Cancellation
   if (waitingQueue.some(w => w.userId === userId)) {
     if (text === t(userId, 'inChatStop') || text === '/stop') {
       return stopChat(chatId, userId);
     }
   }
 
-  // 3. Onboarding & Profile Editing Steps
+  // 4. Onboarding & Profile Editing Steps
   if (registrationSteps.has(userId)) {
     const reg = registrationSteps.get(userId);
     if (reg.step === 'editing_photo' && msg.photo && msg.photo.length > 0) {
@@ -1942,7 +1966,7 @@ async function handleMessage(msg) {
     }
   }
 
-  // 4. Super Admin Direct Commands
+  // 5. Super Admin Direct Commands
   if (isAdmin(userId)) {
     if (text.startsWith('/grantvip')) {
       const parts = text.split(' ');
@@ -1983,14 +2007,6 @@ async function handleMessage(msg) {
       return callTgApi('sendMessage', { chat_id: chatId, text: `✅ موجودی سکه کاربر ${targetUid} به ${amount.toLocaleString()} تغییر یافت.` });
     }
 
-    if (text.startsWith('/setchannel')) {
-      const newChannel = text.replace('/setchannel', '').trim();
-      if (!newChannel) return callTgApi('sendMessage', { chat_id: chatId, text: 'نحوه استفاده: /setchannel @zenoslife_official' });
-      db.settings.forceSubChannel = newChannel;
-      saveDb();
-      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ کانال عضویت اجباری به <b>${newChannel}</b> تغییر یافت.`, parse_mode: 'HTML' });
-    }
-
     if (text.startsWith('/ban')) {
       const parts = text.split(' ');
       const targetUid = parts[1];
@@ -1998,6 +2014,14 @@ async function handleMessage(msg) {
       db.users[targetUid].is_banned = true;
       saveDb();
       return callTgApi('sendMessage', { chat_id: chatId, text: `🚫 کاربر ${targetUid} مسدود شد.` });
+    }
+
+    if (text.startsWith('/setchannel')) {
+      const newChannel = text.replace('/setchannel', '').trim();
+      if (!newChannel) return callTgApi('sendMessage', { chat_id: chatId, text: 'نحوه استفاده: /setchannel @zenoslife_official' });
+      db.settings.forceSubChannel = newChannel;
+      saveDb();
+      return callTgApi('sendMessage', { chat_id: chatId, text: `✅ کانال عضویت اجباری به <b>${newChannel}</b> تغییر یافت.`, parse_mode: 'HTML' });
     }
 
     if (text.startsWith('/broadcast')) {
@@ -2011,7 +2035,7 @@ async function handleMessage(msg) {
     }
   }
 
-  // 5. Calendar Reminders & Alarms Commands
+  // 6. Calendar Reminders & Alarms Commands
   if (text.startsWith('/remind') || text.startsWith('/alarm') || text.startsWith('/reminder')) {
     const parts = text.replace(/\/remind|\/alarm|\/reminder/, '').trim().split(' ');
     const timeStr = parts[0];
@@ -2045,7 +2069,7 @@ async function handleMessage(msg) {
     });
   }
 
-  // 6. Main Navigation Triggers
+  // 7. Main Navigation Triggers
   if (text.startsWith('/start')) {
     const parts = text.split(' ');
     const startParam = parts[1] || '';
@@ -2067,7 +2091,7 @@ async function handleMessage(msg) {
 }
 
 // ----------------------------------------------------
-// 20. CALLBACK QUERY ROUTER
+// 23. CALLBACK QUERY ROUTER
 // ----------------------------------------------------
 async function handleCallbackQuery(cq) {
   const chatId = cq.message.chat.id;
@@ -2097,6 +2121,7 @@ async function handleCallbackQuery(cq) {
     createDatabaseBackup();
     return callTgApi('sendMessage', { chat_id: chatId, text: '✅ <b>نسخه پشتیبان (بکاپ) با موفقیت در سرور ذخیره شد!</b>', parse_mode: 'HTML' });
   }
+
   if (data === 'admin_view_reports') {
     const pending = (db.reports || []).filter(r => r.status === 'pending');
     if (pending.length === 0) return callTgApi('sendMessage', { chat_id: chatId, text: '✅ هیچ گزارش تخلف بررسی‌نشده‌ای وجود ندارد.' });
@@ -2108,6 +2133,12 @@ async function handleCallbackQuery(cq) {
       reply_markup: { inline_keyboard: [[{ text: '🔙 بازگشت به پنل', callback_data: 'admin_refresh_stats' }]] }
     });
   }
+
+  // Filter Menu Navigation
+  if (data === 'open_other_filters') return sendOtherFiltersMenu(chatId, userId);
+  if (data === 'back_to_chat_filters') return sendFilterMenu(chatId, userId);
+  if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);
+  if (data.startsWith('mood_match_')) return executeMatchSearch(chatId, userId, `mood_${data.replace('mood_match_', '')}`);
 
   // Reminder Callbacks
   if (data.startsWith('complete_reminder_')) return handleCompleteReminder(userId, data.replace('complete_reminder_', ''));
@@ -2180,12 +2211,6 @@ async function handleCallbackQuery(cq) {
     }
     return callTgApi('sendMessage', { chat_id: chatId, text: '✅ جستجوی حریف لغو شد.' });
   }
-
-  // Mood & Trivia Callbacks
-  if (data === 'open_other_filters') return sendOtherFiltersMenu(chatId, userId);
-  if (data === 'open_mood_menu') return sendMoodSelectMenu(chatId, userId);
-  if (data === 'back_to_chat_filters') return sendFilterMenu(chatId, userId);
-  if (data.startsWith('mood_match_')) return executeMatchSearch(chatId, userId, `mood_${data.replace('mood_match_', '')}`);
 
   if (data === 'duel_invite_trivia') {
     if (!activePairs.has(userId)) return;
@@ -2547,7 +2572,7 @@ async function handleCallbackQuery(cq) {
 }
 
 // ----------------------------------------------------
-// 21. PAYMENT SETTLEMENT & STARS PRE-CHECKOUT
+// 24. PAYMENT SETTLEMENT & STARS PRE-CHECKOUT
 // ----------------------------------------------------
 async function handlePreCheckoutQuery(pcq) {
   return callTgApi('answerPreCheckoutQuery', { pre_checkout_query_id: pcq.id, ok: true });
@@ -2617,10 +2642,9 @@ async function handleSuccessfulPayment(msg) {
 }
 
 // ----------------------------------------------------
-// 22. INTEGRATED HTTP REST API SERVER (FOR MINI APP SYNC)
+// 25. INTEGRATED HTTP REST API SERVER (FOR MINI APP SYNC)
 // ----------------------------------------------------
 const server = http.createServer((req, res) => {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -2630,13 +2654,11 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
-  // Health check
   if (req.url === '/health' || req.url === '/api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), usersCount: Object.keys(db.users).length }));
   }
 
-  // Get user profile
   if (req.url.startsWith('/api/user/')) {
     const uid = req.url.replace('/api/user/', '').split('?')[0];
     const user = db.users[uid];
@@ -2649,7 +2671,6 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  // Add reminder from Mini App
   if (req.method === 'POST' && req.url === '/api/reminders') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -2683,7 +2704,7 @@ async function getBotInfo() {
 }
 
 // ----------------------------------------------------
-// 23. LONG-POLLING ENGINE WITH GRACEFUL RECOVERY
+// 26. LONG-POLLING ENGINE WITH GRACEFUL RECOVERY
 // ----------------------------------------------------
 setInterval(checkVipExpiration, 6 * 3600 * 1000);
 
