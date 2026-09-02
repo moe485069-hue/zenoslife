@@ -914,13 +914,13 @@ export default function Backgammon() {
 
           <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px]">
             
-            {/* Left Quadrant (Points 24-19 Top, 1-6 Bottom) */}
+            {/* Left Quadrant (Outer Board: Points 13-18 Top, 12-7 Bottom) */}
             <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
               <div className="flex h-[46%] w-full">
-                {[24, 23, 22, 21, 20, 19].map(p => renderPoint(p, true))}
+                {[13, 14, 15, 16, 17, 18].map(p => renderPoint(p, true))}
               </div>
               <div className="flex h-[46%] w-full">
-                {[1, 2, 3, 4, 5, 6].map(p => renderPoint(p, false))}
+                {[12, 11, 10, 9, 8, 7].map(p => renderPoint(p, false))}
               </div>
             </div>
 
@@ -952,13 +952,13 @@ export default function Backgammon() {
               </div>
             </div>
 
-            {/* Right Quadrant (Points 18-13 Top, 7-12 Bottom) */}
+            {/* Right Quadrant (Home Board: Points 19-24 Top, 6-1 Bottom) */}
             <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
               <div className="flex h-[46%] w-full">
-                {[18, 17, 16, 15, 14, 13].map(p => renderPoint(p, true))}
+                {[19, 20, 21, 22, 23, 24].map(p => renderPoint(p, true))}
               </div>
               <div className="flex h-[46%] w-full">
-                {[7, 8, 9, 10, 11, 12].map(p => renderPoint(p, false))}
+                {[6, 5, 4, 3, 2, 1].map(p => renderPoint(p, false))}
               </div>
             </div>
 

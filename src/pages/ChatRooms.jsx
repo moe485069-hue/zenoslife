@@ -202,6 +202,8 @@ export default function ChatRooms() {
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const [isTournamentModalOpen, setIsTournamentModalOpen] = useState(false);
   const [isTarotModalOpen, setIsTarotModalOpen] = useState(false);
+  const [isFeaturesMenuOpen, setIsFeaturesMenuOpen] = useState(false);
+  const [showQuickPhrases, setShowQuickPhrases] = useState(false);
   const { isVip } = useAppStore();
 
   const [showRadioWidget, setShowRadioWidget] = useState(true);
@@ -603,112 +605,44 @@ export default function ChatRooms() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{isRtl ? 'شبکه زنده' : 'Live'} ({activeRelayCount || 1})</span>
                 </span>
+                <span className="text-[9px] text-slate-500">•</span>
+                <span className="text-[9px] text-slate-400 font-bold">
+                  {onlineUsers.length + 1} {isRtl ? 'کاربر آنلاین' : 'online'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Right Controls */}
+          {/* Right Controls - Sleek & Modern */}
           <div className="flex items-center gap-1.5">
-            {/* Admin Panel Button if Unlocked */}
-            {isAdminUnlocked && (
-              <button
-                onClick={() => setIsAdminPanelOpen(true)}
-                className="p-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
-                title="پنل مدیریت ارشد"
-              >
-                <Crown size={14} className="text-amber-400" />
-                <span className="hidden sm:inline">پنل مدیریت</span>
-              </button>
-            )}
+            {/* Features Hub Button (Replaces cluttered buttons) */}
+            <button
+              onClick={() => { setIsFeaturesMenuOpen(true); soundEngine.playTap?.(); }}
+              className="p-1.5 px-3 rounded-2xl bg-gradient-to-r from-purple-600/30 via-pink-600/20 to-amber-600/30 border border-purple-500/40 text-purple-200 text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 hover:border-purple-400 transition-all"
+              title="امکانات و خدمات ویژه"
+            >
+              <Sparkles size={14} className="text-amber-400 animate-pulse" />
+              <span>{isRtl ? 'امکانات' : 'Features'}</span>
+            </button>
 
-            
-            
             {/* Coins Shop Badge */}
             <button
               onClick={() => { setIsCoinShopOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-yellow-500/20 active:scale-95"
+              className="p-1.5 px-2.5 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-black text-xs flex items-center gap-1 shadow-md shadow-yellow-500/20 active:scale-95"
               title="خرید سکه و الماس"
             >
               <span>🪙</span>
               <span>{(coins || 0).toLocaleString()}</span>
             </button>
 
-            {/* VIP Pass Button */}
-            <button
-              onClick={() => { setIsVipModalOpen(true); soundEngine.playTap?.(); }}
-              className={`p-1.5 px-2 rounded-xl border text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 ${
-                isVip ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-white/5 border-white/10 text-slate-300 hover:text-white'
-              }`}
-              title="اشتراک طلایی VIP"
-            >
-              <span>👑</span>
-              <span className="hidden sm:inline">{isVip ? 'VIP فعال' : 'عضویت VIP'}</span>
-            </button>
-
-            {/* Tarot & Astrology Button */}
-            <button
-              onClick={() => { setIsTarotModalOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
-              title="فال تاروت و چارت تولد"
-            >
-              <span>🔮</span>
-              <span className="hidden sm:inline">فال و چارت</span>
-            </button>
-
-            {/* Referral Invite Button */}
-            <button
-              onClick={() => { setIsReferralModalOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
-              title="دعوت دوستان و کسب درآمد"
-            >
-              <span>👥</span>
-              <span className="hidden sm:inline">دعوت</span>
-            </button>
-
-            {/* VIP Store Button */}
-            <button
-              onClick={() => { setIsStoreModalOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
-              title="فروشگاه اقلام VIP"
-            >
-              <span>🛍️</span>
-              <span className="hidden sm:inline">فروشگاه</span>
-            </button>
-
-            {/* Blind Speed Chat Button */}
-            <button
-              onClick={() => { setIsBlindChatModalOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
-              title="قرار ناشناس ۳ دقیقه‌ای"
-            >
-              <span>🎭</span>
-              <span className="hidden sm:inline">قرار ناشناس</span>
-            </button>
-
-            {/* Soul Bond Partner Button */}
-            <button
-              onClick={() => { setIsSoulBondModalOpen(true); soundEngine.playTap?.(); }}
-              className="p-1.5 px-2 rounded-xl bg-pink-500/20 text-pink-300 border border-pink-500/40 text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95"
-              title="پارتنر و پیوند"
-            >
-              <span>💍</span>
-              {activeSoulBond && <span className="hidden sm:inline font-black text-white">{activeSoulBond.name}</span>}
-            </button>
-
             {/* Mobile Online Users Toggle Button */}
             <button
               onClick={() => setIsMobileUsersOpen(o => !o)}
-              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-600/15 border border-purple-500/30 text-purple-300 font-bold text-xs shadow-sm active:scale-95"
+              className="md:hidden flex items-center gap-1 px-2.5 py-1.5 rounded-2xl bg-purple-600/15 border border-purple-500/30 text-purple-300 font-bold text-xs shadow-sm active:scale-95"
             >
               <Users size={13} />
               <span>{onlineUsers.length + 1}</span>
             </button>
-
-            {/* Coins badge */}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs shadow-inner">
-              <Coins size={14} />
-              <span>{coins}</span>
-            </div>
 
             {/* Avatar & Photo Picker Trigger */}
             <button
@@ -2364,6 +2298,175 @@ export default function ChatRooms() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Features Hub Bottom Drawer / Modal */}
+      <AnimatePresence>
+        {isFeaturesMenuOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">⚡</span>
+                  <div>
+                    <h3 className="text-sm font-black text-white">{isRtl ? 'امکانات و خدمات ویژه' : 'Features & Services'}</h3>
+                    <p className="text-[10px] text-slate-400">{isRtl ? 'دسترسی سریع به بخش‌های تعاملی' : 'Quick access to chat features'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsFeaturesMenuOpen(false)}
+                  className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Grid of features */}
+              <div className="grid grid-cols-2 gap-2.5">
+                
+                {/* 1. VIP Subscription */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsVipModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className={`p-3 rounded-2xl border text-start flex flex-col justify-between gap-2 transition-all active:scale-95 ${
+                    isVip ? 'bg-amber-500/20 border-amber-400 text-amber-200' : 'bg-white/5 border-white/10 hover:border-amber-400/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl">👑</span>
+                    {isVip && <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-amber-400 text-slate-950 font-black">فعال</span>}
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-white">{isRtl ? 'عضویت VIP' : 'VIP Pass'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'نشان طلایی و چت نامحدود' : 'Golden badge & perks'}</div>
+                  </div>
+                </button>
+
+                {/* 2. Tarot & Astrology */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsTarotModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30 hover:border-purple-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">🔮</span>
+                  <div>
+                    <div className="text-xs font-black text-purple-200">{isRtl ? 'فال و چارت' : 'Tarot & Chart'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'تاروت کیهانی و هم‌فرکانسی' : 'Astrology & AI Tarot'}</div>
+                  </div>
+                </button>
+
+                {/* 3. Blind Speed Chat */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsBlindChatModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-pink-500/10 border border-pink-500/30 hover:border-pink-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">🎭</span>
+                  <div>
+                    <div className="text-xs font-black text-pink-200">{isRtl ? 'قرار ناشناس' : 'Blind Speed Chat'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'مکالمه ۳ دقیقه‌ای هیجان‌انگیز' : '3-min mystery chat'}</div>
+                  </div>
+                </button>
+
+                {/* 4. Referral Invite */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsReferralModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">👥</span>
+                  <div>
+                    <div className="text-xs font-black text-emerald-200">{isRtl ? 'دعوت دوستان' : 'Invite & Earn'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'پاداش و سکه رایگان' : 'Earn free coins'}</div>
+                  </div>
+                </button>
+
+                {/* 5. VIP Store */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsStoreModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">🛍️</span>
+                  <div>
+                    <div className="text-xs font-black text-amber-200">{isRtl ? 'فروشگاه اقلام' : 'Zen Store'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'قاب، تم و عناوین خاص' : 'Frames & Titles'}</div>
+                  </div>
+                </button>
+
+                {/* 6. Soul Bond Partner */}
+                <button
+                  onClick={() => {
+                    setIsFeaturesMenuOpen(false);
+                    setIsSoulBondModalOpen(true);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 hover:border-rose-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">💍</span>
+                  <div>
+                    <div className="text-xs font-black text-rose-200">{isRtl ? 'پارتنر و پیوند' : 'Soul Bond'}</div>
+                    <div className="text-[10px] text-slate-400">{isRtl ? 'پیوند هم‌فرکانس معنوی' : 'Spiritual Connection'}</div>
+                  </div>
+                </button>
+
+                {/* 7. Radio Widget */}
+                <button
+                  onClick={() => {
+                    setShowRadioWidget(r => !r);
+                    setIsFeaturesMenuOpen(false);
+                    soundEngine.playTap?.();
+                  }}
+                  className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95"
+                >
+                  <span className="text-xl">📻</span>
+                  <div>
+                    <div className="text-xs font-black text-cyan-200">{isRtl ? 'رادیو همگام' : 'Sync Radio'}</div>
+                    <div className="text-[10px] text-slate-400">{showRadioWidget ? (isRtl ? 'بستن رادیو' : 'Hide Radio') : (isRtl ? 'پخش رادیو زنده' : 'Show Radio')}</div>
+                  </div>
+                </button>
+
+                {/* 8. Admin Panel (If unlocked) */}
+                {isAdminUnlocked && (
+                  <button
+                    onClick={() => {
+                      setIsFeaturesMenuOpen(false);
+                      setIsAdminPanelOpen(true);
+                      soundEngine.playTap?.();
+                    }}
+                    className="p-3 rounded-2xl bg-amber-500/20 border border-amber-400 text-start flex flex-col justify-between gap-2 transition-all active:scale-95 col-span-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Crown className="text-amber-400" size={18} />
+                      <span className="text-xs font-black text-amber-300">{isRtl ? 'پنل مدیریت ارشد' : 'Admin Panel'}</span>
+                    </div>
+                  </button>
+                )}
+
+              </div>
             </motion.div>
           </div>
         )}
