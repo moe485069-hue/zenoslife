@@ -5,7 +5,7 @@ import {
   Gamepad2, Users, Trophy, Plus, Globe, Play,
   Lock, Unlock, Radio, Clock, RotateCcw, X,
   Crown, Sparkles, Swords, Zap, ChevronLeft, ChevronRight,
-  Flame, Target, Layers, Brain, Coins, Gift
+  Flame, Target, Layers, Brain, Coins, Gift, Sun, Moon, Share2
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
@@ -15,245 +15,368 @@ import gameRoomsService from '../services/gameRoomsService';
 import CoinShopModal from '../components/shop/CoinShopModal';
 import TournamentHubModal from '../components/games/TournamentHubModal';
 import ReferralHubModal from '../components/referral/ReferralHubModal';
+import GameHistoryPanel from '../components/games/GameHistoryPanel';
 
-// Complete Game Definitions with rich artwork & tags
-const GAME_DEFS = [
+// Complete Game Definitions with rich bilingual artwork & tags
+export const GAME_DEFS = [
   {
     id: 'hokm',
     titleFa: 'حکم ۴ نفره شاهانه',
+    titleEn: 'Royal 4-Player Hokm',
     icon: '👑',
     category: 'board',
     maxPlayers: 4,
     color: 'from-amber-600/30 via-yellow-700/20 to-amber-950/50 border-amber-500/40',
     accentColor: 'text-amber-300',
     descFa: 'محبوب‌ترین بازی کارتی ایران با هوش مصنوعی و امکان شرط‌بندی سکه.',
-    level: 'شاهانه 👑',
+    descEn: 'Persia’s most popular card game with smart AI and coin wagers.',
+    levelFa: 'شاهانه 👑',
+    levelEn: 'Royal 👑',
     featured: true,
     path: '/games/hokm'
   },
   {
     id: 'backgammon',
     titleFa: 'تخته نرد ایرانی',
+    titleEn: 'Persian Backgammon',
     icon: '🎲',
     category: 'board',
     maxPlayers: 2,
     color: 'from-orange-600/30 via-amber-800/20 to-orange-950/50 border-orange-500/40',
     accentColor: 'text-orange-300',
     descFa: 'تخته‌نرد اصیل با ۳ تم زیبا، ربات هوشمند، دونفره و آنلاین.',
-    level: 'اصیل 🎲',
+    descEn: 'Authentic Backgammon with 3 themes, smart bot, 2P & online.',
+    levelFa: 'اصیل 🎲',
+    levelEn: 'Classic 🎲',
     featured: true,
     path: '/games/backgammon'
   },
   {
     id: 'pasur',
     titleFa: 'پاستور (چهاربرگ)',
+    titleEn: 'Pasur (4-Cards)',
     icon: '🃏',
     category: 'board',
     maxPlayers: 2,
     color: 'from-emerald-600/30 via-teal-800/20 to-emerald-950/50 border-emerald-500/40',
     accentColor: 'text-emerald-300',
     descFa: 'بازی کارتی خاطره‌انگیز ایرانی. جمع کن، پاستور بزن و امتیاز بگیر!',
-    level: 'ایرانی 🇮🇷',
+    descEn: 'Memorable Persian card game. Match, sweep, and score points!',
+    levelFa: 'ایرانی 🇮🇷',
+    levelEn: 'Persian 🇮🇷',
     featured: true,
     path: '/games/pasur'
   },
   {
     id: 'ludo',
     titleFa: 'منچ کلاسیک (۲ تا ۴ نفره)',
+    titleEn: 'Classic Ludo (2-4P)',
     icon: '🎯',
     category: 'board',
     maxPlayers: 4,
     color: 'from-rose-600/30 via-pink-800/20 to-rose-950/50 border-rose-500/40',
     accentColor: 'text-rose-300',
     descFa: 'منچ ۲ تا ۴ نفره هیجان‌انگیز همراه با هوش مصنوعی و بازی آنلاین.',
-    level: 'دورهمی 🔥',
+    descEn: 'Exciting 2-4 player Ludo with AI bots and online multiplayer.',
+    levelFa: 'دورهمی 🔥',
+    levelEn: 'Party 🔥',
     featured: true,
     path: '/games/ludo'
   },
   {
     id: 'snakes',
     titleFa: 'مار و پله (۲ تا ۴ نفره)',
+    titleEn: 'Snakes & Ladders',
     icon: '🐍',
     category: 'board',
     maxPlayers: 4,
     color: 'from-emerald-600/30 via-teal-800/20 to-emerald-950/50 border-emerald-500/40',
     accentColor: 'text-emerald-300',
     descFa: 'مارپله خاطره‌انگیز ۲ تا ۴ نفره با نردبان‌های شتاب‌دهنده و نیش مار.',
-    level: 'دورهمی 🎲',
+    descEn: 'Nostalgic 2-4 player board game with booster ladders & snake traps.',
+    levelFa: 'دورهمی 🎲',
+    levelEn: 'Party 🎲',
     featured: true,
     path: '/games/snakes-and-ladders'
   },
   {
+    id: 'connect_four',
+    titleFa: 'چهار در یک خط نئونی',
+    titleEn: 'Neon Connect 4',
+    icon: '🎯',
+    category: 'board',
+    maxPlayers: 2,
+    color: 'from-blue-600/30 via-indigo-800/20 to-blue-950/50 border-blue-500/40',
+    accentColor: 'text-blue-300',
+    descFa: 'بازی استراتژیک چهار مهره متوالی با فیزیک جاذبه، ربات و آنلاین.',
+    descEn: 'Strategic 4-in-a-row drop battle with gravity physics, AI & 2P.',
+    levelFa: 'استراتژیک 🧠',
+    levelEn: 'Strategy 🧠',
+    featured: true,
+    path: '/games/connect-four'
+  },
+  {
+    id: 'dots_and_boxes',
+    titleFa: 'نقطه خط کیهانی',
+    titleEn: 'Cosmic Dots & Boxes',
+    icon: '📦',
+    category: 'board',
+    maxPlayers: 2,
+    color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
+    accentColor: 'text-teal-300',
+    descFa: 'اتصال نقطه‌ها، تسخیر خانه‌های نئونی و نوبت جایزه با ربات و دونفره.',
+    descEn: 'Connect dots, claim neon boxes and earn bonus turns vs AI or 2P.',
+    levelFa: 'فکری 🧩',
+    levelEn: 'Puzzle 🧩',
+    featured: true,
+    path: '/games/dots-and-boxes'
+  },
+  {
+    id: 'air_hockey',
+    titleFa: 'ایر هاکی نئونی',
+    titleEn: 'Neon Air Hockey',
+    icon: '🏒',
+    category: 'arcade',
+    maxPlayers: 2,
+    color: 'from-cyan-600/30 via-sky-800/20 to-cyan-950/50 border-cyan-500/40',
+    accentColor: 'text-cyan-300',
+    descFa: 'مسابقه پرسرعت ایر هاکی با فیزیک واقعی، ضربات زاویه‌دار و گل‌زنی.',
+    descEn: 'Fast-paced air hockey with realistic physics, strikes & goals.',
+    levelFa: 'اکشن ⚡',
+    levelEn: 'Action ⚡',
+    featured: true,
+    path: '/games/air-hockey'
+  },
+  {
+    id: 'battleship',
+    titleFa: 'نبرد ناوها و جنگ کیهانی',
+    titleEn: 'Cosmic Battleship',
+    icon: '🚀',
+    category: 'board',
+    maxPlayers: 2,
+    color: 'from-indigo-600/30 via-purple-800/20 to-indigo-950/50 border-indigo-500/40',
+    accentColor: 'text-indigo-300',
+    descFa: 'چیدمان ناوگان در رادار، شلیک موشک و نابودی سفینه‌های دشمن.',
+    descEn: 'Deploy your space fleet, fire radar missiles, and sink the enemy.',
+    levelFa: 'تاکتیک 🎯',
+    levelEn: 'Tactical 🎯',
+    featured: true,
+    path: '/games/battleship'
+  },
+  {
     id: 'soccer',
     titleFa: 'فوتبال انگشتی و دکمه‌ای',
+    titleEn: 'Finger Soccer 2D',
     icon: '⚽',
     category: 'arcade',
     maxPlayers: 4,
     color: 'from-green-600/30 via-emerald-800/20 to-green-950/50 border-green-500/40',
     accentColor: 'text-green-300',
-    descFa: 'فوتبال فیزیکی ۲ نفره و تیمی ۴ نفره با مهره‌های قدرتی و ضربه به توپ.',
-    level: 'ورزشی ⚽',
+    descFa: 'فوتبال فیزیکی ۲ نفره و تیمی ۴ نفره با مهره‌های قدرتی و شوت به دروازه.',
+    descEn: 'Physical 2-4 player table soccer with power caps and goal shots.',
+    levelFa: 'ورزشی ⚽',
+    levelEn: 'Sports ⚽',
     featured: true,
     path: '/games/finger-soccer'
   },
   {
     id: 'ocho',
     titleFa: 'اوچو (Uno رنگی)',
+    titleEn: 'Ocho (Uno Color Match)',
     icon: '🌈',
     category: 'board',
     maxPlayers: 4,
     color: 'from-purple-600/30 via-pink-800/20 to-purple-950/50 border-purple-500/40',
     accentColor: 'text-purple-300',
     descFa: 'بازی کارتی معروف اوچو و اونو با کارت‌های رنگی، تغییر جهت و جریمه.',
-    level: 'هیجانی 🃏',
+    descEn: 'Famous color card battle with draw cards, skips, and wild colors.',
+    levelFa: 'هیجانی 🃏',
+    levelEn: 'Party 🃏',
     featured: true,
     path: '/games/ocho'
   },
   {
     id: 'golf',
     titleFa: 'مینی گلف رویال',
+    titleEn: 'Royal Mini Golf',
     icon: '⛳',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-lime-600/30 via-emerald-800/20 to-lime-950/50 border-lime-500/40',
     accentColor: 'text-lime-300',
     descFa: 'مینی گلف ۲ نفره با موانع حرکتی، زاویه‌بندی و پاکت کردن توپ.',
-    level: 'ورزشی ⛳',
+    descEn: '2-Player mini golf with moving obstacles and smooth putting physics.',
+    levelFa: 'ورزشی ⛳',
+    levelEn: 'Sports ⛳',
     featured: true,
     path: '/games/mini-golf'
   },
   {
     id: 'billiards',
     titleFa: 'بیلیارد ۸-توپی',
+    titleEn: '8-Ball Billiards',
     icon: '🎱',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
     accentColor: 'text-teal-300',
     descFa: 'بیلیارد واقعی با موتور فیزیک، زاویه‌بندی و پاکت کردن توپ‌ها.',
-    level: 'اکشن 🎱',
+    descEn: 'Realistic 8-ball pool with cue physics and pocket angles.',
+    levelFa: 'اکشن 🎱',
+    levelEn: 'Action 🎱',
     path: '/games/billiards'
   },
   {
     id: 'cosmic_chess',
     titleFa: 'شطرنج کیهانی',
+    titleEn: 'Cosmic Chess',
     icon: '♟️',
     category: 'board',
     maxPlayers: 2,
     color: 'from-indigo-600/30 via-blue-800/20 to-indigo-950/50 border-indigo-500/40',
     accentColor: 'text-indigo-300',
     descFa: 'شطرنج کامل همراه با هوش مصنوعی و بازی دونفره در یک دستگاه.',
-    level: 'استراتژیک ♟️',
+    descEn: 'Full chess with smart AI and local pass & play on same device.',
+    levelFa: 'استراتژیک ♟️',
+    levelEn: 'Grandmaster ♟️',
     path: '/games/cosmic-chess'
   },
   {
     id: 'tic_tac_toe',
     titleFa: 'دوز نئونی (X-O)',
+    titleEn: 'Neon Tic-Tac-Toe',
     icon: '⭕',
     category: 'board',
     maxPlayers: 2,
     color: 'from-emerald-600/20 via-teal-900/30 to-slate-950/50 border-emerald-500/40',
     accentColor: 'text-emerald-300',
     descFa: 'بازی کلاسیک دوز با گرافیک سایبرپانک و حریف هوشمند.',
-    level: 'ساده 🟢',
+    descEn: 'Classic X-O duel with cyberpunk neon glow and AI.',
+    levelFa: 'ساده 🟢',
+    levelEn: 'Casual 🟢',
     path: '/games/tic-tac-toe'
   },
   {
     id: 'cosmic_pong',
     titleFa: 'پونگ کیهانی',
+    titleEn: 'Cosmic Pong',
     icon: '🏓',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-sky-600/20 via-blue-900/30 to-slate-950/50 border-sky-500/40',
     accentColor: 'text-sky-300',
     descFa: 'پونگ دونفره رقابتی با کنترل لمسی و کیبورد.',
-    level: 'دونفره 🏓',
+    descEn: 'Competitive 2-Player Pong with touch and keyboard controls.',
+    levelFa: 'دونفره 🏓',
+    levelEn: '2-Player 🏓',
     path: '/games/cosmic-pong'
   },
   {
     id: 'cyber_2048',
     titleFa: '۲۰۴۸ سایبری',
+    titleEn: 'Cyber 2048',
     icon: '🔢',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-cyan-600/20 via-blue-900/30 to-slate-950/50 border-cyan-500/40',
     accentColor: 'text-cyan-300',
     descFa: 'پازل ریاضی و استراتژیک با کاشی‌های نئونی.',
-    level: 'رکوردی 🔴',
+    descEn: 'Mathematical tile merger puzzle with glowing neon blocks.',
+    levelFa: 'رکوردی 🔴',
+    levelEn: 'High Score 🔴',
     path: '/games/2048'
   },
   {
     id: 'neon_snake',
     titleFa: 'مار سایبری (Snake)',
+    titleEn: 'Neon Snake',
     icon: '🐍',
     category: 'arcade',
     maxPlayers: 1,
     color: 'from-purple-600/20 via-fuchsia-900/30 to-slate-950/50 border-purple-500/40',
     accentColor: 'text-purple-300',
     descFa: 'مار کلاسیک با جلوه‌های نئونی و ثبت رکورد.',
-    level: 'آرکید 🐍',
+    descEn: 'Classic arcade snake with neon particle effects and high scores.',
+    levelFa: 'آرکید 🐍',
+    levelEn: 'Arcade 🐍',
     path: '/games/neon-snake'
   },
   {
     id: 'space_defender',
     titleFa: 'مدافع فضا',
+    titleEn: 'Space Defender',
     icon: '🚀',
     category: 'arcade',
     maxPlayers: 1,
     color: 'from-rose-600/20 via-red-900/30 to-slate-950/50 border-rose-500/40',
     accentColor: 'text-rose-300',
     descFa: 'کنترل سفینه و نابودی سنگ‌های آسمانی در کهکشان.',
-    level: 'اکشن 🚀',
+    descEn: 'Pilot your starship and vaporize incoming asteroids in deep galaxy.',
+    levelFa: 'اکشن 🚀',
+    levelEn: 'Action 🚀',
     path: '/games/space-defender'
   },
   {
     id: 'reaction_speed',
     titleFa: 'سرعت واکنش',
+    titleEn: 'Reaction Speed',
     icon: '⚡',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-amber-600/20 via-orange-900/30 to-slate-950/50 border-amber-500/40',
     accentColor: 'text-amber-300',
     descFa: 'سنجش میلی‌ثانیه‌ای سرعت رفلکس و عکس‌العمل عصبی.',
-    level: 'واکنش ⚡',
+    descEn: 'Millisecond-precision reflex test for brain cognitive agility.',
+    levelFa: 'واکنش ⚡',
+    levelEn: 'Reflex ⚡',
     path: '/games/reaction-speed'
   },
   {
     id: 'wordle_persian',
     titleFa: 'حدس کلمه فارسی',
+    titleEn: 'Persian Wordle',
     icon: '🔤',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-yellow-600/20 via-amber-900/30 to-slate-950/50 border-yellow-500/40',
     accentColor: 'text-yellow-300',
     descFa: 'کلمه ۵ حرفی پنهان را در ۶ تلاش حدس بزن.',
-    level: 'کلمات 🔤',
+    descEn: 'Guess the hidden 5-letter word within 6 smart attempts.',
+    levelFa: 'کلمات 🔤',
+    levelEn: 'Word Puzzle 🔤',
     path: '/games/wordle'
   },
   {
     id: 'memory_matrix',
     titleFa: 'ماتریس حافظه',
+    titleEn: 'Memory Matrix',
     icon: '🧠',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-fuchsia-600/20 via-purple-900/30 to-slate-950/50 border-fuchsia-500/40',
     accentColor: 'text-fuchsia-300',
     descFa: 'تقویت حافظه فعال و تمرکز ذهن با کشف جفت کارت‌ها.',
-    level: 'حافظه 🧠',
+    descEn: 'Card pairing challenge to boost working memory and focus.',
+    levelFa: 'حافظه 🧠',
+    levelEn: 'Memory 🧠',
     path: '/games/memory-matrix'
   }
 ];
 
-const MULTIPLAYER_IDS = ['hokm', 'backgammon', 'ludo', 'snakes', 'soccer', 'ocho', 'golf', 'pasur', 'billiards', 'cosmic_chess', 'tic_tac_toe', 'cosmic_pong'];
-
-const CATEGORIES = [
-  { id: 'all', labelFa: 'همه بازی‌ها', icon: '🎮' },
-  { id: 'board', labelFa: 'شاهانه و تخته', icon: '🎲' },
-  { id: 'arcade', labelFa: 'آرکید و اکشن', icon: '🕹️' },
-  { id: 'puzzle', labelFa: 'فکری و پازل', icon: '🧩' }
+export const MULTIPLAYER_IDS = [
+  'hokm', 'backgammon', 'ludo', 'snakes', 'connect_four', 'dots_and_boxes',
+  'air_hockey', 'battleship', 'soccer', 'ocho', 'golf', 'pasur', 'billiards',
+  'cosmic_chess', 'tic_tac_toe', 'cosmic_pong'
 ];
 
-// Helper to safely render Avatar (Base64 image or Emoji)
+export const CATEGORIES = [
+  { id: 'all', labelFa: 'همه بازی‌ها', labelEn: 'All Games', icon: '🎮' },
+  { id: 'board', labelFa: 'شاهانه و تخته', labelEn: 'Board & Classic', icon: '🎲' },
+  { id: 'arcade', labelFa: 'آرکید و اکشن', labelEn: 'Arcade & Action', icon: '🕹️' },
+  { id: 'puzzle', labelFa: 'فکری و پازل', labelEn: 'Brain & Puzzle', icon: '🧩' }
+];
+
+// Helper to safely render Avatar
 function SafeAvatar({ avatar, size = 'w-9 h-9 text-base', ringColor = 'border-purple-500/50' }) {
   if (!avatar) return <div className={`${size} rounded-2xl bg-purple-600 flex items-center justify-center text-white shrink-0`}>👤</div>;
   if (avatar.startsWith('data:image/') || avatar.startsWith('http')) {
@@ -273,7 +396,7 @@ function SafeAvatar({ avatar, size = 'w-9 h-9 text-base', ringColor = 'border-pu
 }
 
 // Live Room Card (Dark Glass Platô Design)
-function LiveRoomCard({ room, onJoin }) {
+function LiveRoomCard({ room, onJoin, isRtl }) {
   const game = GAME_DEFS.find(g => g.id === room.gameType);
   const timeAgo = Math.max(0, Math.round((Date.now() - room.createdAt) / 60000));
   const isFull = room.currentPlayers >= room.maxPlayers;
@@ -292,27 +415,33 @@ function LiveRoomCard({ room, onJoin }) {
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-black text-white truncate">{game?.titleFa || room.gameType}</h4>
+              <h4 className="text-sm font-black text-white truncate">
+                {isRtl ? (game?.titleFa || room.gameType) : (game?.titleEn || room.gameType)}
+              </h4>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                 isWaiting && !isFull
                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                   : 'bg-amber-500/15 border-amber-500/40 text-amber-300'
               }`}>
-                {isWaiting && !isFull ? 'در انتظار حریف' : isFull ? 'تکمیل شد' : 'در جریان'}
+                {isWaiting && !isFull 
+                  ? (isRtl ? 'در انتظار حریف' : 'Waiting') 
+                  : isFull 
+                  ? (isRtl ? 'تکمیل شد' : 'Full') 
+                  : (isRtl ? 'در جریان' : 'In Progress')}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
               <span className="flex items-center gap-1">
                 <SafeAvatar avatar={room.hostAvatar} size="w-4 h-4 text-[10px]" />
-                <span className="truncate max-w-[100px] text-slate-300 font-bold">{room.hostName || 'کاربر'}</span>
+                <span className="truncate max-w-[100px] text-slate-300 font-bold">{room.hostName || (isRtl ? 'کاربر' : 'Player')}</span>
               </span>
               <span>·</span>
               <span className="flex items-center gap-1 font-bold text-purple-300">
-                <Users size={11} /> {room.currentPlayers}/{room.maxPlayers} نفر
+                <Users size={11} /> {room.currentPlayers}/{room.maxPlayers} {isRtl ? 'نفر' : 'Players'}
               </span>
               <span>·</span>
               <span className="flex items-center gap-1 text-slate-500">
-                <Clock size={11} /> {timeAgo < 1 ? 'همین الان' : `${timeAgo} دقیقه` }
+                <Clock size={11} /> {timeAgo < 1 ? (isRtl ? 'همین الان' : 'Just now') : (isRtl ? `${timeAgo} دقیقه` : `${timeAgo}m ago`)}
               </span>
             </div>
           </div>
@@ -325,7 +454,7 @@ function LiveRoomCard({ room, onJoin }) {
           className="shrink-0 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 hover:brightness-110 text-white text-xs font-black disabled:opacity-35 active:scale-95 shadow-lg shadow-purple-500/30 transition-all flex items-center gap-1.5"
         >
           <Play size={13} />
-          <span>پیوستن</span>
+          <span>{isRtl ? 'پیوستن' : 'Join'}</span>
         </button>
       </div>
 
@@ -347,11 +476,12 @@ function LiveRoomCard({ room, onJoin }) {
   );
 }
 
-// Create Online Game Modal
-function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar }) {
+// Create Online Game Modal (Platô Match) - FIXED Stacking, Occlusion & Contrast
+function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isRtl }) {
   const [selectedGame, setSelectedGame] = useState(GAME_DEFS[0]);
   const [isPrivate, setIsPrivate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createdRoom, setCreatedRoom] = useState(null);
   const multiplayerGames = GAME_DEFS.filter(g => MULTIPLAYER_IDS.includes(g.id));
 
   const handleCreate = async () => {
@@ -362,14 +492,27 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar }) {
       roomId,
       gameType: selectedGame.id,
       gameTitleFa: selectedGame.titleFa,
+      gameTitleEn: selectedGame.titleEn,
       hostId: localStorage.getItem('life_os_user_id') || 'u_' + Date.now(),
-      hostName: (userName && userName.length < 25 && !userName.startsWith('data:image/')) ? userName : 'کاربر زنوسلایف',
+      hostName: (userName && userName.length < 25 && !userName.startsWith('data:image/')) ? userName : (isRtl ? 'کاربر زنوسلایف' : 'ZenOsLife Player'),
       hostAvatar: userAvatar || '🎮',
       maxPlayers: selectedGame.maxPlayers,
       isPrivate
     });
     setCreating(false);
-    onCreated(room, selectedGame);
+    setCreatedRoom({ room, game: selectedGame });
+  };
+
+  const handleEnterRoom = () => {
+    if (createdRoom) {
+      onCreated(createdRoom.room, createdRoom.game);
+      setCreatedRoom(null);
+      onClose();
+    }
+  };
+
+  const handleClose = () => {
+    setCreatedRoom(null);
     onClose();
   };
 
@@ -380,77 +523,134 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4"
-          onClick={onClose}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4"
+          onClick={handleClose}
         >
           <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
+            initial={{ scale: 0.92, y: 20, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.92, y: 20, opacity: 0 }}
             onClick={e => e.stopPropagation()}
-            className="w-full max-w-lg rounded-3xl bg-slate-900 border-2 border-purple-500/40 p-5 shadow-2xl space-y-4 text-right overflow-y-auto max-h-[90vh]"
-            dir="rtl"
+            className="w-full max-w-lg max-h-[85vh] rounded-3xl bg-slate-900 border-2 border-purple-500/40 p-5 shadow-2xl space-y-4 text-start overflow-y-auto pb-6"
+            dir={isRtl ? 'rtl' : 'ltr'}
           >
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-black text-white flex items-center gap-2">
                 <Plus size={20} className="text-purple-400" />
-                ساخت بازی آنلاین جدید (Platô Match)
+                <span>{isRtl ? 'ساخت بازی آنلاین جدید (Platô Match)' : 'Create New Online Match (Platô Match)'}</span>
               </h3>
-              <button onClick={onClose} className="p-1.5 rounded-xl bg-white/10 text-slate-400 hover:text-white">
+              <button 
+                onClick={handleClose} 
+                className="p-1.5 rounded-xl bg-white/10 text-slate-400 hover:text-white transition-colors"
+                title={isRtl ? 'بستن' : 'Close'}
+              >
                 <X size={16} />
               </button>
             </div>
 
-            <div>
-              <p className="text-xs text-slate-300 font-bold mb-2.5">انتخاب نوع بازی:</p>
-              <div className="grid grid-cols-2 gap-2">
-                {multiplayerGames.map(g => (
-                  <button
-                    key={g.id}
-                    onClick={() => { setSelectedGame(g); soundEngine.playTap?.(); }}
-                    className={`p-3 rounded-2xl border text-right flex items-center gap-2.5 transition-all active:scale-95 ${
-                      selectedGame?.id === g.id
-                        ? 'border-purple-400 bg-purple-500/25 text-white shadow-lg shadow-purple-500/20 ring-1 ring-purple-400'
-                        : 'border-white/10 bg-white/5 text-slate-300 hover:border-purple-500/40'
-                    }`}
-                  >
-                    <span className="text-2xl shrink-0">{g.icon}</span>
-                    <div className="min-w-0">
-                      <span className="text-xs font-black block truncate">{g.titleFa}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">{g.maxPlayers} نفره</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2">
-                {isPrivate ? <Lock size={16} className="text-amber-400" /> : <Unlock size={16} className="text-emerald-400" />}
+            {!createdRoom ? (
+              <>
+                {/* Game Selection Grid */}
                 <div>
-                  <p className="text-xs font-black text-white">{isPrivate ? 'اتاق خصوصی' : 'اتاق عمومی لابی'}</p>
-                  <p className="text-[10px] text-slate-400">{isPrivate ? 'ورود با ارسال لینک اتاق' : 'نمایش در لیست بازی‌های زنده'}</p>
+                  <p className="text-xs text-slate-200 font-bold mb-2.5">
+                    {isRtl ? 'انتخاب نوع بازی:' : 'Select Game Type:'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {multiplayerGames.map(g => {
+                      const isSelected = selectedGame?.id === g.id;
+                      return (
+                        <button
+                          key={g.id}
+                          onClick={() => { setSelectedGame(g); soundEngine.playTap?.(); }}
+                          className={`p-3 rounded-2xl border text-start flex items-center gap-2.5 transition-all active:scale-95 ${
+                            isSelected
+                              ? 'border-purple-400 bg-purple-500/30 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400/50'
+                              : 'border-white/10 bg-white/5 text-slate-300 hover:border-purple-500/40 hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="text-2xl shrink-0">{g.icon}</span>
+                          <div className="min-w-0">
+                            <span className={`text-xs font-black block truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                              {isRtl ? g.titleFa : g.titleEn}
+                            </span>
+                            <span className={`text-[10px] font-bold block ${isSelected ? 'text-purple-200 font-black' : 'text-slate-400'}`}>
+                              {isRtl ? `${g.maxPlayers} نفره` : `${g.maxPlayers} Players`}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Privacy Toggle (High Contrast) */}
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/10 border border-white/15">
+                  <div className="flex items-center gap-2.5">
+                    {isPrivate ? <Lock size={18} className="text-amber-400 shrink-0" /> : <Unlock size={18} className="text-emerald-400 shrink-0" />}
+                    <div>
+                      <p className="text-xs font-black text-white">
+                        {isPrivate ? (isRtl ? 'اتاق خصوصی' : 'Private Room') : (isRtl ? 'اتاق عمومی لابی' : 'Public Lobby Room')}
+                      </p>
+                      <p className="text-[11px] text-slate-300 font-medium">
+                        {isPrivate 
+                          ? (isRtl ? 'ورود فقط با ارسال لینک اختصاصی اتاق' : 'Join via private room link only') 
+                          : (isRtl ? 'نمایش در لیست بازی‌های زنده برای همه کاربران' : 'Visible in live games lobby for everyone')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsPrivate(!isPrivate)}
+                    className={`relative w-12 h-6 rounded-full transition-all shrink-0 ${isPrivate ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${
+                      isPrivate ? (isRtl ? 'right-7' : 'left-7') : (isRtl ? 'right-1' : 'left-1')
+                    }`} />
+                  </button>
+                </div>
+
+                {/* Action Submit Button - Fully Visible & Accessible */}
+                <button
+                  onClick={handleCreate}
+                  disabled={!selectedGame || creating}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black text-sm shadow-xl shadow-purple-500/30 disabled:opacity-40 active:scale-95 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {creating ? (
+                    <><RotateCcw size={16} className="animate-spin" /> {isRtl ? 'در حال ایجاد اتاق و اتصال به سرور...' : 'Creating room & connecting...'}</>
+                  ) : (
+                    <><Play size={16} /> {isRtl ? 'ایجاد اتاق و ورود به مسابقه' : 'Create Room & Enter Match'}</>
+                  )}
+                </button>
+              </>
+            ) : (
+              <div className="py-6 space-y-6 text-center">
+                <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400">
+                  <Play size={40} className="ml-2" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">{isRtl ? 'اتاق با موفقیت ساخته شد!' : 'Room Created Successfully!'}</h3>
+                  <p className="text-sm text-slate-300 mt-2 font-mono bg-black/40 px-3 py-1.5 rounded-xl inline-block border border-white/10">{createdRoom.room.roomId}</p>
+                </div>
+                
+                <div className="space-y-3 pt-2">
+                  <button
+                    onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent('https://t.me/zenoslife_bot/app?startapp=room_'+createdRoom.room.roomId)}&text=${encodeURIComponent('بیا با من بازی کن! کد اتاق: '+createdRoom.room.roomId)}`, '_blank')}
+                    className="w-full py-3.5 rounded-2xl bg-[#0088cc] hover:bg-[#0077b3] text-white font-black text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Share2 size={18} />
+                    {isRtl ? '📤 دعوت از طریق تلگرام' : '📤 Share via Telegram'}
+                  </button>
+                  
+                  <button
+                    onClick={handleEnterRoom}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-sm shadow-xl shadow-purple-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Play size={18} />
+                    {isRtl ? 'ورود به اتاق' : 'Enter Room'}
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => setIsPrivate(!isPrivate)}
-                className={`relative w-12 h-6 rounded-full transition-all ${isPrivate ? 'bg-amber-500' : 'bg-emerald-500'}`}
-              >
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isPrivate ? 'left-7' : 'left-1'}`} />
-              </button>
-            </div>
-
-            <button
-              onClick={handleCreate}
-              disabled={!selectedGame || creating}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black text-sm shadow-xl shadow-purple-500/30 disabled:opacity-40 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              {creating ? (
-                <><RotateCcw size={16} className="animate-spin" /> در حال ایجاد اتاق و اتصال به سرور...</>
-              ) : (
-                <><Play size={16} /> ایجاد اتاق و ورود به مسابقه</>
-              )}
-            </button>
+            )}
           </motion.div>
         </motion.div>
       )}
@@ -458,11 +658,13 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar }) {
   );
 }
 
-
 // Game Mode Selector & Matchmaking Modal
-function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
+function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchTimer, setSearchTimer] = useState(0);
+  const [showWager, setShowWager] = useState(false);
+  const [selectedWager, setSelectedWager] = useState(50);
+  const { coins, spendCoins } = useAppStore();
 
   useEffect(() => {
     let interval;
@@ -488,26 +690,39 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
       haptics.success?.();
       onSelectMode('online');
       onClose();
-    }, 2800);
+    }, 2500);
+  };
+
+  const handleWagerStart = () => {
+    if (coins >= selectedWager) {
+      spendCoins(selectedWager, 'vip_wager_fee');
+      soundEngine.playDiceRoll?.();
+      onSelectMode('wager', selectedWager);
+      onClose();
+    } else {
+      alert(isRtl ? 'سکه کافی ندارید!' : 'Not enough coins!');
+    }
   };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4" onClick={onClose} dir="rtl">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4" onClick={onClose} dir={isRtl ? 'rtl' : 'ltr'}>
         <motion.div
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 50, opacity: 0 }}
+          initial={{ scale: 0.92, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.92, opacity: 0, y: 20 }}
           onClick={e => e.stopPropagation()}
           className="w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#1a0c2e] via-[#12071f] to-[#0a0312] border-2 border-purple-500/40 p-6 text-center shadow-2xl space-y-4"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-start">
               <span className="text-3xl">{game.icon}</span>
-              <div className="text-right">
-                <h3 className="text-base font-black text-white">{game.titleFa}</h3>
-                <span className="text-[10px] text-purple-300 font-bold">{game.maxPlayers} نفره • {game.level}</span>
+              <div>
+                <h3 className="text-base font-black text-white">{isRtl ? game.titleFa : game.titleEn}</h3>
+                <span className="text-[10px] text-purple-300 font-bold">
+                  {isRtl ? `${game.maxPlayers} نفره • ${game.levelFa}` : `${game.maxPlayers} Players • ${game.levelEn}`}
+                </span>
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-slate-400 hover:text-white">
@@ -526,15 +741,60 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
                 </div>
               </div>
               <div>
-                <h4 className="text-sm font-black text-white animate-pulse">در حال جستجوی بازیکن آنلاین...</h4>
-                <p className="text-xs text-purple-300 mt-1">زمان جستجو: {searchTimer} ثانیه</p>
+                <h4 className="text-sm font-black text-white animate-pulse">
+                  {isRtl ? 'در حال جستجوی بازیکن آنلاین...' : 'Searching for online opponent...'}
+                </h4>
+                <p className="text-xs text-purple-300 mt-1">
+                  {isRtl ? `زمان جستجو: ${searchTimer} ثانیه` : `Searching time: ${searchTimer}s`}
+                </p>
               </div>
               <button
                 onClick={() => setIsSearching(false)}
                 className="px-4 py-2 rounded-xl bg-white/10 text-xs font-bold text-slate-300 hover:text-white"
               >
-                انصراف
+                {isRtl ? 'انصراف' : 'Cancel'}
               </button>
+            </div>
+          ) : showWager ? (
+            <div className="py-2 space-y-4">
+               <h4 className="text-sm font-black text-white">
+                 {isRtl ? 'شرطی VIP - انتخاب مبلغ سکه' : 'VIP Wager - Select Coin Amount'}
+               </h4>
+               <p className="text-xs text-amber-300 font-bold">
+                 {isRtl ? 'موجودی شما:' : 'Your Balance:'} {coins?.toLocaleString() || 0} 🪙
+               </p>
+               <div className="grid grid-cols-2 gap-2">
+                 {[50, 100, 500, 1000].map(amt => (
+                   <button
+                     key={amt}
+                     onClick={() => setSelectedWager(amt)}
+                     className={`p-3 rounded-xl border-2 font-black transition-all ${
+                       selectedWager === amt 
+                        ? 'border-amber-400 bg-amber-500/30 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.3)]' 
+                        : 'border-white/10 bg-white/5 text-slate-300'
+                     }`}
+                   >
+                     {amt} 🪙
+                   </button>
+                 ))}
+               </div>
+               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                 <p className="text-xs text-amber-300">
+                   {isRtl ? `در صورت برد، ${(selectedWager * 2).toLocaleString()} سکه دریافت می‌کنید!` : `Win to get ${(selectedWager * 2).toLocaleString()} coins!`}
+                 </p>
+               </div>
+               <div className="flex gap-2 pt-2">
+                 <button onClick={() => setShowWager(false)} className="flex-1 py-3 rounded-xl bg-white/10 text-white text-xs font-bold">
+                   {isRtl ? 'بازگشت' : 'Back'}
+                 </button>
+                 <button 
+                   onClick={handleWagerStart}
+                   disabled={coins < selectedWager}
+                   className="flex-[2] py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 text-sm font-black disabled:opacity-50"
+                 >
+                   {isRtl ? 'شروع بازی' : 'Start Game'}
+                 </button>
+               </div>
             </div>
           ) : (
             /* Mode Options */
@@ -542,35 +802,64 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
               {/* Option 1: Play vs AI Bot */}
               <button
                 onClick={() => { onSelectMode('bot'); onClose(); }}
-                className="w-full p-4 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-950/80 border border-purple-500/40 hover:border-purple-400 text-right flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-purple-950/40"
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-purple-900/60 to-indigo-950/80 border border-purple-500/40 hover:border-purple-400 text-start flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-purple-950/40"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-xl text-purple-300 group-hover:scale-110 transition-transform">
                     🤖
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white group-hover:text-purple-300">بازی با ربات هوشمند</h4>
-                    <p className="text-[10px] text-slate-300 mt-0.5">آفلاین، سریع و بدون معطلی با هوش مصنوعی</p>
+                    <h4 className="text-sm font-black text-white group-hover:text-purple-300">
+                      {isRtl ? 'بازی با ربات هوشمند' : 'Play vs Smart AI Bot'}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">
+                      {isRtl ? 'آفلاین، سریع و بدون معطلی با هوش مصنوعی' : 'Instant offline match against smart AI'}
+                    </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className="text-purple-400" />
+                <ChevronLeft size={18} className={`text-purple-400 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
 
               {/* Option 2: Live Online Matchmaking */}
               <button
                 onClick={handleStartOnlineSearch}
-                className="w-full p-4 rounded-2xl bg-gradient-to-r from-pink-900/60 to-purple-950/80 border border-pink-500/40 hover:border-pink-400 text-right flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-pink-950/40"
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-pink-900/60 to-purple-950/80 border border-pink-500/40 hover:border-pink-400 text-start flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-pink-950/40"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-pink-600/30 border border-pink-400/40 flex items-center justify-center text-xl text-pink-300 group-hover:scale-110 transition-transform">
                     👥
                   </div>
                   <div>
-                    <h4 className="text-sm font-black text-white group-hover:text-pink-300">جستجوی حریف آنلاین</h4>
-                    <p className="text-[10px] text-slate-300 mt-0.5">اتصال زنده به بازیکنان حاضر در ربات</p>
+                    <h4 className="text-sm font-black text-white group-hover:text-pink-300">
+                      {isRtl ? 'جستجوی حریف آنلاین' : 'Find Online Opponent'}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">
+                      {isRtl ? 'اتصال زنده به بازیکنان حاضر در ربات' : 'Real-time live matchmaking with players'}
+                    </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className="text-pink-400" />
+                <ChevronLeft size={18} className={`text-pink-400 ${isRtl ? '' : 'rotate-180'}`} />
+              </button>
+              
+              {/* Option 3: VIP Wager Mode */}
+              <button
+                onClick={() => setShowWager(true)}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-900/60 to-orange-950/80 border border-amber-500/40 hover:border-amber-400 text-start flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-amber-950/40"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-amber-600/30 border border-amber-400/40 flex items-center justify-center text-xl text-amber-300 group-hover:scale-110 transition-transform">
+                    💎
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white group-hover:text-amber-300">
+                      {isRtl ? 'شرطی VIP' : 'VIP Wager Mode'}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">
+                      {isRtl ? 'بازی با شرط سکه (جایزه ۲ برابر برای برنده)' : 'Bet coins and win 2x back!'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronLeft size={18} className={`text-amber-400 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
             </div>
           )}
@@ -582,9 +871,11 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode }) {
 
 export default function Games() {
   const navigate = useNavigate();
-  const { coins, isVip } = useAppStore();
+  const { coins, isVip, language, spendCoins } = useAppStore();
+  const isRtl = language === 'fa';
   const { userName, userAvatar } = useMultiplayerStore();
 
+  const [theme, setTheme] = useState('dark');
   const [activeTab, setActiveTab] = useState('live');
   const [activeCategory, setActiveCategory] = useState('all');
   const [liveRooms, setLiveRooms] = useState([]);
@@ -640,10 +931,10 @@ export default function Games() {
 
   const cleanUserName = (userName && userName.length < 25 && !userName.startsWith('data:image/'))
     ? userName
-    : 'کاربر زنوسلایف';
+    : (isRtl ? 'کاربر زنوسلایف' : 'ZenOsLife Player');
 
   return (
-    <div className="w-full min-h-screen pb-32 bg-[#050711] text-white select-none relative overflow-x-hidden font-sans" dir="rtl">
+    <div className={`w-full min-h-screen pb-32 select-none relative overflow-x-hidden font-sans ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#050711] text-white'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Dynamic Cosmic Glow Background */}
       <div className="fixed inset-0 pointer-events-none opacity-20 z-0">
@@ -655,49 +946,47 @@ export default function Games() {
       <div className="relative z-10 px-3 sm:px-4 pt-4 max-w-2xl mx-auto space-y-4">
         
         {/* Top Control Bar */}
-        <div className="flex items-center justify-between p-3 rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl shadow-xl">
+        <div className={`flex items-center justify-between p-3 rounded-3xl border shadow-xl transition-colors ${theme === 'light' ? 'bg-white/90 border-slate-200' : 'bg-slate-900/80 border-white/10 backdrop-blur-xl'}`}>
           {/* User Profile Pill */}
           <div className="flex items-center gap-2.5 min-w-0">
             <SafeAvatar avatar={userAvatar} size="w-10 h-10 text-lg" ringColor="border-amber-400/60" />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-xs font-black text-white truncate">{cleanUserName}</h3>
-                {isVip && <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">VIP 👑</span>}
+                <h3 className={`text-xs font-black truncate ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{cleanUserName}</h3>
+                {isVip && <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/40">VIP 👑</span>}
               </div>
-              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-emerald-400 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>آنلاین در آرکید</span>
+              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-emerald-500 dark:text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+                <span>{isRtl ? 'آنلاین در آرکید' : 'Online in Arcade'}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Action Badges */}
           <div className="flex items-center gap-1.5">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={`p-2 rounded-2xl border text-xs font-black shadow-sm active:scale-95 transition-all ${theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-white/10 border-white/20 text-slate-200'}`}
+            >
+              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+
             {/* Tournaments */}
             <button
               onClick={() => { setShowTournamentsModal(true); soundEngine.playTap?.(); }}
-              className="p-2 px-2.5 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-300 hover:bg-amber-500/25 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-              title="جام قهرمانان و تورنمنت‌ها"
+              className={`p-2 px-2.5 rounded-2xl border text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all ${theme === 'light' ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-500/15 border-amber-400/40 text-amber-300 hover:bg-amber-500/25'}`}
+              title={isRtl ? 'جام قهرمانان و تورنمنت‌ها' : 'Tournaments'}
             >
-              <Trophy size={14} className="text-yellow-400" />
-              <span className="hidden xs:inline">تورنمنت</span>
-            </button>
-
-            {/* Referral */}
-            <button
-              onClick={() => { setShowReferralModal(true); soundEngine.playTap?.(); }}
-              className="p-2 px-2.5 rounded-2xl bg-purple-500/15 border border-purple-400/40 text-purple-300 hover:bg-purple-500/25 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-              title="دعوت دوستان و کسب سکه"
-            >
-              <Users size={14} className="text-pink-400" />
-              <span className="hidden xs:inline">دعوت</span>
+              <Trophy size={14} className={theme === 'light' ? 'text-amber-600' : 'text-yellow-400'} />
+              <span className="hidden xs:inline">{isRtl ? 'تورنمنت' : 'Tourneys'}</span>
             </button>
 
             {/* Coin Shop Balance */}
             <button
               onClick={() => { setShowShopModal(true); soundEngine.playTap?.(); }}
               className="p-2 px-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-xs font-black flex items-center gap-1 shadow-lg shadow-yellow-500/25 hover:brightness-110 active:scale-95 transition-all"
-              title="خرید سکه و ستاره تلگرام"
+              title={isRtl ? 'خرید سکه و ستاره تلگرام' : 'Coin Shop'}
             >
               <Coins size={14} />
               <span>{(coins || 0).toLocaleString()}</span>
@@ -705,33 +994,54 @@ export default function Games() {
           </div>
         </div>
 
+        {/* Platô-style Telegram Banner */}
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none mix-blend-overlay"></div>
+          <div className="relative z-10 flex flex-col gap-1 text-center sm:text-start">
+            <div className="text-xl font-black flex items-center justify-center sm:justify-start gap-2">
+              <span className="text-2xl">🎮</span> {isRtl ? 'بازی در تلگرام' : 'Play on Telegram'}
+            </div>
+            <p className="text-xs text-white/90 font-medium">
+              {isRtl ? 'مثل پلاتو، مستقیم در تلگرام بازی کن و با دوستانت رقابت کن!' : 'Like Platô, play directly in Telegram with friends!'}
+            </p>
+          </div>
+          <button 
+            onClick={() => window.open('https://t.me/zenoslife_bot/app', '_blank')}
+            className="relative z-10 px-5 py-2.5 bg-white text-purple-700 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 whitespace-nowrap mx-auto sm:mx-0"
+          >
+            {isRtl ? 'باز کردن ربات تلگرام' : 'Open Telegram Bot'} <ChevronLeft size={16} className={isRtl ? '' : 'rotate-180'} />
+          </button>
+        </div>
+
         {/* Hero Featured Banner (Hokm & Tournaments) */}
         <div className="relative p-5 rounded-3xl bg-gradient-to-r from-amber-900/40 via-purple-950/60 to-slate-900 border border-amber-500/40 overflow-hidden shadow-2xl">
           <div className="relative z-10 space-y-2">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-black flex items-center gap-1">
-                <Crown size={11} /> ویژه شاهانه
+                <Crown size={11} /> {isRtl ? 'ویژه شاهانه' : 'Featured Royal'}
               </span>
-              <span className="text-[10px] text-slate-300 font-bold">جوایز میلیونی سکه 🪙</span>
+              <span className="text-[10px] text-slate-300 font-bold">{isRtl ? 'جوایز میلیونی سکه 🪙' : 'Big Coin Prizes 🪙'}</span>
             </div>
             <h2 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-pink-300">
-              جام مسابقات حکم ۴ نفره و تخته‌نرد
+              {isRtl ? 'جام مسابقات حکم ۴ نفره و تخته‌نرد' : 'Royal Hokm & Backgammon Tournaments'}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              با دوستان و حریفان آنلاین در سراسر ایران رقابت کنید، شرط ببندید و پاداش‌های شگفت‌انگیز ببرید!
+              {isRtl 
+                ? 'با دوستان و حریفان آنلاین در سراسر ایران رقابت کنید، شرط ببندید و پاداش‌های شگفت‌انگیز ببرید!' 
+                : 'Compete with online players, challenge friends, place bets, and win glorious coin rewards!'}
             </p>
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => navigate('/games/hokm')}
                 className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-md flex items-center gap-1"
               >
-                <Crown size={13} /> بازی حکم ۴ نفره
+                <Crown size={13} /> {isRtl ? 'بازی حکم ۴ نفره' : 'Play 4-Player Hokm'}
               </button>
               <button
                 onClick={() => setShowTournamentsModal(true)}
                 className="px-4 py-2 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 active:scale-95"
               >
-                مشاهده تورنمنت‌ها 🏆
+                {isRtl ? 'مشاهده تورنمنت‌ها 🏆' : 'View Tournaments 🏆'}
               </button>
             </div>
           </div>
@@ -748,7 +1058,7 @@ export default function Games() {
             }`}
           >
             <Radio size={14} className={activeTab === 'live' ? 'animate-pulse' : ''} />
-            <span>اتاق‌های زنده آنلاین</span>
+            <span>{isRtl ? 'اتاق‌های زنده آنلاین' : 'Live Online Rooms'}</span>
             {liveRooms.length > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black">
                 {liveRooms.length}
@@ -765,7 +1075,7 @@ export default function Games() {
             }`}
           >
             <Gamepad2 size={14} />
-            <span>تمام بازی‌ها ({GAME_DEFS.length})</span>
+            <span>{isRtl ? `تمام بازی‌ها (${GAME_DEFS.length})` : `All Games (${GAME_DEFS.length})`}</span>
           </button>
         </div>
 
@@ -776,14 +1086,16 @@ export default function Games() {
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-xs font-bold text-emerald-400">
-                  {liveRooms.length > 0 ? `${liveRooms.length} اتاق بازی آنلاین در حال حاضر فعال است` : 'در انتظار ساخت اتاق جدید'}
+                  {liveRooms.length > 0 
+                    ? (isRtl ? `${liveRooms.length} اتاق بازی آنلاین در حال حاضر فعال است` : `${liveRooms.length} online game rooms active`)
+                    : (isRtl ? 'در انتظار ساخت اتاق جدید' : 'Waiting for new rooms')}
                 </span>
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="text-xs font-black text-purple-400 hover:text-purple-300 flex items-center gap-1"
               >
-                <Plus size={14} /> ساخت اتاق
+                <Plus size={14} /> {isRtl ? 'ساخت اتاق' : 'Create Room'}
               </button>
             </div>
 
@@ -791,20 +1103,26 @@ export default function Games() {
               <div className="text-center py-14 p-6 rounded-3xl bg-slate-900/60 border border-white/10 space-y-4">
                 <div className="text-6xl animate-bounce">🎮</div>
                 <div>
-                  <h4 className="text-base font-black text-white">اتاق بازی فعالی در جریان نیست</h4>
-                  <p className="text-xs text-slate-400 mt-1">اولین نفری باشید که اتاق می‌سازد و دوستانتان را به مسابقه دعوت می‌کند!</p>
+                  <h4 className="text-base font-black text-white">
+                    {isRtl ? 'اتاق بازی فعالی در جریان نیست' : 'No active game rooms right now'}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isRtl 
+                      ? 'اولین نفری باشید که اتاق می‌سازد و دوستانتان را به مسابقه دعوت می‌کند!' 
+                      : 'Be the first to create a room and challenge your friends!'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white text-xs font-black shadow-xl shadow-purple-500/30 active:scale-95"
                 >
-                  + ساخت اولین اتاق بازی
+                  {isRtl ? '+ ساخت اولین اتاق بازی' : '+ Create First Game Room'}
                 </button>
               </div>
             ) : (
               <div className="space-y-2.5">
                 {liveRooms.map(room => (
-                  <LiveRoomCard key={room.roomId} room={room} onJoin={handleJoinRoom} />
+                  <LiveRoomCard key={room.roomId} room={room} onJoin={handleJoinRoom} isRtl={isRtl} />
                 ))}
               </div>
             )}
@@ -827,69 +1145,124 @@ export default function Games() {
                   }`}
                 >
                   <span>{cat.icon}</span>
-                  <span>{cat.labelFa}</span>
+                  <span>{isRtl ? cat.labelFa : cat.labelEn}</span>
                 </button>
               ))}
+              <button
+                onClick={() => { setActiveCategory('history'); soundEngine.playTap?.(); }}
+                className={`px-4 py-2 rounded-2xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 transition-all border shrink-0 ${
+                  activeCategory === 'history'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-400 shadow-lg shadow-purple-500/25'
+                    : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>📜</span>
+                <span>{isRtl ? 'سابقه بازی‌ها' : 'My History'}</span>
+              </button>
             </div>
 
-            {/* Games 2-Column Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              {filteredGames.map(game => (
+            {/* Games 2-Column Grid or History Panel */}
+            {activeCategory === 'history' ? (
+              <div className="rounded-3xl bg-slate-900/80 border border-white/10 overflow-hidden">
+                <GameHistoryPanel />
+              </div>
+            ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {filteredGames.map(game => {
+                const liveCount = Math.floor(Math.random() * 99) + 1;
+                return (
                 <motion.div
                   key={game.id}
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={() => handleGameClick(game)}
-                  className={`p-4 rounded-3xl cursor-pointer border bg-gradient-to-br ${game.color} backdrop-blur-xl flex flex-col justify-between space-y-3 shadow-lg hover:shadow-2xl transition-all group`}
+                  className={`p-4 rounded-3xl cursor-pointer border ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-gradient-to-br ' + game.color} backdrop-blur-xl flex flex-col justify-between space-y-3 shadow-lg hover:shadow-2xl transition-all group relative overflow-hidden`}
                 >
-                  <div className="space-y-2">
+                  {/* Live Player Count Badge */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-md z-10">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    {liveCount}
+                  </div>
+
+                  <div className="space-y-2 relative z-10">
                     <div className="flex items-start justify-between">
-                      <span className="text-3xl p-2 rounded-2xl bg-black/40 border border-white/10 shadow-inner group-hover:scale-110 transition-transform">
+                      <span className={`text-4xl p-2 rounded-2xl ${theme === 'light' ? 'bg-slate-100 border-slate-200 shadow-sm' : 'bg-black/40 border-white/10 shadow-inner'} group-hover:scale-110 transition-transform`}>
                         {game.icon}
                       </span>
-                      <span className="text-[9px] font-black px-2 py-0.5 bg-black/40 text-slate-200 rounded-full border border-white/10">
-                        {game.level}
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${theme === 'light' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-black/40 text-slate-200 border-white/10'}`}>
+                        {isRtl ? game.levelFa : game.levelEn}
                       </span>
                     </div>
                     <div>
-                      <h3 className={`text-sm font-black text-white group-hover:${game.accentColor} transition-colors`}>
-                        {game.titleFa}
+                      <h3 className={`text-sm font-black transition-colors ${theme === 'light' ? 'text-slate-900 group-hover:text-purple-600' : 'text-white group-hover:' + game.accentColor}`}>
+                        {isRtl ? game.titleFa : game.titleEn}
                       </h3>
-                      <p className="text-[10px] text-slate-300/80 mt-1 line-clamp-2 leading-relaxed">
-                        {game.descFa}
+                      <p className={`text-[10px] mt-1 line-clamp-2 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-300/80'}`}>
+                        {isRtl ? game.descFa : game.descEn}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[10px]">
-                    <span className="text-slate-400 font-bold flex items-center gap-1">
-                      <Users size={10} /> {game.maxPlayers > 1 ? `${game.maxPlayers} نفره` : 'تک‌نفره'}
+                  {/* Game Plan Badges (4 pills) */}
+                  <div className="grid grid-cols-2 gap-1 mt-2 z-10 relative">
+                    <span className={`text-[8px] font-bold px-1.5 py-1 rounded-md text-center flex items-center justify-center gap-1 ${theme === 'light' ? 'bg-slate-100 text-slate-700' : 'bg-white/5 text-slate-300'}`}>🤖 {isRtl ? 'رایگان با ربات' : 'Free AI'}</span>
+                    <span className={`text-[8px] font-bold px-1.5 py-1 rounded-md text-center flex items-center justify-center gap-1 ${theme === 'light' ? 'bg-blue-50 text-blue-700' : 'bg-blue-500/10 text-blue-300'}`}>👥 {isRtl ? 'دوستانه رایگان' : 'Free 2P'}</span>
+                    <span className={`text-[8px] font-bold px-1.5 py-1 rounded-md text-center flex items-center justify-center gap-1 ${theme === 'light' ? 'bg-amber-50 text-amber-700' : 'bg-amber-500/10 text-amber-300'}`}>🏆 {isRtl ? 'رقابتی (+سکه)' : 'Ranked'}</span>
+                    <span className={`text-[8px] font-bold px-1.5 py-1 rounded-md text-center flex items-center justify-center gap-1 ${theme === 'light' ? 'bg-purple-50 text-purple-700' : 'bg-purple-500/10 text-purple-300'}`}>💎 {isRtl ? 'شرطی VIP' : 'VIP Wager'}</span>
+                  </div>
+
+                  <div className={`flex items-center justify-between pt-2 border-t text-[10px] z-10 relative ${theme === 'light' ? 'border-slate-200' : 'border-white/10'}`}>
+                    <span className={`font-bold flex items-center gap-1 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      <Users size={10} /> {game.maxPlayers > 1 ? (isRtl ? `${game.maxPlayers} نفره` : `${game.maxPlayers} Players`) : (isRtl ? 'تک‌نفره' : 'Solo')}
                     </span>
                     {MULTIPLAYER_IDS.includes(game.id) && (
-                      <span className="text-emerald-400 font-black flex items-center gap-1">
-                        <Globe size={10} /> آنلاین
+                      <span className="text-emerald-500 font-black flex items-center gap-1">
+                        <Globe size={10} /> {isRtl ? 'آنلاین' : 'Online'}
                       </span>
                     )}
                   </div>
                 </motion.div>
-              ))}
+              )})}
             </div>
+            )}
           </div>
         )}
 
       </div>
 
-      {/* Floating Action Button for Creating Online Game */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.94 }}
-        onClick={() => { setShowCreateModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
-        className="fixed bottom-24 right-1/2 translate-x-1/2 z-40 flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black text-sm shadow-2xl shadow-purple-500/50 active:scale-95 transition-all border border-purple-400/50"
-        style={{ boxShadow: '0 0 35px rgba(217, 70, 239, 0.45)' }}
-      >
-        <Plus size={18} />
-        <span>ساخت بازی آنلاین</span>
-      </motion.button>
+      {/* Floating Action Buttons: Quick Match & Create Online Match */}
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 max-w-[95vw]">
+        {/* Quick Match Randomizer */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.94 }}
+          onClick={() => {
+            const quickGames = ['backgammon', 'ludo', 'hokm', 'snakes', 'connect-four'];
+            const chosen = quickGames[Math.floor(Math.random() * quickGames.length)];
+            soundEngine.playDiceRoll?.();
+            haptics.impact?.('heavy');
+            navigate(`/games/${chosen}?mode=bot`);
+          }}
+          className="flex items-center gap-1.5 px-4 py-3.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-2xl active:scale-95 transition-all border border-amber-300 cursor-pointer whitespace-nowrap"
+          style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.4)' }}
+          title={isRtl ? 'ورود تصادفی و سریع به یک بازی' : 'Instant random game'}
+        >
+          <Zap size={16} className="shrink-0 animate-bounce" />
+          <span>{isRtl ? 'بازی سریع ⚡' : 'Quick Match ⚡'}</span>
+        </motion.button>
+
+        {/* Create Online Game */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.94 }}
+          onClick={() => { setShowCreateModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
+          className="flex items-center gap-2 px-5 py-3.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black text-xs shadow-2xl shadow-purple-500/50 active:scale-95 transition-all border border-purple-400/50 cursor-pointer whitespace-nowrap"
+          style={{ boxShadow: '0 0 35px rgba(217, 70, 239, 0.45)' }}
+        >
+          <Plus size={16} />
+          <span>{isRtl ? 'ساخت بازی آنلاین' : 'Create Match'}</span>
+        </motion.button>
+      </div>
 
       {/* Game Mode Selector Modal */}
       <GameModeModal
@@ -897,6 +1270,7 @@ export default function Games() {
         onClose={() => setShowModeModal(false)}
         game={selectedGameForMode}
         onSelectMode={handleModeSelected}
+        isRtl={isRtl}
       />
 
       {/* Modals */}
@@ -906,6 +1280,7 @@ export default function Games() {
         onCreated={handleRoomCreated}
         userName={cleanUserName}
         userAvatar={userAvatar}
+        isRtl={isRtl}
       />
 
       <CoinShopModal

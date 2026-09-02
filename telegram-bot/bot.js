@@ -617,8 +617,8 @@ function getMainReplyKeyboard(userId) {
 
   return {
     keyboard: [
-      [{ text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی' }],
       [{ text: isEn ? '🎮 Online Games & Duels 🎲' : '🎮 بازی‌ها و دوئل‌های آنلاین 🎲' }],
+      [{ text: isEn ? '💬 Anonymous Chat & Dating' : '💬 چت ناشناس و دوستیابی' }],
       [
         { text: isEn ? '💎 VIP, Wallet & Earn 🎁' : '💎 VIP، کیف‌پول و درآمدزایی 🎁' },
         { text: isEn ? '👤 Profile & Settings ⚙️' : '👤 پروفایل و تنظیمات ⚙️' }

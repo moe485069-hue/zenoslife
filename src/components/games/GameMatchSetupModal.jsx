@@ -96,12 +96,13 @@ export default function GameMatchSetupModal({ isOpen, onClose, game, onStartGame
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 20 }}
-        className="glass-card w-full max-w-md p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 bg-gradient-to-b from-slate-900/95 via-black/95 to-slate-950/95 text-start space-y-4 shadow-2xl relative overflow-hidden"
+        className="glass-card w-full max-w-md max-h-[88vh] overflow-y-auto p-5 sm:p-6 rounded-3xl border-2 border-amber-500/40 bg-gradient-to-b from-slate-900/95 via-black/95 to-slate-950/95 text-start space-y-4 shadow-2xl relative"
+        dir={isRtl ? 'rtl' : 'ltr'}
       >
         {/* Ambient Top Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-20 bg-amber-500/20 rounded-full blur-2xl pointer-events-none" />

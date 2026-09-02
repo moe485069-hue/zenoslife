@@ -51,7 +51,7 @@ export default function BottomNav() {
             {({ isActive }) => (
               <>
                 <MessagesSquare size={22} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[9px] mt-0.5 font-bold">گفتگو</span>
+                <span className="text-[9px] mt-0.5 font-bold">{isRtl ? 'گفتگو' : 'Chat'}</span>
               </>
             )}
           </NavLink>
@@ -73,7 +73,7 @@ export default function BottomNav() {
             {({ isActive }) => (
               <>
                 <Gamepad2 size={22} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[9px] mt-0.5 font-bold">بازی‌ها</span>
+                <span className="text-[9px] mt-0.5 font-bold">{isRtl ? 'بازی‌ها' : 'Games'}</span>
               </>
             )}
           </NavLink>
@@ -110,7 +110,7 @@ export default function BottomNav() {
             {({ isActive }) => (
               <>
                 <Calendar size={22} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[9px] mt-0.5 font-bold">امروز من</span>
+                <span className="text-[9px] mt-0.5 font-bold">{isRtl ? 'امروز من' : 'My Day'}</span>
               </>
             )}
           </NavLink>
@@ -132,7 +132,7 @@ export default function BottomNav() {
             {({ isActive }) => (
               <>
                 <Settings size={22} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[9px] mt-0.5 font-bold">پروفایل</span>
+                <span className="text-[9px] mt-0.5 font-bold">{isRtl ? 'پروفایل' : 'Profile'}</span>
               </>
             )}
           </NavLink>

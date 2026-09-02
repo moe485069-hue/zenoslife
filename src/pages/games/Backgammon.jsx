@@ -12,6 +12,7 @@ import haptics from '../../utils/haptics';
 import GameMatchSetupModal from '../../components/games/GameMatchSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import InGameReactions from '../../components/games/InGameReactions';
+import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 
 // 3D Dice Face Renderer
 const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
@@ -38,8 +39,9 @@ const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
 
   return (
     <motion.div
+      key={isRolling ? 'dice-rolling' : `dice-${val}`}
       animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [0.9, 1.1, 0.95, 1] } : { rotate: 0, scale: 1 }}
-      transition={{ duration: 0.25, repeat: isRolling ? Infinity : 0 }}
+      transition={isRolling ? { duration: 0.25, repeat: Infinity, ease: 'linear' } : { duration: 0.15 }}
       className={`${sizeClasses} rounded-2xl bg-gradient-to-b from-[#fffbeb] via-[#fef3c7] to-[#fde68a] border-2 border-[#d97706] shadow-xl p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
     >
       <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center">
@@ -141,7 +143,8 @@ const createInitialPoints = () => {
 export default function Backgammon() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { language, addXP, addCoins } = useAppStore();
+  const { language, addXP, addCoins, recordGameResult, incrementGameStat } = useAppStore();
+  const gameStartTimeRef = useRef(Date.now());
   const isRtl = language === 'fa';
 
   const paramRoom = searchParams.get('room');
@@ -173,6 +176,7 @@ export default function Backgammon() {
   const [isRolling, setIsRolling] = useState(false);
   const [lastMoveMsg, setLastMoveMsg] = useState('🎲 برای شروع، دکمه پرتاب تاس را بزنید');
   const [setWinner, setSetWinner] = useState(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Online Multiplayer State
   const [onlineRoomCode, setOnlineRoomCode] = useState(paramRoom || 'NARD-777');
@@ -224,6 +228,8 @@ export default function Backgammon() {
     }
   }, [gameMode, onlineRoomCode]);
 
+  const rollIntervalRef = useRef(null);
+
   // ----------------------------------------------------
   // DICE ROLLING WITH TUMBLING ANIMATION
   // ----------------------------------------------------
@@ -233,13 +239,15 @@ export default function Backgammon() {
     playSfx(soundEngine.playLevelUp);
     haptics.tap?.();
 
-    // Fast tumbling numbers during 400ms roll
+    if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
+
     let rollCount = 0;
-    const interval = setInterval(() => {
+    rollIntervalRef.current = setInterval(() => {
       setDice([Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1]);
       rollCount++;
-      if (rollCount >= 6) {
-        clearInterval(interval);
+      if (rollCount >= 5) {
+        clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
         const d1 = Math.floor(Math.random() * 6) + 1;
         const d2 = Math.floor(Math.random() * 6) + 1;
         const rolledDice = [d1, d2];
@@ -251,11 +259,12 @@ export default function Backgammon() {
         setHasRolled(true);
 
         if (d1 === d2) {
+          incrementGameStat?.('doublesRolled');
           setLastMoveMsg(isRtl ? `🎉 جفت ${d1} آوردی! ۴ حرکت مجاز داری.` : `🎉 Doubles ${d1}! 4 moves available.`);
           playSfx(soundEngine.playLevelUp);
           haptics.success?.();
         } else {
-          setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — یکی از مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
+          setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
         }
 
         if (gameMode === 'online' && chatChannelRef.current) {
@@ -585,6 +594,20 @@ export default function Backgammon() {
       setMatchWinner(matchWin);
       addXP?.(150 * matchSets, 'پیروزی در مچ تخته نرد');
       addCoins?.(50 * matchSets);
+      
+      if (matchWin === 'white') {
+        setShowConfetti(true);
+      }
+      
+      recordGameResult?.({
+        gameId: 'backgammon',
+        gameName: isRtl ? 'تخته نرد' : 'Backgammon',
+        gameIcon: '🎲',
+        won: matchWin === 'white',
+        opponent: gameMode === 'bot' ? (isRtl ? '🤖 ربات هوشمند' : '🤖 AI Bot') : (isRtl ? 'بازیکن آنلاین' : 'Online Player'),
+        durationMs: Date.now() - gameStartTimeRef.current,
+        coinsEarned: matchWin === 'white' ? (50 * matchSets) : 0
+      });
     }
   };
 
@@ -602,6 +625,7 @@ export default function Backgammon() {
   };
 
   const handleResetMatch = () => {
+    gameStartTimeRef.current = Date.now();
     setPoints(createInitialPoints());
     setBar({ white: 0, black: 0 });
     setBorneOff({ white: 0, black: 0 });
@@ -704,7 +728,7 @@ export default function Backgammon() {
                 marginTop: idx > 0 ? '-13px' : '0',
                 zIndex: idx + 1
               }}
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md transition-all ${checkerStyle} ${
+              className={`w-5 h-5 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md transition-all ${checkerStyle} ${
                 isSelected && isTopChecker ? 'ring-4 ring-amber-400 scale-110' : ''
               } ${isFriendlyAndMovable && isTopChecker ? 'ring-2 ring-amber-300 animate-pulse' : ''}`}
             >
@@ -736,7 +760,7 @@ export default function Backgammon() {
       >
         {/* Triangle Background */}
         <div
-          className={`w-0 h-0 border-x-[11px] sm:border-x-[16px] border-x-transparent ${
+          className={`w-0 h-0 border-x-[8px] xs:border-x-[11px] sm:border-x-[16px] border-x-transparent ${
             isTop
               ? isDark ? themeConfig.triDarkTop : themeConfig.triLightTop
               : isDark ? themeConfig.triDark : themeConfig.triLight
@@ -801,6 +825,22 @@ export default function Backgammon() {
             <span className="text-[10px] hidden sm:inline">{themeConfig.nameFa}</span>
           </button>
 
+          {gameMode === 'online' && (
+            <button
+              onClick={() => {
+                const shareUrl = `https://t.me/zenoslife_bot/app?startapp=nard_${onlineRoomCode}`;
+                const shareText = isRtl ? `بیا در تخته نرد بازی کنیم! کد اتاق: ${onlineRoomCode}` : `Join my Backgammon room! Code: ${onlineRoomCode}`;
+                window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
+                soundEngine.playTap?.();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs font-black hover:bg-blue-500/30 flex items-center gap-1"
+              title={isRtl ? 'اشتراکگذاری اتاق' : 'Share Room'}
+            >
+              <Share2 size={13} />
+              <span className="hidden sm:inline">{isRtl ? 'دعوت' : 'Invite'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsSetupModalOpen(true)}
             className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black hover:bg-amber-500/30 flex items-center gap-1"
@@ -818,7 +858,7 @@ export default function Backgammon() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto p-3 sm:p-4 space-y-3">
+      <div className="max-w-lg mx-auto min-h-[calc(100vh-80px)] p-3 sm:p-4 space-y-3">
 
         {/* 2. Scoreboard & Pip */}
         <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/50 via-slate-900 to-cyan-950/50 border border-amber-500/30 flex items-center justify-between px-4 shadow-xl">
@@ -848,6 +888,12 @@ export default function Backgammon() {
           </div>
         </div>
 
+        {gameMode === 'bot' && (
+          <div className="text-center text-[10px] text-slate-400">
+            {isRtl ? 'حالت تمرینی — بدون شرطبندی' : 'Practice Mode — No Wager'}
+          </div>
+        )}
+
         {/* 3. Main Board */}
         <div className={`w-full rounded-[2.5rem] p-3 sm:p-4 border-4 transition-all duration-500 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl`}>
           
@@ -857,7 +903,7 @@ export default function Backgammon() {
             </div>
           )}
 
-          <div className="flex gap-2 h-[320px] sm:h-[390px]">
+          <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px]">
             
             {/* Left Quadrant (Points 24-19 Top, 1-6 Bottom) */}
             <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
@@ -952,7 +998,7 @@ export default function Backgammon() {
             {/* Interactive Dice */}
             <div 
               onClick={handleRollDice}
-              className={`flex items-center gap-2.5 cursor-pointer p-1.5 rounded-2xl hover:bg-white/5 transition-all ${
+              className={`flex items-center gap-2.5 cursor-pointer p-1.5 rounded-2xl hover:bg-white/5 transition-all overflow-x-auto flex-nowrap ${
                 !hasRolled && !isRolling && (turn === 'white' || gameMode === 'local') ? 'ring-2 ring-amber-400/80 animate-pulse bg-amber-500/10' : ''
               }`}
             >
@@ -1019,7 +1065,7 @@ export default function Backgammon() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}

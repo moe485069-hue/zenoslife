@@ -4,6 +4,7 @@ import useAppStore from './store/appStore';
 import Header from './components/layout/Header';
 import BottomNav from './components/layout/BottomNav';
 import LevelUpModal from './components/ui/LevelUpModal';
+import AchievementToast from './components/games/AchievementToast';
 import { motion, AnimatePresence } from 'framer-motion';
 import useNotifications from './hooks/useNotifications';
 import { db } from './db/database';
@@ -90,6 +91,10 @@ const SnakesAndLadders = lazyRetry(() => import('./pages/games/SnakesAndLadders'
 const FingerSoccer = lazyRetry(() => import('./pages/games/FingerSoccer'));
 const Ocho = lazyRetry(() => import('./pages/games/Ocho'));
 const MiniGolf = lazyRetry(() => import('./pages/games/MiniGolf'));
+const ConnectFour = lazyRetry(() => import('./pages/games/ConnectFour'));
+const DotsAndBoxes = lazyRetry(() => import('./pages/games/DotsAndBoxes'));
+const AirHockey = lazyRetry(() => import('./pages/games/AirHockey'));
+const Battleship = lazyRetry(() => import('./pages/games/Battleship'));
 const ChatRooms = lazyRetry(() => import('./pages/ChatRooms'));
 
 // Loading spinner component
@@ -364,7 +369,7 @@ export default function App() {
       <Header />
 
       {/* Main content */}
-      <main className="flex-1 overflow-x-hidden relative z-10" style={{ paddingBottom: '5rem' }}>
+      <main className="flex-1 overflow-x-hidden" style={{ paddingBottom: '5rem' }}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Welcome />} />
@@ -401,6 +406,13 @@ export default function App() {
             <Route path="/games/uno" element={<Ocho />} />
             <Route path="/games/mini-golf" element={<MiniGolf />} />
             <Route path="/games/golf" element={<MiniGolf />} />
+            <Route path="/games/connect-four" element={<ConnectFour />} />
+            <Route path="/games/connect4" element={<ConnectFour />} />
+            <Route path="/games/dots-and-boxes" element={<DotsAndBoxes />} />
+            <Route path="/games/dots" element={<DotsAndBoxes />} />
+            <Route path="/games/air-hockey" element={<AirHockey />} />
+            <Route path="/games/hockey" element={<AirHockey />} />
+            <Route path="/games/battleship" element={<Battleship />} />
             <Route path="/dashboard" element={<Home />} />
             <Route path="/home" element={<Home />} />
             <Route path="/mindfulness" element={<Mindfulness />} />
@@ -440,6 +452,9 @@ export default function App() {
 
       {/* Level Up Celebration Modal */}
       <LevelUpModal />
+
+      {/* Global Achievement Toast — appears from any game */}
+      <AchievementToast />
     </div>
   );
 }

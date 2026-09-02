@@ -153,7 +153,7 @@ export default function Welcome() {
           <h2 className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-wider">
             {isRtl ? '🎯 بخش‌های اصلی' : 'Main Hubs'}
           </h2>
-          <span className="text-[10px] text-purple-400 font-bold">زنده و آنلاین 🟢</span>
+          <span className="text-[10px] text-purple-400 font-bold">{isRtl ? 'زنده و آنلاین 🟢' : 'Live & Online 🟢'}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -216,7 +216,9 @@ export default function Welcome() {
             <Sparkles size={14} className="text-amber-400" />
             <span>{isRtl ? 'فضای جامع زنوسلایف (Life-OS)' : 'ZenOsLife Universe'}</span>
           </h2>
-          <span className="text-[10px] text-[var(--text-secondary)]">رشد فردی و آرامش ذهن</span>
+          <span className="text-[10px] text-[var(--text-secondary)]">
+            {isRtl ? 'رشد فردی و آرامش ذهن' : 'Personal Growth & Mind'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

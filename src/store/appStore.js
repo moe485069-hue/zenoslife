@@ -92,6 +92,101 @@ const useAppStore = create((set, get) => ({
     { id: 'admirer_3', name: 'سارا آناهیتا', avatar: '🌸', city: 'اصفهان', age: '۲۴', bio: 'طراح گرافیک و عاشق ذن', likedAt: 'دیروز' }
   ],
 
+  // ─── GAME ENGINE ───────────────────────────────────────────────────────────
+  // History of last 20 game results
+  gameHistory: JSON.parse(localStorage.getItem('lifeos_game_history') || '[]'),
+  // Earned achievement IDs
+  gameAchievements: JSON.parse(localStorage.getItem('lifeos_game_achievements') || '[]'),
+  // Per-game stats counters
+  gameStats: JSON.parse(localStorage.getItem('lifeos_game_stats') || JSON.stringify({
+    totalGames: 0, totalWins: 0, currentWinStreak: 0, maxWinStreak: 0,
+    lateNightGames: 0, fastWins: 0, doublesRolled: 0
+  })),
+  // Pending achievement to show in toast (one at a time)
+  pendingAchievement: null,
+
+  /** Record a completed game result and update stats */
+  recordGameResult: ({ gameId, gameName, gameIcon, won, opponent, durationMs, coinsEarned = 0 }) => {
+    set((state) => {
+      const now = new Date();
+      const entry = {
+        id: Date.now(),
+        gameId, gameName, gameIcon,
+        won, opponent,
+        durationMs,
+        coinsEarned,
+        playedAt: now.toISOString(),
+        playedAtLabel: now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      // Prepend + keep max 20
+      const newHistory = [entry, ...state.gameHistory].slice(0, 20);
+      localStorage.setItem('lifeos_game_history', JSON.stringify(newHistory));
+
+      // Update stats
+      const s = { ...state.gameStats };
+      s.totalGames += 1;
+      const isLateNight = now.getHours() >= 0 && now.getHours() < 4;
+      const isFastWin = won && durationMs < 5 * 60 * 1000;
+      if (won) {
+        s.totalWins += 1;
+        s.currentWinStreak += 1;
+        if (s.currentWinStreak > s.maxWinStreak) s.maxWinStreak = s.currentWinStreak;
+      } else {
+        s.currentWinStreak = 0;
+      }
+      if (isLateNight) s.lateNightGames = (s.lateNightGames || 0) + 1;
+      if (isFastWin) s.fastWins = (s.fastWins || 0) + 1;
+      localStorage.setItem('lifeos_game_stats', JSON.stringify(s));
+
+      return { gameHistory: newHistory, gameStats: s };
+    });
+
+    // Check achievements after state update
+    setTimeout(() => get().checkGameAchievements(), 100);
+  },
+
+  /** Check all achievement conditions and grant new ones */
+  checkGameAchievements: () => {
+    const { gameStats, gameAchievements } = get();
+    const has = (id) => gameAchievements.includes(id);
+    const grant = (id) => {
+      if (has(id)) return;
+      const updated = [...get().gameAchievements, id];
+      localStorage.setItem('lifeos_game_achievements', JSON.stringify(updated));
+      set({ gameAchievements: updated, pendingAchievement: id });
+    };
+
+    if (gameStats.totalGames >= 1) grant('first_game');
+    if (gameStats.totalWins >= 1) grant('first_win');
+    if (gameStats.currentWinStreak >= 3) grant('hat_trick');
+    if (gameStats.currentWinStreak >= 5) grant('five_streak');
+    if (gameStats.totalWins >= 10) grant('ten_wins');
+    if (gameStats.totalWins >= 50) grant('fifty_wins');
+    if (gameStats.totalGames >= 100) grant('century');
+    if (gameStats.fastWins >= 1) grant('lightning_win');
+    if (gameStats.lateNightGames >= 1) grant('night_owl');
+    if (gameStats.maxWinStreak >= 10) grant('legendary_streak');
+  },
+
+  /** Increment a custom stat (e.g. doublesRolled) */
+  incrementGameStat: (key, amount = 1) => {
+    set((state) => {
+      const s = { ...state.gameStats, [key]: (state.gameStats[key] || 0) + amount };
+      localStorage.setItem('lifeos_game_stats', JSON.stringify(s));
+      // Check doubles achievement
+      if (key === 'doublesRolled' && s.doublesRolled >= 1) {
+        setTimeout(() => get().checkGameAchievements(), 100);
+      }
+      return { gameStats: s };
+    });
+  },
+
+  /** Clear pending achievement toast */
+  clearPendingAchievement: () => set({ pendingAchievement: null }),
+  // ───────────────────────────────────────────────────────────────────────────
+
+
   userProfile: JSON.parse(localStorage.getItem('lifeos_user_profile') || JSON.stringify({
     fullName: 'مدیر ارشد سیستم',
     username: 'admin_user',
