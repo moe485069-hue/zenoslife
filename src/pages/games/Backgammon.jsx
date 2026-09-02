@@ -468,6 +468,13 @@ export default function Backgammon() {
         return;
       }
 
+      // Prioritize exact bearing off match when clicking home checkers
+      const exactOffMove = moves.find(m => m.target === 'off' && (turn === 'white' ? pointIdx === m.dieUsed : (25 - pointIdx) === m.dieUsed));
+      if (exactOffMove && isHomeBoardReady(turn, points, bar)) {
+        executeMove(pointIdx, 'off', exactOffMove.dieUsed);
+        return;
+      }
+
       setSelectedPoint(pointIdx);
       playSfx(soundEngine.playTap);
     }
