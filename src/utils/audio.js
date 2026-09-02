@@ -8,6 +8,16 @@ class SoundEngine {
     this.ambientNodes = {};
     this.sequencerTimers = {};
     this.isMuted = false;
+
+    // Auto-bind all prototype methods to prevent unbound "this" runtime exceptions
+    const proto = Object.getPrototypeOf(this);
+    if (proto) {
+      Object.getOwnPropertyNames(proto).forEach((name) => {
+        if (name !== 'constructor' && typeof this[name] === 'function') {
+          this[name] = this[name].bind(this);
+        }
+      });
+    }
   }
 
   init() {

@@ -270,7 +270,9 @@ export default function Ludo() {
   const currentPlayer = activePlayers[currentTurnIdx] || activePlayers[0];
 
   const playSfx = (fn) => {
-    if (soundEnabled) fn?.();
+    try {
+      if (soundEnabled && fn) fn();
+    } catch (_) {}
   };
 
   const rollIntervalRef = useRef(null);
@@ -278,44 +280,50 @@ export default function Ludo() {
   const rollDiceAction = () => {
     if (isRolling) return;
     setIsRolling(true);
-    playSfx(soundEngine.playLevelUp);
+    playSfx(soundEngine.playDiceRoll || soundEngine.playTap);
     haptics.tap?.();
 
     if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
 
     let rollCount = 0;
     rollIntervalRef.current = setInterval(() => {
-      setDiceRoll(Math.floor(Math.random() * 6) + 1);
       rollCount++;
+      const tempRoll = Math.floor(Math.random() * 6) + 1;
+      setDiceRoll(tempRoll);
+
       if (rollCount >= 5) {
         clearInterval(rollIntervalRef.current);
         rollIntervalRef.current = null;
         const roll = Math.floor(Math.random() * 6) + 1;
-        setIsRolling(false);
         setDiceRoll(roll);
+        setIsRolling(false);
         setHasRolled(true);
 
-        const currentActivePlayer = activePlayers[currentTurnIdx] || activePlayers[0];
-        const valid = getMovablePieces(currentActivePlayer.id, roll, pieces);
-        setValidPieceIds(valid);
+        try {
+          const currentActivePlayer = activePlayers[currentTurnIdx] || activePlayers[0];
+          const valid = getMovablePieces(currentActivePlayer.id, roll, pieces);
+          setValidPieceIds(valid);
 
-        if (roll === 6) {
-          playSfx(soundEngine.playLevelUp);
-          haptics.success?.();
-          setLastMessage(isRtl ? `🎉 تاس ۶ آوردید! مهره را حرکت دهید (نوبت جایزه).` : `🎉 Rolled a 6! Move a piece, bonus turn!`);
-        } else {
-          setLastMessage(isRtl ? `تاس: ${roll} — مهره چشمک‌زن را لمس کنید` : `Rolled: ${roll} — Tap a glowing piece`);
-        }
+          if (roll === 6) {
+            playSfx(soundEngine.playLevelUp);
+            haptics.success?.();
+            setLastMessage(isRtl ? `🎉 تاس ۶ آوردید! مهره را حرکت دهید (نوبت جایزه).` : `🎉 Rolled a 6! Move a piece, bonus turn!`);
+          } else {
+            setLastMessage(isRtl ? `تاس: ${roll} — مهره چشمک‌زن را لمس کنید` : `Rolled: ${roll} — Tap a glowing piece`);
+          }
 
-        if (valid.length === 0) {
-          setLastMessage(isRtl ? `تاس: ${roll} — مهره‌ای قابل حرکت نیست؛ نوبت منتقل شد.` : `Rolled ${roll}. No valid moves. Passing turn.`);
-          setTimeout(() => {
-            passTurn();
-          }, 800);
-        } else if (valid.length === 1 && currentTurnIdx === 0) {
-          setTimeout(() => {
-            movePiece(currentActivePlayer.id, valid[0], roll);
-          }, 400);
+          if (valid.length === 0) {
+            setLastMessage(isRtl ? `تاس: ${roll} — مهره‌ای قابل حرکت نیست؛ نوبت منتقل شد.` : `Rolled ${roll}. No valid moves. Passing turn.`);
+            setTimeout(() => {
+              passTurn();
+            }, 800);
+          } else if (valid.length === 1 && currentTurnIdx === 0) {
+            setTimeout(() => {
+              movePiece(currentActivePlayer.id, valid[0], roll);
+            }, 400);
+          }
+        } catch (e) {
+          console.error("Error in ludo dice completion:", e);
         }
       }
     }, 60);

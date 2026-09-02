@@ -189,7 +189,9 @@ export default function Backgammon() {
   const themeConfig = THEMES[boardTheme] || THEMES.persia;
 
   const playSfx = (fn) => {
-    if (soundEnabled) fn?.();
+    try {
+      if (soundEnabled && fn) fn();
+    } catch (_) {}
   };
 
   // ----------------------------------------------------
@@ -236,15 +238,18 @@ export default function Backgammon() {
   const rollDiceAction = () => {
     if (isRolling) return;
     setIsRolling(true);
-    playSfx(soundEngine.playLevelUp);
+    playSfx(soundEngine.playDiceRoll || soundEngine.playTap);
     haptics.tap?.();
 
     if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
 
     let rollCount = 0;
     rollIntervalRef.current = setInterval(() => {
-      setDice([Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1]);
       rollCount++;
+      const tempD1 = Math.floor(Math.random() * 6) + 1;
+      const tempD2 = Math.floor(Math.random() * 6) + 1;
+      setDice([tempD1, tempD2]);
+
       if (rollCount >= 5) {
         clearInterval(rollIntervalRef.current);
         rollIntervalRef.current = null;
@@ -253,28 +258,32 @@ export default function Backgammon() {
         const rolledDice = [d1, d2];
         const moves = d1 === d2 ? [d1, d1, d1, d1] : [d1, d2];
 
-        setIsRolling(false);
         setDice(rolledDice);
         setRemainingMoves(moves);
+        setIsRolling(false);
         setHasRolled(true);
 
-        if (d1 === d2) {
-          incrementGameStat?.('doublesRolled');
-          setLastMoveMsg(isRtl ? `🎉 جفت ${d1} آوردی! ۴ حرکت مجاز داری.` : `🎉 Doubles ${d1}! 4 moves available.`);
-          playSfx(soundEngine.playLevelUp);
-          haptics.success?.();
-        } else {
-          setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
-        }
+        try {
+          if (d1 === d2) {
+            incrementGameStat?.('doublesRolled');
+            setLastMoveMsg(isRtl ? `🎉 جفت ${d1} آوردی! ۴ حرکت مجاز داری.` : `🎉 Doubles ${d1}! 4 moves available.`);
+            playSfx(soundEngine.playLevelUp);
+            haptics.success?.();
+          } else {
+            setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
+          }
 
-        if (gameMode === 'online' && chatChannelRef.current) {
-          chatChannelRef.current.postMessage({
-            type: 'DICE_ROLLED',
-            payload: { dice: rolledDice, moves }
-          });
-        }
+          if (gameMode === 'online' && chatChannelRef.current) {
+            chatChannelRef.current.postMessage({
+              type: 'DICE_ROLLED',
+              payload: { dice: rolledDice, moves }
+            });
+          }
 
-        checkAutoTurnPass(rolledDice, moves, points, bar, turn);
+          checkAutoTurnPass(rolledDice, moves, points, bar, turn);
+        } catch (e) {
+          console.error("Error in dice roll handler:", e);
+        }
       }
     }, 60);
   };
