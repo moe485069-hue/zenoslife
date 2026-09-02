@@ -16,20 +16,20 @@ import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 
 // 3D Dice Face Renderer
 const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
-  const val = value ? Math.max(1, Math.min(6, value)) : null;
-  const pips = val ? {
+  const displayVal = value ? Math.max(1, Math.min(6, value)) : (isRolling ? 1 : null);
+  const pips = displayVal ? {
     1: [4],
     2: [0, 8],
     3: [0, 4, 8],
     4: [0, 2, 6, 8],
     5: [0, 2, 4, 6, 8],
     6: [0, 2, 3, 5, 6, 8]
-  }[val] || [4] : [];
+  }[displayVal] || [4] : [];
 
   const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : size === 'sm' ? 'w-9 h-9' : 'w-12 h-12 sm:w-14 sm:h-14';
   const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-1.5 h-1.5' : 'w-2.5 h-2.5';
 
-  if (!val && !isRolling) {
+  if (!displayVal && !isRolling) {
     return (
       <div className={`${sizeClasses} rounded-2xl bg-white/5 border-2 border-dashed border-amber-400/40 flex items-center justify-center text-amber-300 text-sm font-black`}>
         🎲
@@ -39,7 +39,7 @@ const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
 
   return (
     <motion.div
-      key={isRolling ? 'dice-rolling' : `dice-${val}`}
+      key={isRolling ? 'dice-rolling' : `dice-${displayVal}`}
       animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [0.9, 1.1, 0.95, 1] } : { rotate: 0, scale: 1 }}
       transition={isRolling ? { duration: 0.25, repeat: Infinity, ease: 'linear' } : { duration: 0.15 }}
       className={`${sizeClasses} rounded-2xl bg-gradient-to-b from-[#fffbeb] via-[#fef3c7] to-[#fde68a] border-2 border-[#d97706] shadow-xl p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
@@ -53,9 +53,9 @@ const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
           </div>
         ))}
       </div>
-      {val && (
+      {value && !isRolling && (
         <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-950 text-amber-200 text-[10px] font-black leading-tight border border-amber-500/50 shadow-sm font-mono">
-          {val}
+          {value}
         </span>
       )}
     </motion.div>
