@@ -1,15 +1,51 @@
+/**
+ * ============================================================================
+ * 👑 ZenOsLife PM2 Ecosystem Orchestrator
+ * Runs all 3 specialized bots + the unified REST API server concurrently
+ * ============================================================================
+ */
+
 module.exports = {
-  apps: [{
-    name: 'zen-telegram-bot',
-    script: 'bot.js',
-    cwd: '/www/wwwroot/zen.moeid.net/telegram-bot',
-    env: {
-      BOT_TOKEN: '8887477989:AAEj6gnWZvmhm2jFdjRzJAI3fwVtVptZrd4',
-      WEBAPP_URL: 'https://zen.moeid.net',
-      CHANNEL_USERNAME: '@zenoslife_official',
-      ADMIN_IDS: '7517486185,8887477989,123456789'
+  apps: [
+    {
+      name: 'zen-api-server',
+      script: 'server.js',
+      cwd: __dirname,
+      restart_delay: 2000,
+      max_restarts: 10,
+      env: {
+        NODE_ENV: 'production'
+      }
     },
-    restart_delay: 3000,
-    max_restarts: 10
-  }]
+    {
+      name: 'zen-bot-games', // چاژا (@chazha_bot)
+      script: 'bots/games-bot/index.js',
+      cwd: __dirname,
+      restart_delay: 3000,
+      max_restarts: 10,
+      env: {
+        NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'zen-bot-dating', // حُذا (@whoza_bot)
+      script: 'bots/dating-bot/index.js',
+      cwd: __dirname,
+      restart_delay: 3000,
+      max_restarts: 10,
+      env: {
+        NODE_ENV: 'production'
+      }
+    },
+    {
+      name: 'zen-bot-lifeos', // زنوسلایف (@zenosaaa_bot)
+      script: 'bots/lifeos-bot/index.js',
+      cwd: __dirname,
+      restart_delay: 3000,
+      max_restarts: 10,
+      env: {
+        NODE_ENV: 'production'
+      }
+    }
+  ]
 };

@@ -1,9 +1,16 @@
 {
-  "name": "zenoslife-telegram-bot",
-  "version": "1.0.0",
-  "description": "High-performance Telegram Bot for ZenOsLife WebApp",
+  "name": "zenoslife-telegram-ecosystem",
+  "version": "2.0.0",
+  "description": "Enterprise Multi-Bot Ecosystem (Chazha, Whoza, ZenOsLife) for Zen Mini App",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop ecosystem.config.js",
+    "restart:pm2": "pm2 restart ecosystem.config.js",
+    "start:games": "node bots/games-bot/index.js",
+    "start:dating": "node bots/dating-bot/index.js",
+    "start:lifeos": "node bots/lifeos-bot/index.js",
+    "start:server": "node server.js"
   }
 }
