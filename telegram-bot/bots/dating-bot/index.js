@@ -39,8 +39,8 @@ function getDatingReplyKeyboard() {
       [{ text: '🌈 چت بر اساس حس‌وحال (مود)' }, { text: '👑 تالار گفتگوی VIP' }],
       [{ text: '👤 پروفایل و کارمای من' }, { text: '💎 کیف‌پول و شارژ سکه' }],
       [{
-        text: '🌟 ورود به چت‌روم‌ها و اکسپلور مینی‌اپ 💬',
-        web_app: { url: `${CONFIG.WEBAPP_URL}#/chat` }
+        text: '🌟 ورود به چت‌روم‌ها و اکسپلور حُذا 💬',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=whoza#/chat` }
       }]
     ],
     resize_keyboard: true
@@ -281,8 +281,8 @@ const runner = new TelegramBotRunner('Whoza Dating Bot', BOT_TOKEN, {
 async function start() {
   await runner.init({
     menuButton: {
-      text: '💬 چت‌روم‌ها و اکسپلور',
-      url: `${CONFIG.WEBAPP_URL}#/chat`
+      text: '💬 چت و دوستیابی حُذا',
+      url: `${CONFIG.WEBAPP_URL}?app=whoza#/chat`
     },
     commands: [
       { command: 'start', description: '🚀 منوی اصلی حُذا' },

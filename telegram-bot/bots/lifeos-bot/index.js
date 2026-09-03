@@ -35,7 +35,7 @@ function getLifeOsReplyKeyboard() {
       [{ text: '💎 کیف‌پول و بخش VIP' }, { text: '🔗 دعوت از دوستان' }],
       [{
         text: '🌟 ورود به مینی‌اپ کامل زنوسلایف ✨',
-        web_app: { url: CONFIG.WEBAPP_URL }
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=zenos` }
       }]
     ],
     resize_keyboard: true
@@ -336,7 +336,7 @@ async function start() {
   await runner.init({
     menuButton: {
       text: '🌟 ورود به زنوسلایف (Mini App)',
-      url: CONFIG.WEBAPP_URL
+      url: `${CONFIG.WEBAPP_URL}?app=zenos`
     },
     commands: [
       { command: 'start', description: '🚀 منوی اصلی زنوسلایف' },

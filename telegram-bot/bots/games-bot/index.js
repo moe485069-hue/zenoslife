@@ -33,8 +33,8 @@ function getGamesReplyKeyboard() {
       [{ text: '🧠 مسابقه اطلاعات عمومی (کوئیز)' }, { text: '🎡 گردونه شانس روزانه' }],
       [{ text: '🏆 رتبه‌بندی قهرمانان' }, { text: '💎 کیف‌پول و شارژ سکه' }],
       [{
-        text: '🌟 ورود به آرکید مینی‌اپ (۱۰+ بازی آنلاین) 🎮',
-        web_app: { url: `${CONFIG.WEBAPP_URL}#/games` }
+        text: '🌟 ورود به آرکید چاژا (۱۰+ بازی آنلاین) 🎮',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
       }]
     ],
     resize_keyboard: true
@@ -235,8 +235,8 @@ const runner = new TelegramBotRunner('Chazha Games Bot', BOT_TOKEN, {
 async function start() {
   await runner.init({
     menuButton: {
-      text: '🎮 آرکید بازی‌های زنوسلایف',
-      url: `${CONFIG.WEBAPP_URL}#/games`
+      text: '🎮 آرکید بازی‌های چاژا',
+      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games`
     },
     commands: [
       { command: 'start', description: '🚀 منوی بازی‌های چاژا' },

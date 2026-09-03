@@ -14,6 +14,7 @@ import haptics from '../utils/haptics';
 import CoinShopModal from '../components/shop/CoinShopModal';
 import VipSubscriptionModal from '../components/dating/VipSubscriptionModal';
 import ReferralHubModal from '../components/referral/ReferralHubModal';
+import { useAppMode } from '../utils/appMode';
 
 const JALALI_MONTHS = [
   'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
@@ -24,6 +25,15 @@ export default function Welcome() {
   const navigate = useNavigate();
   const { language, userProfile, coins, xp, level } = useAppStore();
   const isRtl = language === 'fa';
+  const appMode = useAppMode();
+
+  useEffect(() => {
+    if (appMode === 'chazha') {
+      navigate('/games', { replace: true });
+    } else if (appMode === 'whoza') {
+      navigate('/chat', { replace: true });
+    }
+  }, [appMode, navigate]);
 
   const [greeting, setGreeting] = useState({ title: '', icon: <Sun /> });
   const [currentDate, setCurrentDate] = useState('');

@@ -6,6 +6,7 @@ import haptics from '../../utils/haptics';
 import soundEngine from '../../utils/audio';
 import InstallGuideModal from '../ui/InstallGuideModal';
 import CoinShopModal from '../shop/CoinShopModal';
+import { useAppMode } from '../../utils/appMode';
 
 export default function Header() {
   const location = useLocation();
@@ -13,9 +14,22 @@ export default function Header() {
   const { language, setLanguage, theme, setTheme, deferredPrompt, coins } = useAppStore();
   const isRtl = language === 'fa';
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
+  const appMode = useAppMode();
 
   const currentPath = location.pathname;
-  const isRoot = currentPath === '/' || currentPath === '/welcome';
+  let isRoot = currentPath === '/' || currentPath === '/welcome';
+  if (appMode === 'chazha') isRoot = currentPath === '/games';
+  if (appMode === 'whoza') isRoot = currentPath === '/chat' || currentPath === '/chat-rooms';
+
+  let brandTitle = isRtl ? 'زنوسلایف' : 'ZenOsLife';
+  let homePath = '/';
+  if (appMode === 'chazha') {
+    brandTitle = isRtl ? 'چاژا 🎮' : 'CHAZHA 🎮';
+    homePath = '/games';
+  } else if (appMode === 'whoza') {
+    brandTitle = isRtl ? 'حُذا 💬' : 'WHOZA 💬';
+    homePath = '/chat';
+  }
 
   const handleForceUpdate = async () => {
     haptics.success?.();
@@ -128,13 +142,13 @@ export default function Header() {
               onClick={() => {
                 haptics.tap?.();
                 soundEngine.playTap?.();
-                navigate('/');
+                navigate(homePath);
               }}
               className="flex items-center gap-1.5 min-w-0 cursor-pointer select-none active:scale-95 transition-all group"
               title={isRtl ? 'بازگشت به صفحه اصلی' : 'Go to Home'}
             >
               <span className="text-lg sm:text-2xl font-black not-italic tracking-normal chakra-wave-text select-none drop-shadow-sm font-['Estedad','Vazirmatn','Lalezar',sans-serif] group-hover:brightness-110 transition-all whitespace-nowrap">
-                {isRtl ? 'زنوسلایف' : 'ZenOsLife'}
+                {brandTitle}
               </span>
             </div>
           </div>
