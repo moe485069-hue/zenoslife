@@ -180,9 +180,13 @@ async function onCallback(cq) {
 
   // 1. Telegram Game Launcher (Play Backgammon, etc.)
   if (cq.game_short_name) {
+    let targetUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${cq.game_short_name}`;
+    if (cq.inline_message_id) {
+      targetUrl += `?room=tg_${cq.inline_message_id}&mode=online`;
+    }
     return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
       callback_query_id: cq.id,
-      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/${cq.game_short_name}`
+      url: targetUrl
     });
   }
 
