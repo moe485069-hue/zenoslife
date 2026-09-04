@@ -17,6 +17,11 @@ export default function Header() {
   const appMode = useAppMode();
 
   const currentPath = location.pathname;
+  // Hide global Header during active games for 100% immersive full-screen zero-scroll experience
+  if (currentPath.startsWith('/games/') && currentPath !== '/games' && currentPath !== '/games/lounge') {
+    return null;
+  }
+
   let isRoot = currentPath === '/' || currentPath === '/welcome';
   if (appMode === 'chazha') isRoot = currentPath === '/games';
   if (appMode === 'whoza') isRoot = currentPath === '/chat' || currentPath === '/chat-rooms';

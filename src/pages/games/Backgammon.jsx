@@ -5,7 +5,7 @@ import {
   ChevronLeft, RotateCcw, Volume2, VolumeX, Sparkles, Trophy, 
   Users, Bot, Globe, Shield, MessageSquare, Send, Award, Flame, 
   HelpCircle, Settings, ArrowRight, CheckCircle2, Shuffle, Play, Share2,
-  Sun, Moon, Undo2, RotateCw
+  Sun, Moon, Undo2, RotateCw, MoreVertical, Smile
 } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
@@ -319,6 +319,28 @@ export default function Backgammon() {
   const [rematchState, setRematchState] = useState(null); // null | 'sent' | 'received' | 'accepted' | 'declined'
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [turnTimerSeconds, setTurnTimerSeconds] = useState(60);
+
+  // Plato-Style Active Turn Countdown
+  useEffect(() => {
+    if (setWinner || matchWinner) return;
+    const timer = setInterval(() => {
+      setTurnTimerSeconds(prev => (prev > 1 ? prev - 1 : 60));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [turn, setWinner, matchWinner]);
+
+  useEffect(() => {
+    setTurnTimerSeconds(60);
+  }, [turn]);
+
+  const formatTimer = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
   const [chatMessages, setChatMessages] = useState([
     { id: 1, text: isRtl ? 'به تخته نرد شاهانه خوش آمدید!' : 'Welcome to Royal Backgammon!', sender: 'system' }
   ]);
@@ -1168,9 +1190,9 @@ export default function Backgammon() {
               }}
               className={`w-5 h-5 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
                 isSelected && isTopChecker 
-                  ? 'ring-4 ring-amber-400 scale-115 shadow-[0_0_15px_rgba(251,191,36,0.9)] z-30' 
+                  ? 'ring-4 ring-cyan-300 scale-115 shadow-[0_0_18px_rgba(34,211,238,1)] z-30' 
                   : isFriendlyAndMovable && isTopChecker 
-                    ? 'ring-2 ring-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.6)] animate-pulse' 
+                    ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse' 
                     : 'shadow-[0_4px_6px_rgba(0,0,0,0.5),inset_0_1.5px_1px_rgba(255,255,255,0.4)]'
               }`}
             >
@@ -1343,612 +1365,519 @@ export default function Backgammon() {
     );
   };
 
+  // Perspective calculations
+  const bottomPlayerRole = isFlipped ? 'black' : 'white';
+  const topPlayerRole = isFlipped ? 'white' : 'black';
+
+  const isMyTurn = turn === bottomPlayerRole;
+  const topPip = topPlayerRole === 'white' ? pipWhite : pipBlack;
+  const bottomPip = bottomPlayerRole === 'white' ? pipWhite : pipBlack;
+
+  const topScore = topPlayerRole === 'white' ? scoreWhite : scoreBlack;
+  const bottomScore = bottomPlayerRole === 'white' ? scoreWhite : scoreBlack;
+
+  const topPlayerName = gameMode === 'bot' 
+    ? (isFlipped ? (myUserName || 'شما') : '🤖 ربات') 
+    : (isFlipped ? (myUserName || 'شما') : (searchParams.get('duel') || 'حریف آنلاین'));
+  const bottomPlayerName = gameMode === 'bot' 
+    ? (isFlipped ? '🤖 ربات' : (myUserName || 'شما')) 
+    : (isFlipped ? (searchParams.get('duel') || 'حریف آنلاین') : (myUserName || 'شما'));
+
+  const topAway = Math.max(1, matchSets - topScore);
+  const bottomAway = Math.max(1, matchSets - bottomScore);
+
   return (
-    <div className={`min-h-screen pb-24 select-none font-sans transition-colors duration-300 ${
-      colorMode === 'light' ? 'bg-[#f1f5f9] text-slate-900' : 'bg-[#050711] text-white'
-    }`} dir="rtl">
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between bg-[#191512] text-white select-none font-sans relative" dir="ltr">
       
-      {/* 1. Header (Clean & Sleek) */}
-      <div className={`sticky top-0 z-30 px-3 py-2.5 backdrop-blur-xl border-b flex items-center justify-between transition-colors ${
-        colorMode === 'light'
-          ? 'bg-white/95 text-slate-900 border-slate-200 shadow-sm'
-          : 'bg-slate-900/95 text-white border-white/10'
-      }`}>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/games')}
-            className={`p-2 rounded-xl active:scale-95 transition-all ${
-              colorMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/5 hover:bg-white/10 text-white'
-            }`}
-            title={isRtl ? 'بازگشت به بازی‌ها' : 'Back to Games'}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div>
+      {/* 1. Header (Plato Exact Replica) */}
+      <div className="shrink-0 h-14 px-3 flex items-center justify-between z-30 bg-[#14100d]/95 backdrop-blur-xl border-b border-white/10 shadow-sm relative">
+        {/* Left: Circular Back Button */}
+        <button
+          onClick={() => navigate('/games')}
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white"
+          title={isRtl ? 'بازگشت به بازی‌ها' : 'Back to Games'}
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        {/* Centered Players Bar */}
+        <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center max-w-xs">
+          {/* Top Player (Opponent) */}
+          <div className="flex flex-col items-center">
             <div className="flex items-center gap-1.5">
-              <h1 className={`text-sm sm:text-base font-black ${
-                colorMode === 'light' ? 'text-amber-800' : 'text-amber-300'
-              }`}>
-                تخته نرد چاژا 🎲
-              </h1>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                colorMode === 'light' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-white/10 text-amber-200'
-              }`}>
-                {gameMode === 'bot' ? '🤖 ربات' : (gameMode === 'telegram' || gameMode === 'online') ? `⚔️ ${onlineRoomCode || 'آنلاین'}` : '📱 دونفره'}
-              </span>
+              <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{topAway}-away</span>
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border border-amber-600/40 flex items-center justify-center text-xs shadow-inner">
+                {topPlayerRole === 'white' ? '⚪' : '⚫'}
+              </div>
             </div>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+              <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px]">{topPlayerName}</span>
+            </div>
+            <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
+              {turn === topPlayerRole ? formatTimer(turnTimerSeconds) : '01:05'}
+            </span>
+          </div>
+
+          {/* Centered "vs" */}
+          <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">
+            vs
+          </div>
+
+          {/* Bottom Player (You) */}
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border-2 border-sky-400 flex items-center justify-center text-xs shadow-[0_0_8px_rgba(56,189,248,0.5)]">
+                {bottomPlayerRole === 'white' ? '⚪' : '⚫'}
+              </div>
+              <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{bottomAway}-away</span>
+            </div>
+            <div className="flex items-center gap-1 mt-0.5">
+              {isMyTurn ? (
+                <span className="px-2 py-0.2 rounded-full bg-sky-500 text-white text-[9px] font-black shadow-sm animate-pulse">
+                  Your Turn
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px]">{bottomPlayerName}</span>
+              )}
+            </div>
+            <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
+              {isMyTurn ? formatTimer(turnTimerSeconds) : '00:58'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          {/* Light / Dark Mode Toggle */}
-          <button
-            onClick={() => {
-              setColorMode(prev => {
-                const next = prev === 'dark' ? 'light' : 'dark';
-                try {
-                  localStorage.setItem('backgammon_color_mode', next);
-                } catch (_) {}
-                return next;
-              });
-              soundEngine.playTap?.();
-            }}
-            className={`p-1.5 rounded-xl text-xs transition-all active:scale-90 ${
-              colorMode === 'light' 
-                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300' 
-                : 'bg-white/5 text-amber-300 hover:bg-white/10'
-            }`}
-            title={colorMode === 'light' ? 'حالت تاریک' : 'حالت روشن'}
-          >
-            {colorMode === 'light' ? <Moon size={15} /> : <Sun size={15} />}
-          </button>
-
-          {/* Quick Telegram Invite Button */}
-          <button
-            onClick={() => {
-              setIsSetupModalOpen(true);
-              soundEngine.playTap?.();
-            }}
-            className="px-2.5 py-1.5 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-400/30 text-xs font-black hover:bg-sky-500/30 flex items-center gap-1 active:scale-95 transition-all"
-            title="دعوت دوستان در تلگرام"
-          >
-            <Share2 size={13} />
-            <span className="text-[10px]">دعوت</span>
-          </button>
-
-          {/* In-Game Chat Toggle */}
-          <button
-            onClick={() => {
-              setIsChatOpen(!isChatOpen);
-              soundEngine.playTap?.();
-            }}
-            className={`p-1.5 rounded-xl relative transition-all ${
-              colorMode === 'light'
-                ? 'bg-slate-100 hover:bg-slate-200 text-indigo-700'
-                : 'bg-white/5 hover:bg-white/10 text-indigo-300 hover:text-white'
-            }`}
-            title="چت حین بازی"
-          >
-            <MessageSquare size={15} />
-            {chatMessages.length > 1 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-bold text-white flex items-center justify-center">
-                {chatMessages.length - 1}
-              </span>
-            )}
-          </button>
-
-          {/* Theme Switcher */}
-          <button
-            onClick={() => {
-              const themesKeys = Object.keys(THEMES);
-              const nextIdx = (themesKeys.indexOf(boardTheme) + 1) % themesKeys.length;
-              setBoardTheme(themesKeys[nextIdx]);
-              soundEngine.playTap?.();
-            }}
-            className={`p-1.5 rounded-xl text-xs transition-all ${
-              colorMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/5 hover:bg-white/10 text-slate-300'
-            }`}
-            title="تغییر ظاهر تخته"
-          >
-            {themeConfig.icon}
-          </button>
-
-          {/* Perspective Flip Button (180deg view) */}
-          <button
-            onClick={() => {
-              setManualFlip(prev => (prev === null ? !isFlipped : !prev));
-              soundEngine.playTap?.();
-            }}
-            className={`p-1.5 rounded-xl text-xs transition-all active:scale-90 ${
-              isFlipped
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-400/40 shadow-sm'
-                : (colorMode === 'light' ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-slate-300 hover:text-white')
-            }`}
-            title={isRtl ? (isFlipped ? 'زاویه دید: مهره‌های سیاه (پلاتو) • کلیک برای معکوس' : 'زاویه دید: مهره‌های سفید • کلیک برای چرخش ۱۸۰ درجه') : 'Flip Board Perspective'}
-          >
-            <RotateCw size={15} className={isFlipped ? 'text-amber-400' : ''} />
-          </button>
-
-          {/* Settings Modal Button */}
-          <button
-            onClick={() => setIsSetupModalOpen(true)}
-            className={`p-1.5 rounded-xl transition-all ${
-              colorMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/5 text-slate-300 hover:text-white'
-            }`}
-            title="تنظیمات بازی"
-          >
-            <Settings size={15} />
-          </button>
-
-          {/* Sound Toggle */}
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-1.5 rounded-xl transition-all ${
-              colorMode === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-800' : 'bg-white/5 text-slate-400 hover:text-white'
-            }`}
-            title="صدا"
-          >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-          </button>
-        </div>
+        {/* Right: Circular 3-Dot Menu Button */}
+        <button
+          onClick={() => {
+            setIsMoreMenuOpen(!isMoreMenuOpen);
+            soundEngine.playTap?.();
+          }}
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white"
+          title="گزینه‌ها"
+        >
+          <MoreVertical size={18} />
+        </button>
       </div>
 
-      <div className="max-w-lg mx-auto min-h-[calc(100vh-70px)] p-2.5 sm:p-4 space-y-2.5">
+      {/* 1.5. Three-Dot More Options Dropdown */}
+      <AnimatePresence>
+        {isMoreMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            className="absolute top-14 right-3 z-50 w-56 rounded-2xl bg-[#1c1612]/95 backdrop-blur-xl border border-amber-500/30 shadow-2xl p-2.5 space-y-1.5 text-xs text-white"
+            dir={isRtl ? 'rtl' : 'ltr'}
+          >
+            <div className="px-2 py-1 text-[10px] text-amber-400 font-bold">قالب و ظاهر تخته:</div>
+            <div className="grid grid-cols-2 gap-1 pb-1 border-b border-white/10">
+              {Object.keys(THEMES).map(tKey => (
+                <button
+                  key={tKey}
+                  onClick={() => {
+                    setBoardTheme(tKey);
+                    soundEngine.playTap?.();
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 ${
+                    boardTheme === tKey ? 'bg-amber-400 text-slate-950 font-black' : 'hover:bg-white/10 text-slate-300'
+                  }`}
+                >
+                  <span>{THEMES[tKey].icon}</span>
+                  <span>{THEMES[tKey].nameFa.split(' ')[0]}</span>
+                </button>
+              ))}
+            </div>
 
-        {/* 2. Sleek Compact Scoreboard */}
-        <div className={`py-2 px-3 rounded-2xl flex items-center justify-between shadow-lg backdrop-blur-md border transition-colors ${
-          colorMode === 'light'
-            ? 'bg-white/95 border-slate-300 text-slate-900 shadow-md'
-            : 'bg-black/40 border-white/10 text-white shadow-lg'
-        }`}>
-          {/* White Player */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-b from-amber-200 to-amber-400 border border-amber-300 shadow-sm flex items-center justify-center text-xs font-black text-black shrink-0">
-              {scoreWhite}
-            </div>
-            <div>
-              <span className={`text-[11px] font-black block leading-tight ${
-                colorMode === 'light' ? 'text-amber-800' : 'text-amber-300'
-              }`}>
-                {gameMode === 'bot' 
-                  ? (isRtl ? 'سفید (شما)' : 'White (You)') 
-                  : (myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White (You)') : (isRtl ? 'سفید (حریف)' : 'White (Opponent)'))}
-              </span>
-              <span className={`text-[9px] font-mono font-bold ${
-                colorMode === 'light' ? 'text-slate-600' : 'text-slate-400'
-              }`}>
-                پیپ: {pipWhite}
-              </span>
-            </div>
-          </div>
+            <button
+              onClick={() => {
+                setManualFlip(prev => (prev === null ? !isFlipped : !prev));
+                soundEngine.playTap?.();
+                setIsMoreMenuOpen(false);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+            >
+              <span>چرخش ۱۸۰ درجه تخته</span>
+              <RotateCw size={14} />
+            </button>
 
-          {/* Match Set Pill */}
-          <div className={`text-center px-2.5 py-1 rounded-xl border ${
-            colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-white/5 border-white/10'
-          }`}>
-            <div className={`text-[11px] font-black font-mono ${
-              colorMode === 'light' ? 'text-slate-900' : 'text-white'
-            }`}>
-              ست {currentSet} از {matchSets}
-            </div>
-            <div className={`text-[9px] font-bold ${
-              turn === 'white' 
-                ? (colorMode === 'light' ? 'text-amber-700' : 'text-amber-300')
-                : (colorMode === 'light' ? 'text-cyan-700' : 'text-cyan-300')
-            }`}>
-              {turn === 'white' ? '⚪ نوبت سفید' : '⚫ نوبت سیاه'}
-            </div>
-          </div>
+            <button
+              onClick={() => {
+                setSoundEnabled(!soundEnabled);
+                soundEngine.playTap?.();
+              }}
+              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+            >
+              <span>صدا و افکت‌ها</span>
+              {soundEnabled ? <Volume2 size={14} className="text-emerald-400" /> : <VolumeX size={14} className="text-rose-400" />}
+            </button>
 
-          {/* Black Player */}
-          <div className="flex items-center gap-2">
-            <div className="text-end">
-              <span className={`text-[11px] font-black block leading-tight ${
-                colorMode === 'light' ? 'text-cyan-800' : 'text-cyan-300'
-              }`}>
-                {gameMode === 'bot' 
-                  ? (isRtl ? '🤖 ربات' : '🤖 Bot') 
-                  : (myOnlineRole === 'black' ? (isRtl ? 'سیاه (شما)' : 'Black (You)') : (isRtl ? 'سیاه (حریف)' : 'Black (Opponent)'))}
-              </span>
-              <span className={`text-[9px] font-mono font-bold ${
-                colorMode === 'light' ? 'text-slate-600' : 'text-slate-400'
-              }`}>
-                پیپ: {pipBlack}
-              </span>
-            </div>
-            <div className="w-7 h-7 rounded-full bg-gradient-to-b from-cyan-600 to-cyan-800 border border-cyan-400 shadow-sm flex items-center justify-center text-xs font-black text-white shrink-0">
-              {scoreBlack}
-            </div>
-          </div>
-        </div>
+            <button
+              onClick={() => {
+                setIsSetupModalOpen(true);
+                setIsMoreMenuOpen(false);
+              }}
+              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+            >
+              <span>تنظیمات بازی و تم</span>
+              <Settings size={14} />
+            </button>
 
-        {/* 2.5. Online Room Info & Role Selector Bar */}
-        {gameMode === 'online' && (
-          <div className={`py-2 px-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2 shadow-md transition-colors ${
-            colorMode === 'light'
-              ? 'bg-sky-50/90 border-sky-200 text-slate-900'
-              : 'bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-indigo-950/60 border-cyan-500/30 text-white'
-          }`}>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
-              <span className="text-xs font-black">
-                اتاق: <code className="bg-black/20 px-1.5 py-0.5 rounded font-mono text-[11px] text-amber-500">{onlineRoomCode}</code>
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-600 font-bold border border-cyan-400/30">
-                {myOnlineRole === 'white' ? '⚪ شما: سفید (شروع‌کننده)' : '⚫ شما: سیاه'}
-              </span>
-            </div>
-          </div>
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
+                navigate('/games');
+              }}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold flex items-center justify-between border border-rose-500/30"
+            >
+              <span>تسلیم شدن و خروج</span>
+              <span>🏳️</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Board Area (Plato Proportional Vertical Wood Board) */}
+      <div 
+        ref={boardContainerRef}
+        className="flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-3 relative overflow-hidden"
+      >
+        {/* Parabolic Flying Checker Animation */}
+        {flyingChecker && (
+          <motion.div
+            key={flyingChecker.id}
+            initial={{
+              left: flyingChecker.startX,
+              top: flyingChecker.startY,
+              scale: 1.15,
+              x: '-50%',
+              y: '-50%',
+              boxShadow: '0 14px 28px rgba(0,0,0,0.6)'
+            }}
+            animate={{
+              left: flyingChecker.endX,
+              top: flyingChecker.endY,
+              scale: [1.15, 1.35, 1.0],
+              x: '-50%',
+              y: ['-50%', '-100%', '-50%']
+            }}
+            transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1.0] }}
+            className={`absolute w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
+              flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
+            }`}
+          >
+            <div className="w-[66%] h-[66%] rounded-full border border-current opacity-40" />
+          </motion.div>
         )}
 
-        {/* 3. Main Board */}
-        <div ref={boardContainerRef} className={`w-full rounded-[2.2rem] p-2.5 sm:p-3.5 border-4 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.15)] relative`}>
+        {/* The Wooden Board Case */}
+        <div className="w-full max-w-[420px] aspect-[9/14] max-h-full bg-[#382315] border-[6px] border-[#26150b] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.15)] flex flex-col p-1.5 relative select-none">
+          
+          {/* Top Frame Strip: Pip Capsule on Left, Bearing-Off Tray on Right */}
+          <div className="w-full h-7 px-2 flex items-center justify-between shrink-0 mb-1 z-20">
+            {/* Top-Left Pip Pill (Plato Style) */}
+            <div className="px-2.5 py-0.5 rounded-full bg-black/75 border border-white/10 text-amber-200 font-mono font-black text-[10px] shadow">
+              {topPip}
+            </div>
 
-          {/* Parabolic Flying Checker Animation */}
-          {flyingChecker && (
-            <motion.div
-              key={flyingChecker.id}
-              initial={{
-                left: flyingChecker.startX,
-                top: flyingChecker.startY,
-                scale: 1.15,
-                x: '-50%',
-                y: '-50%',
-                boxShadow: '0 14px 28px rgba(0,0,0,0.6)'
+            {/* Top-Right Bearing-Off Tray (Plato Recessed Horizontal Box) */}
+            <div
+              onClick={() => {
+                if (turn === topPlayerRole && activeValidDestinations.includes('off')) {
+                  const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
+                  const offMove = validMoves.find(m => m.target === 'off');
+                  if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                }
               }}
-              animate={{
-                left: flyingChecker.endX,
-                top: flyingChecker.endY,
-                scale: [1.15, 1.35, 1.0],
-                x: '-50%',
-                y: ['-50%', '-100%', '-50%']
-              }}
-              transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1.0] }}
-              className={`absolute w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
-                flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
+              className={`w-28 sm:w-32 h-6 rounded-md bg-[#1d1109] border border-[#100904] shadow-[inset_0_2px_6px_rgba(0,0,0,0.9)] flex items-center px-1.5 justify-between ${
+                turn === topPlayerRole && activeValidDestinations.includes('off') ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
               }`}
+              title={`خروج مهره‌های ${topPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[topPlayerRole]}/15)`}
             >
-              <div className="w-[66%] h-[66%] rounded-full border border-current opacity-40" />
-            </motion.div>
-          )}
+              <div className="flex items-center gap-[2px] overflow-hidden flex-1 h-3 mr-1">
+                {Array.from({ length: Math.min(15, borneOff[topPlayerRole]) }).map((_, i) => (
+                  <div key={i} className={`h-full w-1 rounded-sm shrink-0 ${topPlayerRole === 'white' ? 'bg-white shadow-sm' : 'bg-slate-900 border border-slate-700'}`} />
+                ))}
+              </div>
+              <span className="text-[9px] font-mono font-black text-amber-300 shrink-0">
+                {borneOff[topPlayerRole]}/15
+              </span>
+            </div>
+          </div>
 
-          <div className="flex gap-1.5 sm:gap-2.5 h-[280px] xs:h-[320px] sm:h-[400px]">
+          {/* Playing Field with Left Half, Center Bar, and Right Half */}
+          <div className="flex-1 w-full flex min-h-0 relative">
             
-            {/* If Flipped (Black Perspective): Tray is on Left */}
-            {isFlipped && renderBearingOffTray(true)}
-
-            {/* Left Quadrant:
-                Normal: Outer Board (13-18 Top, 12-7 Bottom)
-                Flipped: Black Home Board at Bottom-Left (24-19 Bottom, 1-6 Top) */}
-            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.7)]`}>
-              <div className="flex h-[46%] w-full">
+            {/* Left Board Quadrant */}
+            <div className="flex-1 h-full rounded-l-xl p-0.5 sm:p-1 flex flex-col justify-between bg-gradient-to-b from-[#e5bf88] via-[#dfb57b] to-[#d6a76b] border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.4)] relative overflow-hidden">
+              {/* Top Points (6) */}
+              <div className="flex h-[45%] w-full">
                 {(isFlipped ? [1, 2, 3, 4, 5, 6] : [13, 14, 15, 16, 17, 18]).map(p => renderPoint(p, true))}
               </div>
-              <div className="flex h-[46%] w-full">
+
+              {/* Rolled Dice resting on the wooden board surface */}
+              {hasRolled && dice[0] && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 z-20 pointer-events-auto">
+                  {/* Die 1 */}
+                  <div
+                    onClick={() => {
+                      if (remainingMoves.includes(dice[0])) {
+                        setSelectedDie(prev => (prev === dice[0] ? null : dice[0]));
+                        soundEngine.playTap?.();
+                        haptics.tap?.();
+                      }
+                    }}
+                    className={`cursor-pointer transition-all ${
+                      selectedDie === dice[0] && remainingMoves.includes(dice[0])
+                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl'
+                        : hasRolled && remainingMoves.includes(dice[0])
+                          ? 'ring-1 ring-cyan-300/60 rounded-2xl'
+                          : 'opacity-50 grayscale'
+                    }`}
+                    style={{ transform: 'rotate(-10deg)' }}
+                    title={remainingMoves.includes(dice[0]) ? `انتخاب اولویت با تاس ${dice[0]}` : ''}
+                  >
+                    <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0]} />
+                    {selectedDie === dice[0] && remainingMoves.includes(dice[0]) && (
+                      <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-cyan-500 text-slate-950 text-[8px] font-black shadow-sm">
+                        اول
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Die 2 */}
+                  <div
+                    onClick={() => {
+                      if (remainingMoves.includes(dice[1])) {
+                        setSelectedDie(prev => (prev === dice[1] ? null : dice[1]));
+                        soundEngine.playTap?.();
+                        haptics.tap?.();
+                      }
+                    }}
+                    className={`cursor-pointer transition-all ${
+                      selectedDie === dice[1] && remainingMoves.includes(dice[1])
+                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl'
+                        : hasRolled && remainingMoves.includes(dice[1])
+                          ? 'ring-1 ring-cyan-300/60 rounded-2xl'
+                          : 'opacity-50 grayscale'
+                    }`}
+                    style={{ transform: 'rotate(8deg)' }}
+                    title={remainingMoves.includes(dice[1]) ? `انتخاب اولویت با تاس ${dice[1]}` : ''}
+                  >
+                    <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1]} />
+                    {selectedDie === dice[1] && remainingMoves.includes(dice[1]) && (
+                      <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-cyan-500 text-slate-950 text-[8px] font-black shadow-sm">
+                        اول
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Points (6) */}
+              <div className="flex h-[45%] w-full">
                 {(isFlipped ? [24, 23, 22, 21, 20, 19] : [12, 11, 10, 9, 8, 7]).map(p => renderPoint(p, false))}
               </div>
             </div>
 
-            {/* Center Bar — Dedicated Hit Checkers Jail (جایگاه مهره‌های خورده) */}
-            {(() => {
-              const topColor = isFlipped ? 'white' : 'black';
-              const topCount = isFlipped ? bar.white : bar.black;
-              const topCheckerStyle = topColor === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
+            {/* Center Bar (Walnut Wood Bar with Brass Hinges & Doubling Cube 64) */}
+            <div className="w-8 sm:w-9 rounded-md py-2 flex flex-col items-center justify-between bg-[#2a190d] border-x border-[#1a0f07] shadow-[inset_0_0_12px_rgba(0,0,0,0.85)] shrink-0 z-10">
+              {/* Top Brass Hinge */}
+              <div className="w-5 h-2 rounded-sm bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
 
-              const bottomColor = isFlipped ? 'black' : 'white';
-              const bottomCount = isFlipped ? bar.black : bar.white;
-              const bottomCheckerStyle = bottomColor === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
-
-              return (
-                <div 
-                  className={`w-14 xs:w-16 sm:w-20 rounded-2xl py-1.5 px-1 flex flex-col items-center justify-between border-2 border-amber-600/30 ${themeConfig.barBg} shadow-[inset_0_0_15px_rgba(0,0,0,0.9),0_0_10px_rgba(0,0,0,0.5)] shrink-0`}
+              {/* Top Hit Checker Slot */}
+              {bar[topPlayerRole] > 0 ? (
+                <div
+                  onClick={() => {
+                    if (turn === topPlayerRole) handlePointClick('bar');
+                  }}
+                  className={`cursor-pointer flex flex-col items-center ${turn === topPlayerRole ? 'animate-pulse' : ''}`}
+                  title={`${bar[topPlayerRole]} مهره خورده`}
                 >
-                  {/* Top Hit Slot */}
-                  <div 
-                    data-bar-jail={topColor}
-                    onClick={() => {
-                      if (topColor === turn && topCount > 0) handlePointClick('bar');
-                    }}
-                    className={`w-full flex flex-col items-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer ${
-                      topCount > 0 && topColor === turn
-                        ? 'ring-2 ring-amber-400 bg-amber-500/25 shadow-lg animate-pulse'
-                        : 'hover:bg-white/5'
-                    }`}
-                    title={topCount > 0 ? (isRtl ? `${topCount} مهره خورده ${topColor === 'white' ? 'سفید' : 'سیاه'} — کلیک برای ورود` : `${topCount} hit ${topColor} checkers`) : (isRtl ? 'جایگاه مهره‌های خورده' : 'Hit slot')}
-                  >
-                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-tighter mb-1">
-                      {topColor === 'white' ? '⚪ خورده' : '⚫ خورده'}
-                    </span>
-
-                    {/* Recessed Pocket */}
-                    <div className={`w-10 h-10 xs:w-11 xs:h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative transition-all ${
-                      topCount > 0
-                        ? 'bg-black/80 border-2 border-amber-400/70 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]'
-                        : 'bg-black/35 border border-dashed border-white/15'
-                    }`}>
-                      {topCount > 0 ? (
-                        <div className="relative flex items-center justify-center">
-                          {topCount > 1 && (
-                            <div className={`absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border opacity-50 ${topCheckerStyle}`} />
-                          )}
-                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs relative shadow-lg ${topCheckerStyle}`}>
-                            <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none" />
-                          </div>
-                          {/* Count Badge */}
-                          <span className="absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[8px] font-black shadow-md border border-rose-400 leading-none">
-                            {topCount}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-[8px] font-black text-slate-500/60">۰</span>
-                      )}
-                    </div>
-
-                    {topCount > 0 && topColor === turn && (
-                      <span className="mt-1 px-1 py-0.2 rounded bg-amber-400 text-slate-950 font-black text-[7px] leading-tight shadow animate-bounce">
-                        ورود 🎯
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Classical Brass Hinge & Inlaid Centerpiece */}
-                  <div className="flex flex-col items-center justify-center py-1 opacity-75 select-none pointer-events-none">
-                    <div className="w-6 sm:w-8 h-1 rounded-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
-                    <span className="text-xs my-0.5">⚜️</span>
-                    <div className="w-6 sm:w-8 h-1 rounded-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
-                  </div>
-
-                  {/* Bottom Hit Slot */}
-                  <div 
-                    data-bar-jail={bottomColor}
-                    onClick={() => {
-                      if (bottomColor === turn && bottomCount > 0) handlePointClick('bar');
-                    }}
-                    className={`w-full flex flex-col items-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer ${
-                      bottomCount > 0 && bottomColor === turn
-                        ? 'ring-2 ring-amber-400 bg-amber-500/25 shadow-lg animate-pulse'
-                        : 'hover:bg-white/5'
-                    }`}
-                    title={bottomCount > 0 ? (isRtl ? `${bottomCount} مهره خورده ${bottomColor === 'white' ? 'سفید' : 'سیاه'} — کلیک برای ورود` : `${bottomCount} hit ${bottomColor} checkers`) : (isRtl ? 'جایگاه مهره‌های خورده' : 'Hit slot')}
-                  >
-                    {bottomCount > 0 && bottomColor === turn && (
-                      <span className="mb-1 px-1 py-0.2 rounded bg-amber-400 text-slate-950 font-black text-[7px] leading-tight shadow animate-bounce">
-                        ورود 🎯
-                      </span>
-                    )}
-
-                    {/* Recessed Pocket */}
-                    <div className={`w-10 h-10 xs:w-11 xs:h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative transition-all ${
-                      bottomCount > 0
-                        ? 'bg-black/80 border-2 border-amber-400/70 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]'
-                        : 'bg-black/35 border border-dashed border-white/15'
-                    }`}>
-                      {bottomCount > 0 ? (
-                        <div className="relative flex items-center justify-center">
-                          {bottomCount > 1 && (
-                            <div className={`absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border opacity-50 ${bottomCheckerStyle}`} />
-                          )}
-                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs relative shadow-lg ${bottomCheckerStyle}`}>
-                            <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none" />
-                          </div>
-                          {/* Count Badge */}
-                          <span className="absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[8px] font-black shadow-md border border-rose-400 leading-none">
-                            {bottomCount}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-[8px] font-black text-slate-500/60">۰</span>
-                      )}
-                    </div>
-
-                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-tighter mt-1">
-                      {bottomColor === 'white' ? '⚪ خورده' : '⚫ خورده'}
-                    </span>
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${topPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                    {bar[topPlayerRole]}
                   </div>
                 </div>
-              );
-            })()}
+              ) : (
+                <div className="w-6 h-6 rounded-full border border-dashed border-white/10 opacity-30" />
+              )}
 
-            {/* Right Quadrant:
-                Normal: Home Board (19-24 Top, 6-1 Bottom)
-                Flipped: Outer Board (7-12 Top, 18-13 Bottom) */}
-            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.7)]`}>
-              <div className="flex h-[46%] w-full">
+              {/* Doubling Cube (Centered 64, exactly as in Plato) */}
+              <div 
+                className="w-7 h-7 rounded-lg bg-[#141414] border border-white/20 text-white font-mono font-black text-[11px] flex items-center justify-center shadow-lg select-none"
+                title="تاس دوبل (۶۴)"
+              >
+                64
+              </div>
+
+              {/* Bottom Hit Checker Slot */}
+              {bar[bottomPlayerRole] > 0 ? (
+                <div
+                  onClick={() => {
+                    if (turn === bottomPlayerRole) handlePointClick('bar');
+                  }}
+                  className={`cursor-pointer flex flex-col items-center ${isMyTurn ? 'ring-2 ring-cyan-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.8)]' : ''}`}
+                  title={`${bar[bottomPlayerRole]} مهره خورده - کلیک برای ورود`}
+                >
+                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${bottomPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                    {bar[bottomPlayerRole]}
+                  </div>
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full border border-dashed border-white/10 opacity-30" />
+              )}
+
+              {/* Bottom Brass Hinge */}
+              <div className="w-5 h-2 rounded-sm bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
+            </div>
+
+            {/* Right Board Quadrant */}
+            <div className="flex-1 h-full rounded-r-xl p-0.5 sm:p-1 flex flex-col justify-between bg-gradient-to-b from-[#e5bf88] via-[#dfb57b] to-[#d6a76b] border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.4)] relative overflow-hidden">
+              {/* Top Points (6) */}
+              <div className="flex h-[45%] w-full">
                 {(isFlipped ? [7, 8, 9, 10, 11, 12] : [19, 20, 21, 22, 23, 24]).map(p => renderPoint(p, true))}
               </div>
-              <div className="flex h-[46%] w-full">
+
+              {/* On-Board Roll Button (Plato Square with 3D Dice Sticker 🎲) */}
+              {isMyTurn && (!hasRolled || isRolling) && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto">
+                  <motion.button
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={handleRollDice}
+                    disabled={isRolling}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#4a2e1b]/70 hover:bg-[#5a3821]/80 border-2 border-amber-500/40 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer shadow-2xl active:scale-95 transition-all"
+                    title="پرتاب تاس 🎲"
+                  >
+                    <span className="text-3xl sm:text-4xl animate-bounce filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
+                      🎲
+                    </span>
+                  </motion.button>
+                </div>
+              )}
+
+              {/* Remaining moves & undo/pass turn overlay on right quadrant when active */}
+              {isMyTurn && hasRolled && remainingMoves.length > 0 && (
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {moveHistory.length > 0 && (
+                      <button
+                        onClick={handleUndoMove}
+                        className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-amber-300 text-[10px] font-bold border border-amber-400/40 flex items-center gap-0.5 active:scale-95 shadow"
+                        title="بازگردانی حرکت"
+                      >
+                        <RotateCcw size={10} />
+                        <span>بازگردانی</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => endTurn(points, bar, borneOff, turn)}
+                      className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-slate-300 text-[10px] font-bold border border-white/20 active:scale-95 shadow"
+                      title="رد نوبت"
+                    >
+                      رد نوبت ⏭️
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Points (6) */}
+              <div className="flex h-[45%] w-full">
                 {(isFlipped ? [18, 17, 16, 15, 14, 13] : [6, 5, 4, 3, 2, 1]).map(p => renderPoint(p, false))}
               </div>
             </div>
 
-            {/* If NOT Flipped (White Perspective): Tray is on Right */}
-            {!isFlipped && renderBearingOffTray(false)}
-
           </div>
 
-          {/* 4. Sleek Compact Tournament Controls Bar */}
-          <div className={`mt-2.5 p-2 sm:p-2.5 rounded-2xl border transition-all ${
-            colorMode === 'light' 
-              ? 'bg-white/95 border-slate-300 shadow-md text-slate-800' 
-              : 'bg-black/75 border-white/10 shadow-xl text-white'
-          }`}>
-            <div className="flex items-center justify-between gap-1.5 sm:gap-3 flex-wrap">
-              
-              {/* Turn & Pip Race Info */}
-              <div className="flex items-center gap-2">
-                <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${
-                  turn === 'white' ? 'bg-amber-400 shadow-[0_0_10px_#f59e0b]' : 'bg-cyan-500 shadow-[0_0_10px_#06b6d4]'
-                }`} />
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-black leading-tight">
-                    {turn === 'white'
-                      ? (isWhiteMe ? (isRtl ? '⚪ نوبت شما' : '⚪ Your Turn') : (isRtl ? '⚪ نوبت حریف' : '⚪ Opponent'))
-                      : (gameMode === 'bot' ? '🤖 ربات...' : (!isWhiteMe ? (isRtl ? '⚫ نوبت شما' : '⚫ Your Turn') : (isRtl ? '⚫ نوبت حریف' : '⚫ Opponent')))}
-                  </span>
-                  <span className={`text-[9px] font-bold font-mono ${colorMode === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
-                    {getPipAdvantageText()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Interactive 3D Dice with Priority Selection */}
-              <div className="flex items-center gap-2">
-                {/* Die 1 */}
-                <div 
-                  onClick={() => {
-                    if (!hasRolled || isRolling) {
-                      handleRollDice();
-                      return;
-                    }
-                    if (dice[0] && remainingMoves.includes(dice[0])) {
-                      setSelectedDie(prev => (prev === dice[0] ? null : dice[0]));
-                      soundEngine.playTap?.();
-                      haptics.tap?.();
-                    }
-                  }}
-                  className={`relative cursor-pointer transition-transform active:scale-95 ${
-                    selectedDie === dice[0] && remainingMoves.includes(dice[0])
-                      ? 'ring-4 ring-amber-400 rounded-2xl scale-105 shadow-lg'
-                      : hasRolled && remainingMoves.includes(dice[0])
-                        ? 'ring-1 ring-emerald-400/60 rounded-2xl'
-                        : ''
-                  }`}
-                  title={hasRolled && remainingMoves.includes(dice[0]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[0]}` : `Play die ${dice[0]} first`) : ''}
-                >
-                  <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0] && remainingMoves.includes(dice[0])} />
-                  {selectedDie === dice[0] && remainingMoves.includes(dice[0]) && (
-                    <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[8px] font-black shadow-sm">
-                      اول
-                    </span>
-                  )}
-                </div>
-
-                {/* Die 2 */}
-                <div 
-                  onClick={() => {
-                    if (!hasRolled || isRolling) {
-                      handleRollDice();
-                      return;
-                    }
-                    if (dice[1] && remainingMoves.includes(dice[1])) {
-                      setSelectedDie(prev => (prev === dice[1] ? null : dice[1]));
-                      soundEngine.playTap?.();
-                      haptics.tap?.();
-                    }
-                  }}
-                  className={`relative cursor-pointer transition-transform active:scale-95 ${
-                    selectedDie === dice[1] && remainingMoves.includes(dice[1])
-                      ? 'ring-4 ring-amber-400 rounded-2xl scale-105 shadow-lg'
-                      : hasRolled && remainingMoves.includes(dice[1])
-                        ? 'ring-1 ring-emerald-400/60 rounded-2xl'
-                        : ''
-                  }`}
-                  title={hasRolled && remainingMoves.includes(dice[1]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[1]}` : `Play die ${dice[1]} first`) : ''}
-                >
-                  <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1] && remainingMoves.includes(dice[1])} />
-                  {selectedDie === dice[1] && remainingMoves.includes(dice[1]) && (
-                    <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[8px] font-black shadow-sm">
-                      اول
-                    </span>
-                  )}
-                </div>
-
-                {/* Remaining Moves Chips */}
-                {remainingMoves.length > 0 && (
-                  <div className="flex items-center gap-1">
-                    {remainingMoves.map((m, idx) => (
-                      <span
-                        key={idx}
-                        onClick={() => {
-                          setSelectedDie(prev => (prev === m ? null : m));
-                          soundEngine.playTap?.();
-                        }}
-                        className={`px-2 py-0.5 rounded-lg font-mono font-black text-xs border shadow-sm cursor-pointer transition-all ${
-                          selectedDie === m
-                            ? 'bg-amber-400 text-slate-950 border-amber-300 scale-105 shadow-amber-400/50'
-                            : 'bg-emerald-500/25 text-emerald-400 border-emerald-400 hover:bg-emerald-500/40'
-                        }`}
-                        title={isRtl ? `انتخاب تاس ${m}` : `Select ${m}`}
-                      >
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Actions: Undo + Roll / Pass */}
-              <div className="flex items-center gap-1.5">
-                {/* Undo Button */}
-                {moveHistory.length > 0 && (
-                  <button
-                    onClick={handleUndoMove}
-                    className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-400/40 text-[11px] font-black flex items-center gap-1 active:scale-95 transition-all shadow-sm"
-                    title={isRtl ? 'بازگرداندن حرکت مهره' : 'Undo Move'}
-                  >
-                    <RotateCcw size={12} />
-                    <span>{isRtl ? 'بازگردانی' : 'Undo'}</span>
-                  </button>
-                )}
-
-                {/* Pass Turn Button when stuck */}
-                {hasRolled && remainingMoves.length > 0 && (
-                  <button
-                    onClick={() => endTurn(points, bar, borneOff, turn)}
-                    className="px-2 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-[10px] font-bold active:scale-95 transition-all"
-                    title={isRtl ? 'رد نوبت' : 'Pass Turn'}
-                  >
-                    رد نوبت ⏭️
-                  </button>
-                )}
-
-                {/* Primary Action Button (Sleek Compact Dice Icon Roll Trigger) */}
-                {(!hasRolled || remainingMoves.length === 0) && (
-                  <button
-                    onClick={handleRollDice}
-                    disabled={isRolling || (gameMode === 'bot' && turn === 'black') || (gameMode === 'online' && turn !== myOnlineRole)}
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-base sm:text-lg shadow-md active:scale-95 transition-all cursor-pointer shrink-0 ${
-                      (gameMode === 'online' && turn !== myOnlineRole)
-                        ? 'bg-white/5 text-slate-500 border border-white/10 opacity-40 cursor-not-allowed'
-                        : 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-amber-500/40 animate-pulse hover:scale-105 border border-amber-300'
-                    }`}
-                    title={isRtl ? 'پرتاب تاس 🎲' : 'Roll Dice 🎲'}
-                  >
-                    <span className={isRolling ? 'animate-spin inline-block' : ''}>🎲</span>
-                  </button>
-                )}
-              </div>
-
+          {/* Bottom Frame Strip: Pip Capsule on Left, Bearing-Off Tray on Right */}
+          <div className="w-full h-7 px-2 flex items-center justify-between shrink-0 mt-1 z-20">
+            {/* Bottom-Left Pip Pill (Plato Style) */}
+            <div className="px-2.5 py-0.5 rounded-full bg-black/75 border border-white/10 text-amber-200 font-mono font-black text-[10px] shadow">
+              {bottomPip}
             </div>
 
-            {/* Status / Instruction text */}
-            {lastMoveMsg && (
-              <div className={`mt-1.5 text-center py-1 px-2 rounded-xl text-[11px] font-bold border transition-colors ${
-                colorMode === 'light'
-                  ? 'bg-amber-50 border-amber-200 text-amber-950'
-                  : 'bg-white/5 border-white/10 text-amber-300'
-              }`}>
-                {lastMoveMsg}
+            {/* Bottom-Right Bearing-Off Tray (Plato Recessed Horizontal Box) */}
+            <div
+              onClick={() => {
+                if (isMyTurn && activeValidDestinations.includes('off')) {
+                  const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
+                  const offMove = validMoves.find(m => m.target === 'off');
+                  if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                }
+              }}
+              className={`w-28 sm:w-32 h-6 rounded-md bg-[#1d1109] border border-[#100904] shadow-[inset_0_2px_6px_rgba(0,0,0,0.9)] flex items-center px-1.5 justify-between ${
+                isMyTurn && activeValidDestinations.includes('off') ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
+              }`}
+              title={`خروج مهره‌های ${bottomPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[bottomPlayerRole]}/15)`}
+            >
+              <div className="flex items-center gap-[2px] overflow-hidden flex-1 h-3 mr-1">
+                {Array.from({ length: Math.min(15, borneOff[bottomPlayerRole]) }).map((_, i) => (
+                  <div key={i} className={`h-full w-1 rounded-sm shrink-0 ${bottomPlayerRole === 'white' ? 'bg-white shadow-sm' : 'bg-slate-900 border border-slate-700'}`} />
+                ))}
               </div>
-            )}
+              <span className="text-[9px] font-mono font-black text-amber-300 shrink-0">
+                {borneOff[bottomPlayerRole]}/15
+              </span>
+            </div>
           </div>
 
-          {/* 5. Plato-Style Integrated In-Game Chat Capsule & Quick Emojis */}
-          <InGameChatDrawer
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-            onToggle={() => setIsChatOpen(!isChatOpen)}
-            roomCode={onlineRoomCode}
-            gameTitle={isRtl ? "تخته نرد آنلاین چاژا" : "Chazha Backgammon"}
-            messages={chatMessages}
-            onSendMessage={handleSendMessage}
-            myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
-            isRtl={isRtl}
-          />
+          {/* Cyan Turn Progress Line Indicator (from Plato screenshot bottom) */}
+          <div className="w-full h-0.5 bg-sky-400/80 shadow-[0_0_8px_#38bdf8] shrink-0 mt-0.5 rounded-full" />
+        </div>
+      </div>
 
+      {/* 3. Bottom Chat Bar (Plato 1-Line Docked Bar) */}
+      <div className="shrink-0 h-12 px-4 bg-[#0e0d0c] border-t border-white/10 flex items-center justify-between gap-3 z-20">
+        <button
+          onClick={() => {
+            setIsChatOpen(true);
+            soundEngine.playTap?.();
+          }}
+          className="text-emerald-400 hover:text-emerald-300 active:scale-95 transition-transform p-1"
+          title="چت بازی"
+        >
+          <MessageSquare size={19} />
+        </button>
+
+        <div
+          onClick={() => {
+            setIsChatOpen(true);
+            soundEngine.playTap?.();
+          }}
+          className="flex-1 py-1.5 px-3.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 text-xs font-medium cursor-pointer flex items-center justify-between border border-white/5"
+        >
+          <span className="truncate">پیامی بنویسید... / Say hello...</span>
+          {chatMessages.length > 1 && (
+            <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {chatMessages.length - 1}
+            </span>
+          )}
         </div>
 
+        <button
+          onClick={() => {
+            setIsChatOpen(true);
+            soundEngine.playTap?.();
+          }}
+          className="text-slate-400 hover:text-amber-400 active:scale-95 transition-transform p-1"
+          title="استیکرها"
+        >
+          <Smile size={19} />
+        </button>
       </div>
+
+      {/* 4. Drawer & Modals */}
+      <InGameChatDrawer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onToggle={() => setIsChatOpen(!isChatOpen)}
+        roomCode={onlineRoomCode}
+        gameTitle={isRtl ? "تخته نرد آنلاین چاژا" : "Chazha Backgammon"}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
+        isRtl={isRtl}
+      />
 
       {/* Trash Talk In-Game Reactions */}
       <InGameReactions />
@@ -2063,6 +1992,12 @@ export default function Backgammon() {
                   className="w-full py-2.5 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 transition-colors"
                 >
                   خروج از بازی
+                </button>
+                <button
+                  onClick={() => navigate('/games/lounge')}
+                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-yellow-500/25 to-amber-600/25 border border-amber-400/40 text-amber-300 font-bold text-xs hover:bg-amber-500/35 transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                >
+                  <span>ورود به سالن بازی‌ها و گپ‌وگفت 🎪</span>
                 </button>
               </div>
 

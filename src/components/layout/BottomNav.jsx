@@ -21,6 +21,11 @@ export default function BottomNav() {
   const [isHubModalOpen, setIsHubModalOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
 
+  // Hide BottomNav during active gameplay so games get 100% full-screen immersive space without scroll!
+  if (location.pathname.startsWith('/games/') && location.pathname !== '/games' && location.pathname !== '/games/lounge') {
+    return null;
+  }
+
   const handleNavClick = () => {
     soundEngine.playTap?.();
     haptics.tap?.();

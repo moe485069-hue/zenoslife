@@ -1,5 +1,5 @@
 import React, { useEffect, Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import useAppStore from './store/appStore';
 import Header from './components/layout/Header';
 import BottomNav from './components/layout/BottomNav';
@@ -96,6 +96,7 @@ const DotsAndBoxes = lazyRetry(() => import('./pages/games/DotsAndBoxes'));
 const AirHockey = lazyRetry(() => import('./pages/games/AirHockey'));
 const Battleship = lazyRetry(() => import('./pages/games/Battleship'));
 const ChatRooms = lazyRetry(() => import('./pages/ChatRooms'));
+const GameRoomsLounge = lazyRetry(() => import('./pages/GameRoomsLounge'));
 
 // Loading spinner component
 function PageLoader() {
@@ -345,6 +346,9 @@ export default function App() {
     document.body.dir = dir;
   }, [language]);
 
+  const location = useLocation();
+  const isGameActive = location.pathname.startsWith('/games/') && location.pathname !== '/games' && location.pathname !== '/games/lounge';
+
   return (
     <div
       className="min-h-screen flex flex-col relative"
@@ -369,7 +373,7 @@ export default function App() {
       <Header />
 
       {/* Main content */}
-      <main className="flex-1 overflow-x-hidden" style={{ paddingBottom: '5rem' }}>
+      <main className={`flex-1 ${isGameActive ? 'overflow-hidden h-[100dvh] max-h-[100dvh]' : 'overflow-x-hidden'}`} style={{ paddingBottom: isGameActive ? '0' : '5rem' }}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Welcome />} />
@@ -380,6 +384,8 @@ export default function App() {
             <Route path="/myday" element={<MyDay />} />
             <Route path="/stroll" element={<Stroll />} />
             <Route path="/games" element={<Games />} />
+            <Route path="/games/lounge" element={<GameRoomsLounge />} />
+            <Route path="/game-rooms" element={<GameRoomsLounge />} />
             <Route path="/chat" element={<ChatRooms />} />
             <Route path="/chat-rooms" element={<ChatRooms />} />
             <Route path="/chatrooms" element={<ChatRooms />} />
