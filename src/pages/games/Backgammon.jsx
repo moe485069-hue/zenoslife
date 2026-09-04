@@ -273,9 +273,6 @@ export default function Backgammon() {
   const [opponentJoined, setOpponentJoined] = useState(!!paramRoom && !!paramRole); // Guest already has an opponent (the host)
   const [rematchState, setRematchState] = useState(null); // null | 'sent' | 'received' | 'accepted' | 'declined'
 
-  // === NEW: Dice on Board (3D throw position) ===
-  const [diceOnBoard, setDiceOnBoard] = useState(false); // Show dice overlaid on board area
-
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { id: 1, text: isRtl ? 'به تخته نرد شاهانه خوش آمدید!' : 'Welcome to Royal Backgammon!', sender: 'system' }
@@ -469,7 +466,10 @@ export default function Backgammon() {
         setHasRolled(true);
 
         try {
-          if (d1 === d2) {
+          if (bar[turn] > 0) {
+            setLastMoveMsg(isRtl ? `⚠️ شما ${bar[turn]} مهره خورده دارید! روی جایگاه خورده‌ها بزنید تا وارد بازی شود.` : `You have ${bar[turn]} eaten checker(s)! Tap the bar slot to re-enter.`);
+            playSfx(soundEngine.playTap);
+          } else if (d1 === d2) {
             incrementGameStat?.('doublesRolled');
             setLastMoveMsg(isRtl ? `🎉 جفت ${d1} آوردی! ۴ حرکت مجاز داری.` : `🎉 Doubles ${d1}! 4 moves available.`);
             playSfx(soundEngine.playLevelUp);
@@ -736,7 +736,7 @@ export default function Backgammon() {
         newPoints[to].count = 1;
         newPoints[to].player = turn;
         newBar[opponent] += 1;
-        setLastMoveMsg(isRtl ? `💥 مهره ${opponent === 'white' ? 'سفید' : 'سیاه'} زده شد!` : `💥 Hit ${opponent} blot!`);
+        setLastMoveMsg(isRtl ? `💥 مهره ${opponent === 'white' ? 'سفید' : 'سیاه'} زده شد و به جایگاه خورده‌ها رفت!` : `💥 Hit ${opponent} blot to the eaten slot!`);
         playSfx(soundEngine.playTrash);
         haptics.success?.();
       } else {
@@ -1103,7 +1103,11 @@ export default function Backgammon() {
         key={pIdx}
         onClick={() => handlePointClick(pIdx)}
         className={`flex-1 h-full relative flex flex-col ${isTop ? 'justify-start' : 'justify-end'} items-center cursor-pointer transition-all ${
-          isSelected ? 'bg-amber-400/20' : isValidTarget ? 'bg-emerald-500/25 ring-2 ring-emerald-400' : ''
+          isSelected 
+            ? 'bg-amber-400/25 ring-2 ring-amber-400 rounded-lg' 
+            : isValidTarget 
+              ? 'bg-emerald-500/20 ring-2 ring-emerald-400 rounded-lg shadow-[0_0_12px_rgba(52,211,153,0.4)]' 
+              : 'hover:bg-white/5'
         }`}
       >
         {/* Triangle Background */}
@@ -1112,13 +1116,13 @@ export default function Backgammon() {
             isTop
               ? isDark ? themeConfig.triDarkTop : themeConfig.triLightTop
               : isDark ? themeConfig.triDark : themeConfig.triLight
-          } ${isTop ? 'border-t-[100px] sm:border-t-[130px]' : 'border-b-[100px] sm:border-b-[130px]'} opacity-90`}
+          } ${isTop ? 'border-t-[100px] sm:border-t-[130px]' : 'border-b-[100px] sm:border-b-[130px]'} opacity-95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]`}
         />
 
-        {/* Valid Destination Indicator */}
+        {/* Valid Destination Indicator (clean at tip of triangle without obscuring checkers) */}
         {isValidTarget && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-            <div className="px-2 py-1 rounded-full bg-emerald-400 text-slate-950 font-black text-[10px] shadow-lg animate-bounce flex items-center gap-1">
+          <div className={`absolute ${isTop ? 'bottom-2' : 'top-2'} pointer-events-none z-20`}>
+            <div className="px-1.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce flex items-center gap-0.5">
               <span>🎯</span>
               <span>{pIdx}</span>
             </div>
@@ -1391,9 +1395,9 @@ export default function Backgammon() {
         )}
 
         {/* 3. Main Board */}
-        <div className={`w-full rounded-[2rem] p-2.5 sm:p-3.5 border-2 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl relative overflow-hidden`}>
+        <div className={`w-full rounded-[2.2rem] p-2.5 sm:p-3.5 border-4 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.15)] relative`}>
 
-          <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px] relative">
+          <div className="flex gap-1.5 sm:gap-2.5 h-[280px] xs:h-[320px] sm:h-[400px]">
             
             {/* If Flipped (Black Perspective): Tray is on Left */}
             {isFlipped && (
@@ -1405,25 +1409,25 @@ export default function Backgammon() {
                     if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
                   }
                 }}
-                className={`w-9 sm:w-11 rounded-2xl p-1 border flex flex-col justify-between items-center cursor-pointer transition-colors shadow-inner shrink-0 ${
-                  colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-black/50 border-white/10'
+                className={`w-9 sm:w-11 rounded-2xl p-1 border-2 flex flex-col justify-between items-center cursor-pointer transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] shrink-0 ${
+                  colorMode === 'light' ? 'bg-slate-200 border-slate-300' : 'bg-black/60 border-white/10'
                 } ${
                   activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
                 }`}
-                title={isRtl ? 'سینی خروج مهره‌ها' : 'Bearing Off Tray'}
+                title={isRtl ? 'سینی خروج مهره‌ها (بردن بیرون)' : 'Bearing Off Tray'}
               >
-                <div className="flex flex-col items-center gap-1 pt-1">
-                  <span className="text-[8px] font-black text-amber-500">OUT</span>
-                  <span className="text-xs font-black text-amber-600">{borneOff.white}/15</span>
+                <div className="flex flex-col items-center gap-0.5 pt-1">
+                  <span className="text-[7px] font-black text-amber-500">خروج</span>
+                  <span className="text-xs font-black text-amber-500 font-mono">{borneOff.white}/15</span>
                 </div>
 
-                <div className={`text-[9px] font-mono rotate-90 font-bold ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                <div className={`text-[8px] font-mono rotate-90 font-black tracking-widest ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                   TRAY
                 </div>
 
-                <div className="flex flex-col items-center gap-1 pb-1">
-                  <span className="text-xs font-black text-cyan-600">{borneOff.black}/15</span>
-                  <span className="text-[8px] font-black text-cyan-500">OUT</span>
+                <div className="flex flex-col items-center gap-0.5 pb-1">
+                  <span className="text-xs font-black text-cyan-400 font-mono">{borneOff.black}/15</span>
+                  <span className="text-[7px] font-black text-cyan-400">خروج</span>
                 </div>
               </div>
             )}
@@ -1431,7 +1435,7 @@ export default function Backgammon() {
             {/* Left Quadrant:
                 Normal: Outer Board (13-18 Top, 12-7 Bottom)
                 Flipped: Black Home Board at Bottom-Left (24-19 Bottom, 1-6 Top) */}
-            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
+            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.7)]`}>
               <div className="flex h-[46%] w-full">
                 {(isFlipped ? [1, 2, 3, 4, 5, 6] : [13, 14, 15, 16, 17, 18]).map(p => renderPoint(p, true))}
               </div>
@@ -1440,46 +1444,128 @@ export default function Backgammon() {
               </div>
             </div>
 
-            {/* Center Bar */}
-            <div 
-              onClick={() => handlePointClick('bar')}
-              className={`w-10 sm:w-12 rounded-2xl p-1 flex flex-col items-center justify-between cursor-pointer border border-white/10 ${themeConfig.barBg} shadow-inner shrink-0 ${
-                selectedPoint === 'bar' ? 'ring-2 ring-amber-400' : ''
-              }`}
-            >
-              <div className="flex flex-col items-center gap-1 pt-2">
-                <span className="text-[8px] font-black text-slate-400 uppercase">BAR</span>
-                {(isFlipped ? bar.white : bar.black) > 0 && (
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
-                    isFlipped ? themeConfig.checkerWhite : themeConfig.checkerBlack
-                  } animate-pulse relative shadow-[0_4px_6px_rgba(0,0,0,0.5)]`}>
-                    <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
-                      {isFlipped ? bar.white : bar.black}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Center Bar — Dedicated Hit Checkers Jail (جایگاه مهره‌های خورده) */}
+            {(() => {
+              const topColor = isFlipped ? 'white' : 'black';
+              const topCount = isFlipped ? bar.white : bar.black;
+              const topCheckerStyle = topColor === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
 
-              <span className="text-sm opacity-40">👑</span>
+              const bottomColor = isFlipped ? 'black' : 'white';
+              const bottomCount = isFlipped ? bar.black : bar.white;
+              const bottomCheckerStyle = bottomColor === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
 
-              <div className="flex flex-col items-center gap-1 pb-2">
-                {(isFlipped ? bar.black : bar.white) > 0 && (
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
-                    isFlipped ? themeConfig.checkerBlack : themeConfig.checkerWhite
-                  } animate-pulse relative shadow-[0_4px_6px_rgba(0,0,0,0.5)]`}>
-                    <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
-                      {isFlipped ? bar.black : bar.white}
+              return (
+                <div 
+                  className={`w-14 xs:w-16 sm:w-20 rounded-2xl py-1.5 px-1 flex flex-col items-center justify-between border-2 border-amber-600/30 ${themeConfig.barBg} shadow-[inset_0_0_15px_rgba(0,0,0,0.9),0_0_10px_rgba(0,0,0,0.5)] shrink-0`}
+                >
+                  {/* Top Hit Slot */}
+                  <div 
+                    onClick={() => {
+                      if (topColor === turn && topCount > 0) handlePointClick('bar');
+                    }}
+                    className={`w-full flex flex-col items-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer ${
+                      topCount > 0 && topColor === turn
+                        ? 'ring-2 ring-amber-400 bg-amber-500/25 shadow-lg animate-pulse'
+                        : 'hover:bg-white/5'
+                    }`}
+                    title={topCount > 0 ? (isRtl ? `${topCount} مهره خورده ${topColor === 'white' ? 'سفید' : 'سیاه'} — کلیک برای ورود` : `${topCount} hit ${topColor} checkers`) : (isRtl ? 'جایگاه مهره‌های خورده' : 'Hit slot')}
+                  >
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-tighter mb-1">
+                      {topColor === 'white' ? '⚪ خورده' : '⚫ خورده'}
+                    </span>
+
+                    {/* Recessed Pocket */}
+                    <div className={`w-10 h-10 xs:w-11 xs:h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative transition-all ${
+                      topCount > 0
+                        ? 'bg-black/80 border-2 border-amber-400/70 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]'
+                        : 'bg-black/35 border border-dashed border-white/15'
+                    }`}>
+                      {topCount > 0 ? (
+                        <div className="relative flex items-center justify-center">
+                          {topCount > 1 && (
+                            <div className={`absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border opacity-50 ${topCheckerStyle}`} />
+                          )}
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs relative shadow-lg ${topCheckerStyle}`}>
+                            <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none" />
+                          </div>
+                          {/* Count Badge */}
+                          <span className="absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[8px] font-black shadow-md border border-rose-400 leading-none">
+                            {topCount}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[8px] font-black text-slate-500/60">۰</span>
+                      )}
                     </div>
+
+                    {topCount > 0 && topColor === turn && (
+                      <span className="mt-1 px-1 py-0.2 rounded bg-amber-400 text-slate-950 font-black text-[7px] leading-tight shadow animate-bounce">
+                        ورود 🎯
+                      </span>
+                    )}
                   </div>
-                )}
-                <span className="text-[8px] font-black text-slate-400 uppercase">BAR</span>
-              </div>
-            </div>
+
+                  {/* Classical Brass Hinge & Inlaid Centerpiece */}
+                  <div className="flex flex-col items-center justify-center py-1 opacity-75 select-none pointer-events-none">
+                    <div className="w-6 sm:w-8 h-1 rounded-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
+                    <span className="text-xs my-0.5">⚜️</span>
+                    <div className="w-6 sm:w-8 h-1 rounded-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
+                  </div>
+
+                  {/* Bottom Hit Slot */}
+                  <div 
+                    onClick={() => {
+                      if (bottomColor === turn && bottomCount > 0) handlePointClick('bar');
+                    }}
+                    className={`w-full flex flex-col items-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer ${
+                      bottomCount > 0 && bottomColor === turn
+                        ? 'ring-2 ring-amber-400 bg-amber-500/25 shadow-lg animate-pulse'
+                        : 'hover:bg-white/5'
+                    }`}
+                    title={bottomCount > 0 ? (isRtl ? `${bottomCount} مهره خورده ${bottomColor === 'white' ? 'سفید' : 'سیاه'} — کلیک برای ورود` : `${bottomCount} hit ${bottomColor} checkers`) : (isRtl ? 'جایگاه مهره‌های خورده' : 'Hit slot')}
+                  >
+                    {bottomCount > 0 && bottomColor === turn && (
+                      <span className="mb-1 px-1 py-0.2 rounded bg-amber-400 text-slate-950 font-black text-[7px] leading-tight shadow animate-bounce">
+                        ورود 🎯
+                      </span>
+                    )}
+
+                    {/* Recessed Pocket */}
+                    <div className={`w-10 h-10 xs:w-11 xs:h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center relative transition-all ${
+                      bottomCount > 0
+                        ? 'bg-black/80 border-2 border-amber-400/70 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]'
+                        : 'bg-black/35 border border-dashed border-white/15'
+                    }`}>
+                      {bottomCount > 0 ? (
+                        <div className="relative flex items-center justify-center">
+                          {bottomCount > 1 && (
+                            <div className={`absolute -top-1 -right-1 w-7 h-7 sm:w-8 sm:h-8 rounded-full border opacity-50 ${bottomCheckerStyle}`} />
+                          )}
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs relative shadow-lg ${bottomCheckerStyle}`}>
+                            <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none" />
+                          </div>
+                          {/* Count Badge */}
+                          <span className="absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[8px] font-black shadow-md border border-rose-400 leading-none">
+                            {bottomCount}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[8px] font-black text-slate-500/60">۰</span>
+                      )}
+                    </div>
+
+                    <span className="text-[7px] font-black text-slate-300 uppercase tracking-tighter mt-1">
+                      {bottomColor === 'white' ? '⚪ خورده' : '⚫ خورده'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Right Quadrant:
                 Normal: Home Board (19-24 Top, 6-1 Bottom)
                 Flipped: Outer Board (7-12 Top, 18-13 Bottom) */}
-            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
+            <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.7)]`}>
               <div className="flex h-[46%] w-full">
                 {(isFlipped ? [7, 8, 9, 10, 11, 12] : [19, 20, 21, 22, 23, 24]).map(p => renderPoint(p, true))}
               </div>
@@ -1498,98 +1584,28 @@ export default function Backgammon() {
                     if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
                   }
                 }}
-                className={`w-9 sm:w-11 rounded-2xl p-1 border flex flex-col justify-between items-center cursor-pointer transition-colors shadow-inner shrink-0 ${
-                  colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-black/50 border-white/10'
+                className={`w-9 sm:w-11 rounded-2xl p-1 border-2 flex flex-col justify-between items-center cursor-pointer transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] shrink-0 ${
+                  colorMode === 'light' ? 'bg-slate-200 border-slate-300' : 'bg-black/60 border-white/10'
                 } ${
                   activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
                 }`}
-                title={isRtl ? 'سینی خروج مهره‌ها' : 'Bearing Off Tray'}
+                title={isRtl ? 'سینی خروج مهره‌ها (بردن بیرون)' : 'Bearing Off Tray'}
               >
-                <div className="flex flex-col items-center gap-1 pt-1">
-                  <span className="text-[8px] font-black text-cyan-500">OUT</span>
-                  <span className="text-xs font-black text-cyan-600">{borneOff.black}/15</span>
+                <div className="flex flex-col items-center gap-0.5 pt-1">
+                  <span className="text-[7px] font-black text-cyan-400">خروج</span>
+                  <span className="text-xs font-black text-cyan-400 font-mono">{borneOff.black}/15</span>
                 </div>
 
-                <div className={`text-[9px] font-mono rotate-90 font-bold ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                <div className={`text-[8px] font-mono rotate-90 font-black tracking-widest ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
                   TRAY
                 </div>
 
-                <div className="flex flex-col items-center gap-1 pb-1">
-                  <span className="text-xs font-black text-amber-500">{borneOff.white}/15</span>
-                  <span className="text-[8px] font-black text-amber-600">OUT</span>
+                <div className="flex flex-col items-center gap-0.5 pb-1">
+                  <span className="text-xs font-black text-amber-500 font-mono">{borneOff.white}/15</span>
+                  <span className="text-[7px] font-black text-amber-500">خروج</span>
                 </div>
               </div>
             )}
-
-            {/* 3D Dice Thrown Directly Onto The Board Surface */}
-            <AnimatePresence>
-              {(isRolling || (hasRolled && dice[0] !== null)) && (
-                <motion.div
-                  initial={{ scale: 0.2, y: -80, rotateX: 60, opacity: 0 }}
-                  animate={{ scale: 1, y: 0, rotateX: 0, opacity: 1 }}
-                  exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.2 } }}
-                  transition={{ type: 'spring', damping: 13, stiffness: 200 }}
-                  className="absolute z-30 pointer-events-auto flex items-center gap-2.5 bg-black/55 backdrop-blur-md px-3 py-2 rounded-2xl border border-amber-400/50 shadow-[0_12px_32px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)]"
-                  style={{
-                    left: isFlipped ? '28%' : '72%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  {/* Die 1 */}
-                  <div
-                    onClick={() => {
-                      if (!hasRolled || isRolling) {
-                        handleRollDice();
-                        return;
-                      }
-                      if (dice[0] && remainingMoves.includes(dice[0])) {
-                        setSelectedDie(prev => (prev === dice[0] ? null : dice[0]));
-                        soundEngine.playTap?.();
-                        haptics.tap?.();
-                      }
-                    }}
-                    className={`cursor-pointer transition-transform active:scale-95 ${
-                      selectedDie === dice[0] && remainingMoves.includes(dice[0])
-                        ? 'ring-4 ring-amber-400 rounded-xl scale-110 shadow-lg'
-                        : hasRolled && remainingMoves.includes(dice[0])
-                          ? 'hover:scale-105'
-                          : 'opacity-40 grayscale'
-                    }`}
-                    style={{ transform: 'rotate(-5deg)' }}
-                    title={hasRolled && remainingMoves.includes(dice[0]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[0]}` : `Play die ${dice[0]} first`) : ''}
-                  >
-                    <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0] && remainingMoves.includes(dice[0])} />
-                  </div>
-
-                  {/* Die 2 */}
-                  <div
-                    onClick={() => {
-                      if (!hasRolled || isRolling) {
-                        handleRollDice();
-                        return;
-                      }
-                      if (dice[1] && remainingMoves.includes(dice[1])) {
-                        setSelectedDie(prev => (prev === dice[1] ? null : dice[1]));
-                        soundEngine.playTap?.();
-                        haptics.tap?.();
-                      }
-                    }}
-                    className={`cursor-pointer transition-transform active:scale-95 ${
-                      selectedDie === dice[1] && remainingMoves.includes(dice[1])
-                        ? 'ring-4 ring-amber-400 rounded-xl scale-110 shadow-lg'
-                        : hasRolled && remainingMoves.includes(dice[1])
-                          ? 'hover:scale-105'
-                          : 'opacity-40 grayscale'
-                    }`}
-                    style={{ transform: 'rotate(7deg)' }}
-                    title={hasRolled && remainingMoves.includes(dice[1]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[1]}` : `Play die ${dice[1]} first`) : ''}
-                  >
-                    <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1] && remainingMoves.includes(dice[1])} />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
           </div>
 
