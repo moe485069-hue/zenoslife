@@ -700,15 +700,40 @@ export default function Backgammon() {
       return;
     }
 
+    // AI Difficulty Heuristics
+    if (botDifficulty === 'easy' && Math.random() < 0.35) {
+      const randomIdx = Math.floor(Math.random() * allPossibleMoves.length);
+      const chosen = allPossibleMoves[randomIdx];
+      return executeMove(chosen.from, chosen.to, chosen.dieUsed);
+    }
+
     allPossibleMoves.sort((a, b) => {
       let scoreA = 0;
       let scoreB = 0;
-      if (a.to === 'off') scoreA += 130;
-      if (b.to === 'off') scoreB += 130;
-      if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 100;
-      if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 100;
-      if (typeof a.to === 'number' && points[a.to].player === 'black' && points[a.to].count === 1) scoreA += 60;
-      if (typeof b.to === 'number' && points[b.to].player === 'black' && points[b.to].count === 1) scoreB += 60;
+
+      // 1. Bearing off is prioritized (+160)
+      if (a.to === 'off') scoreA += 160;
+      if (b.to === 'off') scoreB += 160;
+
+      // 2. Hitting opponent's blot (+130)
+      if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 130;
+      if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 130;
+
+      // 3. Making an anchor/prime by landing on friendly single checker (+90)
+      if (typeof a.to === 'number' && points[a.to].player === 'black' && points[a.to].count === 1) scoreA += 90;
+      if (typeof b.to === 'number' && points[b.to].player === 'black' && points[b.to].count === 1) scoreB += 90;
+
+      // 4. Master AI tactical positioning
+      if (botDifficulty === 'master') {
+        // Run back checkers out of white home board (+40)
+        if (typeof a.from === 'number' && a.from <= 6) scoreA += 40;
+        if (typeof b.from === 'number' && b.from <= 6) scoreB += 40;
+
+        // Penalize exposing single blot if it leaves it open to direct attack
+        if (typeof a.to === 'number' && points[a.to].count === 0 && a.to < 18) scoreA -= 25;
+        if (typeof b.to === 'number' && points[b.to].count === 0 && b.to < 18) scoreB -= 25;
+      }
+
       return scoreB - scoreA;
     });
 

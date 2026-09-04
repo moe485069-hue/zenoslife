@@ -29,12 +29,16 @@ const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
 function getGamesReplyKeyboard() {
   return {
     keyboard: [
-      [{ text: '🪵 بازی تخته نرد (آنلاین و بات)' }],
+      // ۱. کارت‌های رسمی بازی تلگرام (HTML5 Game)
+      [{ text: '🪵 بازی تخته نرد شاهانه (Play) 🎲' }],
+      // ۲. بازی‌های فوری و زنده در کادر پیام (بدون مینی‌اپ)
       [{ text: '🪨 سنگ، کاغذ، قیچی ✂️' }, { text: '🎲 دوئل رولت تاس' }],
       [{ text: '🧠 مسابقه اطلاعات عمومی (کوئیز)' }, { text: '🎡 گردونه شانس روزانه' }],
+      // ۳. لیدربورد و شارژ
       [{ text: '🏆 رتبه‌بندی قهرمانان' }, { text: '💎 کیف‌پول و شارژ سکه' }],
+      // ۴. ورود به آرکید مینی‌اپ چاژا
       [{
-        text: '🌟 ورود به آرکید چاژا (۱۰+ بازی آنلاین) 🎮',
+        text: '🌟 ورود به آرکید مینی‌اپ (۱۰+ بازی آنلاین) 🎮',
         web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
       }]
     ],
@@ -54,11 +58,15 @@ async function sendGamesDashboard(chatId, userId) {
     }).catch(() => {});
   }
 
-  const text = `🎮 <b>به چاژا (مرکز بازی و دوئل‌های آنلاین زنوسلایف) خوش آمدید!</b>\n\n` +
+  const text = `🎮 <b>به چاژا (کنسول بازی و دوئل‌های آنلاین) خوش آمدید!</b>\n\n` +
                `👤 بازیکن: <b>${user.name || 'کاربر چاژا'}</b> (Level ${user.level || 1})\n` +
                `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
                `⚡ تجربه: <b>${user.xp || 0} XP</b>\n\n` +
-               `یکی از بازی‌ها را انتخاب کنید یا مستقیماً وارد آرکید مینی‌اپ شوید:`;
+               `<b>🗂 دسته‌بندی بازی‌ها:</b>\n` +
+               `• 🪵 <b>کارت‌های بازی تلگرام:</b> تخته نرد شاهانه با کارت رسمی و دکمه Play\n` +
+               `• ⚡ <b>بازی‌های درون پیام:</b> سنگ‌کاغذقیچی، تاس، مسابقه اطلاعات عمومی و گردونه\n` +
+               `• 🌟 <b>آرکید مینی‌اپ:</b> منچ، شطرنج، بیلیارد و ۱۰ بازی آنلاین دیگر\n\n` +
+               `یکی از گزینه‌ها را برای شروع انتخاب کنید:`;
 
   return callTgApi(BOT_TOKEN, 'sendMessage', {
     chat_id: chatId,
@@ -102,7 +110,7 @@ async function onMessage(msg) {
     return sendGamesDashboard(chatId, userId);
   }
 
-  if (text === '🪵 بازی تخته نرد (آنلاین و بات)' || text === '/backgammon' || text === 'تخته نرد') {
+  if (text.includes('تخته نرد') || text === '/backgammon') {
     return callTgApi(BOT_TOKEN, 'sendGame', {
       chat_id: chatId,
       game_short_name: 'backgammon'

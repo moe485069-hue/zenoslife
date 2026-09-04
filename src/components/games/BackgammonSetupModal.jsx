@@ -17,6 +17,7 @@ export default function BackgammonSetupModal({
   const [activeTab, setActiveTab] = useState('telegram'); // 'telegram' | 'bot' | 'online' | 'local'
   const [botDifficulty, setBotDifficulty] = useState('medium');
   const [matchSets, setMatchSets] = useState(3);
+  const [wager, setWager] = useState(0); // 0 (Free), 50, 100, 250, 500
   const [roomCode, setRoomCode] = useState(() => 'CHZ-' + Math.floor(1000 + Math.random() * 9000));
   const [targetUsername, setTargetUsername] = useState('');
   const [copied, setCopied] = useState(false);
@@ -70,6 +71,7 @@ export default function BackgammonSetupModal({
       mode: mode || activeTab,
       botDifficulty,
       matchSets,
+      wager,
       roomCode: (mode === 'telegram' || mode === 'online') ? roomCode : null
     });
     onClose();
@@ -257,6 +259,29 @@ export default function BackgammonSetupModal({
                       }`}
                     >
                       {sets} دست {sets === 1 ? '(تک بازی)' : '(بهترین)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Wager Chips */}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1.5">🪙 شرط‌بندی سکه برنده:</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { val: 0, label: 'بدون شرط' },
+                    { val: 50, label: '۵۰ 🪙' },
+                    { val: 100, label: '۱۰۰ 🪙' },
+                    { val: 250, label: '۲۵۰ 🪙' }
+                  ].map(w => (
+                    <button
+                      key={w.val}
+                      onClick={() => setWager(w.val)}
+                      className={`py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
+                        wager === w.val ? 'bg-amber-400 text-black border-amber-300 font-black shadow-sm' : 'bg-black/30 border-white/5 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {w.label}
                     </button>
                   ))}
                 </div>
