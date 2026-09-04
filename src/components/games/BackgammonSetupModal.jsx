@@ -43,6 +43,8 @@ export default function BackgammonSetupModal({
     haptics.tap?.();
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDuelLink)}&text=${encodeURIComponent('🪵 بیا تخته نرد با من بازی کن ببینم کی برنده میشه! 🎲👑')}`;
     window.open(shareUrl, '_blank');
+    // Auto-join host immediately into the game room!
+    handleStart('telegram');
   };
 
   const handleSendToUser = (e) => {
@@ -54,6 +56,8 @@ export default function BackgammonSetupModal({
     let cleanId = targetUsername.trim().replace('@', '');
     const userDirectUrl = `https://t.me/${cleanId}?text=${encodeURIComponent(challengeMessage)}`;
     window.open(userDirectUrl, '_blank');
+    // Auto-join host immediately into the game room!
+    handleStart('telegram');
   };
 
   const handleCopyLink = () => {

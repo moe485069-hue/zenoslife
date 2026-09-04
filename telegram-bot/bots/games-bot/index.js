@@ -86,7 +86,6 @@ async function onMessage(msg) {
 
   getUser(userId, msg.from.first_name);
 
-  // Handling Direct Duel Challenge Links (e.g. /start duel_backgammon_ZEN1234)
   if (text.startsWith('/start duel_backgammon_')) {
     const roomCode = text.replace('/start duel_backgammon_', '').trim();
     return callTgApi(BOT_TOKEN, 'sendMessage', {
@@ -98,8 +97,8 @@ async function onMessage(msg) {
       reply_markup: {
         inline_keyboard: [
           [{
-            text: '🪵 ورود به تخته نرد و شروع مسابقه 🎲',
-            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black` }
+            text: '🎲 ورود و شروع بازی',
+            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black&autostart=1` }
           }]
         ]
       }
@@ -401,7 +400,7 @@ async function onInlineQuery(iq) {
   const senderName = iq.from.first_name || 'کاربر چاژا';
   const senderId = iq.from.id;
   const roomCode = `CHZ-${senderId}`;
-  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black`;
+  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black&autostart=1`;
   const hostGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=white`;
   const botStartUrl = `https://t.me/chazha_bot?start=duel_backgammon_${roomCode}`;
 
@@ -414,35 +413,20 @@ async function onInlineQuery(iq) {
       description: 'ارسال کارت دعوت با دکمه‌های شروع مسابقه، ورود میزبان یا رد درخواست',
       thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',
       input_message_content: {
-        message_text: `🪵 <b>چالش دوئل تخته نرد چاژا!</b>\n\n` +
-                      `👤 <b>${senderName}</b> شما را به یک مسابقه هیجان‌انگیز تخته نرد دعوت کرده است! 🎲\n\n` +
-                      `🔹 بازی زنده و آنلاین بدون تاخیر با تاس‌های واقعی\n` +
-                      `💬 همراه با چت و کل‌کل درون بازی\n` +
-                      `👑 کد اتاق: <code>${roomCode}</code>\n\n` +
-                      `آیا جرات دارید این چالش را قبول کنید و هوش خود را محک بزنید؟`,
+        message_text: `🎲 <b>چالش تخته نرد چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه تخته نرد دعوت کرده!\n\n⚔️ برای قبول چالش، دکمه زیر را بزنید:`,
         parse_mode: 'HTML'
       },
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: '⚔️ قبول مسابقه و شروع بازی 🎲',
-              url: guestGameUrl
+              text: '🎲 شروع بازی تخته نرد ⚔️',
+              web_app: { url: guestGameUrl }
             }
           ],
           [
             {
-              text: '🤖 باز کردن در ربات چاژا 🚀',
-              url: botStartUrl
-            },
-            {
-              text: '👑 ورود میزبان (سفید)',
-              url: hostGameUrl
-            }
-          ],
-          [
-            {
-              text: '❌ رد درخواست مسابقه',
+              text: '❌ رد درخواست',
               callback_data: `bg_decline_duel_${senderId}`
             }
           ]

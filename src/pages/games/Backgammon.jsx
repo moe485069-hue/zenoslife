@@ -14,9 +14,10 @@ import BackgammonSetupModal from '../../components/games/BackgammonSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import InGameReactions from '../../components/games/InGameReactions';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
+import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
 import realtimeNetwork from '../../services/realtimeNetwork';
 
-// 3D Dice Face Renderer
+// 3D Dice Face Renderer — Enhanced with perspective & depth
 const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) => {
   const displayVal = value ? Math.max(1, Math.min(6, value)) : (isRolling ? 1 : null);
   const pips = displayVal ? {
@@ -28,12 +29,12 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
     6: [0, 2, 3, 5, 6, 8]
   }[displayVal] || [4] : [];
 
-  const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : size === 'sm' ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14';
-  const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-1.5 h-1.5' : 'w-2.5 h-2.5';
+  const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : size === 'sm' ? 'w-11 h-11' : 'w-12 h-12 sm:w-14 sm:h-14';
+  const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5';
 
   if (!displayVal && !isRolling) {
     return (
-      <div className={`${sizeClasses} rounded-2xl bg-white/5 border-2 border-dashed border-amber-400/40 flex items-center justify-center text-amber-300 text-sm font-black`}>
+      <div className={`${sizeClasses} rounded-xl bg-white/5 border-2 border-dashed border-amber-400/40 flex items-center justify-center text-amber-300 text-sm font-black`}>
         🎲
       </div>
     );
@@ -42,23 +43,39 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
   return (
     <motion.div
       key={isRolling ? 'dice-rolling' : `dice-${displayVal}`}
-      animate={isRolling ? { rotate: [0, 90, 180, 270, 360], scale: [0.9, 1.1, 0.95, 1] } : { rotate: 0, scale: 1 }}
-      transition={isRolling ? { duration: 0.25, repeat: Infinity, ease: 'linear' } : { duration: 0.15 }}
-      className={`${sizeClasses} rounded-2xl bg-gradient-to-b from-[#fffbeb] via-[#fef3c7] to-[#fde68a] border-2 ${
-        isSelected ? 'border-amber-400 ring-4 ring-amber-400 scale-105 shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'border-[#d97706]'
-      } shadow-xl p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
+      initial={isRolling ? {} : { scale: 0.5, rotateX: 180, rotateY: 90, y: -40 }}
+      animate={
+        isRolling
+          ? {
+              rotateX: [0, 120, 240, 360],
+              rotateY: [0, -90, 180, 0],
+              scale: [0.9, 1.1, 0.85, 1.05],
+            }
+          : { scale: 1, rotateX: 0, rotateY: 0, y: 0 }
+      }
+      transition={
+        isRolling
+          ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' }
+          : { type: 'spring', damping: 12, stiffness: 200, duration: 0.5 }
+      }
+      style={{ perspective: '600px', transformStyle: 'preserve-3d' }}
+      className={`${sizeClasses} rounded-xl bg-gradient-to-br from-[#fffdf5] via-[#fef3c7] to-[#fcd34d] border-2 ${
+        isSelected
+          ? 'border-amber-400 ring-4 ring-amber-400/80 scale-110 shadow-[0_6px_25px_rgba(251,191,36,0.6)]'
+          : 'border-[#b45309] shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_2px_0_rgba(255,255,255,0.4)]'
+      } p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
     >
       <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center">
         {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
           <div key={idx} className="w-full h-full flex items-center justify-center">
             {pips.includes(idx) && (
-              <span className={`${dotSize} rounded-full bg-[#78350f] shadow-inner`} />
+              <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#451a03] to-[#78350f] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4),0_1px_0_rgba(255,255,255,0.15)]`} />
             )}
           </div>
         ))}
       </div>
       {value && !isRolling && (
-        <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-md bg-amber-950 text-amber-200 text-[10px] font-black leading-tight border border-amber-500/50 shadow-sm font-mono">
+        <span className="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded-lg bg-amber-900 text-amber-100 text-[9px] font-black leading-tight border border-amber-600/60 shadow-md font-mono">
           {value}
         </span>
       )}
@@ -193,10 +210,11 @@ export default function Backgammon() {
   const paramDiff = searchParams.get('diff');
   const paramTheme = searchParams.get('theme');
   const paramRole = searchParams.get('role');
+  const paramAutostart = searchParams.get('autostart'); // Skip setup modal when coming from invite link
 
   // Match Configuration & Modal State
   const initialMode = paramMode || (paramRoom ? 'online' : 'bot');
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode);
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode && !paramAutostart);
   const [gameMode, setGameMode] = useState(initialMode); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
   const [botDifficulty, setBotDifficulty] = useState(paramDiff || 'medium');
@@ -249,6 +267,14 @@ export default function Backgammon() {
   // When playing as Black, board flips so Black's home is at bottom-left (like Plato)!
   const [manualFlip, setManualFlip] = useState(null);
   const isFlipped = manualFlip !== null ? manualFlip : (myOnlineRole === 'black');
+
+  // === NEW: Waiting for Opponent & Rematch System ===
+  const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
+  const [opponentJoined, setOpponentJoined] = useState(!!paramRoom && !!paramRole); // Guest already has an opponent (the host)
+  const [rematchState, setRematchState] = useState(null); // null | 'sent' | 'received' | 'accepted' | 'declined'
+
+  // === NEW: Dice on Board (3D throw position) ===
+  const [diceOnBoard, setDiceOnBoard] = useState(false); // Show dice overlaid on board area
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
@@ -321,6 +347,8 @@ export default function Backgammon() {
         } else if (actionType === 'PLAYER_JOINED') {
           setLastMoveMsg(isRtl ? `👋 ${data.senderName || 'حریف'} وارد بازی شد!` : `Opponent joined!`);
           soundEngine.playLevelUp?.();
+          setIsWaitingForOpponent(false); // Dismiss waiting overlay
+          setOpponentJoined(true);
           // Auto Role Handshake: if newcomer claims same role, host keeps white & assigns black to newcomer
           if (payload?.role === myOnlineRole) {
             if (myOnlineRole === 'white') {
@@ -339,6 +367,25 @@ export default function Backgammon() {
           if (payload.scoreWhite !== undefined) setScoreWhite(payload.scoreWhite);
           if (payload.scoreBlack !== undefined) setScoreBlack(payload.scoreBlack);
           soundEngine.playLevelUp?.();
+        // === REMATCH PROTOCOL ===
+        } else if (actionType === 'REMATCH_REQUEST') {
+          setRematchState('received');
+          setLastMoveMsg(isRtl ? `🔄 ${data.senderName || 'حریف'} درخواست بازی مجدد داده!` : `${data.senderName || 'Opponent'} wants a rematch!`);
+          soundEngine.playLevelUp?.();
+          haptics.success?.();
+        } else if (actionType === 'REMATCH_ACCEPT') {
+          setRematchState('accepted');
+          // Swap colors and reset match
+          setMyOnlineRole(prev => prev === 'white' ? 'black' : 'white');
+          setManualFlip(null);
+          handleResetMatch();
+          setRematchState(null);
+          setLastMoveMsg(isRtl ? '🎲 بازی مجدد شروع شد! رنگ‌ها عوض شدند.' : '🎲 Rematch started! Colors swapped.');
+          soundEngine.playLevelUp?.();
+        } else if (actionType === 'REMATCH_DECLINE') {
+          setRematchState('declined');
+          setLastMoveMsg(isRtl ? '❌ حریف درخواست بازی مجدد را رد کرد.' : 'Opponent declined the rematch.');
+          soundEngine.playTap?.();
         }
       };
 
@@ -1002,7 +1049,7 @@ export default function Backgammon() {
     ? getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn).map(m => m.target)
     : [];
 
-  // Checkers Stack
+  // Checkers Stack — 3D Tactile Lathe-Turned Pieces
   const renderCheckersStack = (pt, isTop, pIdx, isSelected, isFriendlyAndMovable) => {
     if (pt.count === 0) return null;
     const maxVisible = Math.min(pt.count, 5);
@@ -1022,13 +1069,20 @@ export default function Backgammon() {
                 marginTop: idx > 0 ? '-13px' : '0',
                 zIndex: idx + 1
               }}
-              className={`w-5 h-5 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs shadow-md transition-all ${checkerStyle} ${
-                isSelected && isTopChecker ? 'ring-4 ring-amber-400 scale-110' : ''
-              } ${isFriendlyAndMovable && isTopChecker ? 'ring-2 ring-amber-300 animate-pulse' : ''}`}
+              className={`w-5 h-5 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
+                isSelected && isTopChecker 
+                  ? 'ring-4 ring-amber-400 scale-115 shadow-[0_0_15px_rgba(251,191,36,0.9)] z-30' 
+                  : isFriendlyAndMovable && isTopChecker 
+                    ? 'ring-2 ring-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.6)] animate-pulse' 
+                    : 'shadow-[0_4px_6px_rgba(0,0,0,0.5),inset_0_1.5px_1px_rgba(255,255,255,0.4)]'
+              }`}
             >
-              {idx === maxVisible - 1 && pt.count > 5 ? (
-                <span className="text-[10px] font-black">{pt.count}</span>
-              ) : null}
+              {/* Concentric Engraved Ring for authentic 3D lathe-turned backgammon checker look */}
+              <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
+                {idx === maxVisible - 1 && pt.count > 5 ? (
+                  <span className="text-[10px] font-black opacity-100">{pt.count}</span>
+                ) : null}
+              </div>
             </motion.div>
           );
         })}
@@ -1337,9 +1391,9 @@ export default function Backgammon() {
         )}
 
         {/* 3. Main Board */}
-        <div className={`w-full rounded-[2rem] p-2.5 sm:p-3.5 border-2 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl`}>
+        <div className={`w-full rounded-[2rem] p-2.5 sm:p-3.5 border-2 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl relative overflow-hidden`}>
 
-          <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px]">
+          <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px] relative">
             
             {/* If Flipped (Black Perspective): Tray is on Left */}
             {isFlipped && (
@@ -1398,8 +1452,10 @@ export default function Backgammon() {
                 {(isFlipped ? bar.white : bar.black) > 0 && (
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
                     isFlipped ? themeConfig.checkerWhite : themeConfig.checkerBlack
-                  } animate-pulse`}>
-                    {isFlipped ? bar.white : bar.black}
+                  } animate-pulse relative shadow-[0_4px_6px_rgba(0,0,0,0.5)]`}>
+                    <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
+                      {isFlipped ? bar.white : bar.black}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1410,8 +1466,10 @@ export default function Backgammon() {
                 {(isFlipped ? bar.black : bar.white) > 0 && (
                   <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
                     isFlipped ? themeConfig.checkerBlack : themeConfig.checkerWhite
-                  } animate-pulse`}>
-                    {isFlipped ? bar.black : bar.white}
+                  } animate-pulse relative shadow-[0_4px_6px_rgba(0,0,0,0.5)]`}>
+                    <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
+                      {isFlipped ? bar.black : bar.white}
+                    </div>
                   </div>
                 )}
                 <span className="text-[8px] font-black text-slate-400 uppercase">BAR</span>
@@ -1462,6 +1520,76 @@ export default function Backgammon() {
                 </div>
               </div>
             )}
+
+            {/* 3D Dice Thrown Directly Onto The Board Surface */}
+            <AnimatePresence>
+              {(isRolling || (hasRolled && dice[0] !== null)) && (
+                <motion.div
+                  initial={{ scale: 0.2, y: -80, rotateX: 60, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, rotateX: 0, opacity: 1 }}
+                  exit={{ scale: 0.7, opacity: 0, transition: { duration: 0.2 } }}
+                  transition={{ type: 'spring', damping: 13, stiffness: 200 }}
+                  className="absolute z-30 pointer-events-auto flex items-center gap-2.5 bg-black/55 backdrop-blur-md px-3 py-2 rounded-2xl border border-amber-400/50 shadow-[0_12px_32px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)]"
+                  style={{
+                    left: isFlipped ? '28%' : '72%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  {/* Die 1 */}
+                  <div
+                    onClick={() => {
+                      if (!hasRolled || isRolling) {
+                        handleRollDice();
+                        return;
+                      }
+                      if (dice[0] && remainingMoves.includes(dice[0])) {
+                        setSelectedDie(prev => (prev === dice[0] ? null : dice[0]));
+                        soundEngine.playTap?.();
+                        haptics.tap?.();
+                      }
+                    }}
+                    className={`cursor-pointer transition-transform active:scale-95 ${
+                      selectedDie === dice[0] && remainingMoves.includes(dice[0])
+                        ? 'ring-4 ring-amber-400 rounded-xl scale-110 shadow-lg'
+                        : hasRolled && remainingMoves.includes(dice[0])
+                          ? 'hover:scale-105'
+                          : 'opacity-40 grayscale'
+                    }`}
+                    style={{ transform: 'rotate(-5deg)' }}
+                    title={hasRolled && remainingMoves.includes(dice[0]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[0]}` : `Play die ${dice[0]} first`) : ''}
+                  >
+                    <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0] && remainingMoves.includes(dice[0])} />
+                  </div>
+
+                  {/* Die 2 */}
+                  <div
+                    onClick={() => {
+                      if (!hasRolled || isRolling) {
+                        handleRollDice();
+                        return;
+                      }
+                      if (dice[1] && remainingMoves.includes(dice[1])) {
+                        setSelectedDie(prev => (prev === dice[1] ? null : dice[1]));
+                        soundEngine.playTap?.();
+                        haptics.tap?.();
+                      }
+                    }}
+                    className={`cursor-pointer transition-transform active:scale-95 ${
+                      selectedDie === dice[1] && remainingMoves.includes(dice[1])
+                        ? 'ring-4 ring-amber-400 rounded-xl scale-110 shadow-lg'
+                        : hasRolled && remainingMoves.includes(dice[1])
+                          ? 'hover:scale-105'
+                          : 'opacity-40 grayscale'
+                    }`}
+                    style={{ transform: 'rotate(7deg)' }}
+                    title={hasRolled && remainingMoves.includes(dice[1]) ? (isRtl ? `انتخاب اولویت حرکت با تاس ${dice[1]}` : `Play die ${dice[1]} first`) : ''}
+                  >
+                    <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1] && remainingMoves.includes(dice[1])} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
           </div>
 
@@ -1645,7 +1773,7 @@ export default function Backgammon() {
       {/* Trash Talk In-Game Reactions */}
       <InGameReactions />
 
-      {/* Set / Match Winner Modal */}
+      {/* Set / Match Winner Modal with Rematch */}
       <AnimatePresence>
         {(setWinner || matchWinner) && (
           <motion.div
@@ -1655,57 +1783,154 @@ export default function Backgammon() {
             className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-slate-900 border-2 border-amber-400 p-6 text-center shadow-2xl space-y-4"
+              initial={{ scale: 0.85, y: 30, rotateX: 15 }}
+              animate={{ scale: 1, y: 0, rotateX: 0 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              className="w-full max-w-sm rounded-3xl bg-gradient-to-b from-slate-800 to-slate-950 border-2 border-amber-400/70 p-6 text-center shadow-[0_0_60px_rgba(245,158,11,0.15)] space-y-4"
             >
-              <div className="text-5xl animate-bounce">
-                {matchWinner ? '👑' : '🏆'}
+              {/* Animated trophy/crown with glow */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full bg-amber-400/10 animate-ping" />
+                </div>
+                <div className="text-6xl animate-bounce relative z-10 drop-shadow-[0_0_20px_rgba(245,158,11,0.5)]">
+                  {matchWinner ? '👑' : '🏆'}
+                </div>
               </div>
+
               <h3 className="text-xl font-black text-white">
                 {matchWinner 
                   ? (gameMode === 'bot' 
-                      ? (matchWinner === 'white' ? '🎉 تبریک! شما برنده کل مسابقه شدید!' : '🤖 ربات برنده کل مسابقه شد!')
-                      : (matchWinner === myOnlineRole ? '🎉 تبریک! شما برنده کل مسابقه شدید!' : '🏆 حریف برنده کل مسابقه شد!'))
+                      ? (matchWinner === 'white' ? '🎉 تبریک! شما برنده شدید!' : '🤖 ربات برنده شد!')
+                      : (matchWinner === myOnlineRole ? '🎉 تبریک! شما برنده شدید!' : '🏆 حریف برنده شد!'))
                   : (gameMode === 'bot'
-                      ? (setWinner?.winner === 'white' ? '🎉 برنده این ست: سفید (شما)' : '🤖 برنده این ست: ربات')
-                      : (setWinner?.winner === myOnlineRole ? '🎉 برنده این ست: شما' : `🏆 برنده این ست: ${setWinner?.winner === 'white' ? 'سفید' : 'سیاه'}`))}
+                      ? (setWinner?.winner === 'white' ? '🎉 برنده ست: شما' : '🤖 برنده ست: ربات')
+                      : (setWinner?.winner === myOnlineRole ? '🎉 برنده ست: شما' : `🏆 برنده ست: حریف`))}
               </h3>
-              <p className="text-xs text-amber-300 font-bold">
-                {setWinner?.type}
-              </p>
-              <div className="flex justify-center gap-4 text-xs font-mono font-bold text-slate-300 bg-black/50 py-2 rounded-xl border border-white/10">
-                <span>سفید: {scoreWhite}</span>
-                <span>·</span>
-                <span>سیاه: {scoreBlack}</span>
+              <p className="text-xs text-amber-300 font-bold">{setWinner?.type}</p>
+              
+              {/* Score Bar */}
+              <div className="flex justify-center gap-6 text-xs font-mono font-bold bg-black/50 py-2.5 px-4 rounded-2xl border border-white/10">
+                <div className="text-center">
+                  <span className="text-amber-300 block text-sm font-black">{scoreWhite}</span>
+                  <span className="text-slate-400 text-[10px]">⚪ سفید</span>
+                </div>
+                <div className="w-px bg-white/20" />
+                <div className="text-center">
+                  <span className="text-cyan-300 block text-sm font-black">{scoreBlack}</span>
+                  <span className="text-slate-400 text-[10px]">⚫ سیاه</span>
+                </div>
               </div>
-              <div className="pt-2 flex gap-2">
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-2">
                 {matchWinner ? (
-                  <button
-                    onClick={handleResetMatch}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
-                  >
-                    شروع مسابقه جدید 🎲
-                  </button>
+                  <>
+                    {/* Rematch button for online mode */}
+                    {gameMode === 'online' && (
+                      <button
+                        onClick={() => {
+                          if (rematchState === 'received') {
+                            // Accept rematch
+                            broadcastPayload('REMATCH_ACCEPT', {});
+                            setMyOnlineRole(prev => prev === 'white' ? 'black' : 'white');
+                            setManualFlip(null);
+                            handleResetMatch();
+                            setRematchState(null);
+                          } else {
+                            // Send rematch request
+                            broadcastPayload('REMATCH_REQUEST', { requesterId: myUserId, requesterName: myUserName });
+                            setRematchState('sent');
+                          }
+                          soundEngine.playTap?.();
+                        }}
+                        disabled={rematchState === 'sent'}
+                        className={`w-full py-3 rounded-2xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                          rematchState === 'received'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-emerald-500/30'
+                            : rematchState === 'sent'
+                              ? 'bg-slate-700 text-slate-400 cursor-wait'
+                              : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/30'
+                        }`}
+                      >
+                        {rematchState === 'received' 
+                          ? '✅ قبول بازی مجدد!' 
+                          : rematchState === 'sent' 
+                            ? '⏳ منتظر پاسخ حریف...' 
+                            : rematchState === 'declined'
+                              ? '❌ حریف رد کرد'
+                              : '🔄 درخواست بازی مجدد'}
+                      </button>
+                    )}
+                    {/* New match button */}
+                    <button
+                      onClick={handleResetMatch}
+                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
+                    >
+                      {gameMode === 'online' ? 'شروع مسابقه جدید 🎲' : 'بازی مجدد 🎲'}
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={handleNextSet}
-                    className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
                   >
                     ست بعدی ⏭️
                   </button>
                 )}
                 <button
                   onClick={() => navigate('/games')}
-                  className="px-4 py-3 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20"
+                  className="w-full py-2.5 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 transition-colors"
                 >
-                  خروج
+                  خروج از بازی
                 </button>
               </div>
+
+              {/* Rematch incoming notification */}
+              {rematchState === 'received' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 p-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[11px] font-bold flex items-center justify-center gap-2"
+                >
+                  <span className="animate-pulse">🔔</span>
+                  <span>حریف می‌خواد دوباره بازی کنه!</span>
+                  <button
+                    onClick={() => {
+                      broadcastPayload('REMATCH_DECLINE', {});
+                      setRematchState(null);
+                    }}
+                    className="px-2 py-0.5 rounded-lg bg-red-500/30 text-red-300 text-[10px] font-bold hover:bg-red-500/50"
+                  >
+                    رد
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Waiting for Opponent Overlay */}
+      <WaitingForOpponentOverlay
+        isVisible={isWaitingForOpponent && gameMode === 'online' && !opponentJoined}
+        roomCode={onlineRoomCode}
+        gameTitle={isRtl ? 'تخته نرد' : 'Backgammon'}
+        gameIcon="🎲"
+        onCancel={() => {
+          setIsWaitingForOpponent(false);
+          navigate('/games');
+        }}
+        onShareTelegram={() => {
+          const botUsername = 'chazha_bot';
+          const telegramDuelLink = `https://t.me/${botUsername}?start=duel_backgammon_${onlineRoomCode}`;
+          const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDuelLink)}&text=${encodeURIComponent('🎲 بیا تخته نرد با من بازی کن!')}`;
+          window.open(shareUrl, '_blank');
+        }}
+        shareLink={`https://t.me/chazha_bot?start=duel_backgammon_${onlineRoomCode}`}
+        isRtl={isRtl}
+        colorMode={colorMode}
+      />
 
       {/* Setup Modal */}
       <BackgammonSetupModal
@@ -1721,6 +1946,12 @@ export default function Backgammon() {
           if (rCode) setOnlineRoomCode(rCode);
           setMyOnlineRole('white');
           handleResetMatch();
+          setRematchState(null);
+          // Auto-join: if online mode (telegram invite), show waiting overlay
+          if (finalMode === 'online') {
+            setIsWaitingForOpponent(true);
+            setOpponentJoined(false);
+          }
         }}
       />
 
