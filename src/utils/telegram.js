@@ -74,6 +74,14 @@ export const initTelegramMiniApp = (appStore) => {
           appStore.claimReferralBounty(referrerId);
           localStorage.setItem(`zen_ref_claimed_${referrerId}`, 'true');
         }
+      } else if (startParam.startsWith('duel_backgammon_')) {
+        const room = startParam.replace('duel_backgammon_', '');
+        window.location.hash = `#/games/backgammon?room=${room}&mode=online&role=black`;
+      } else if (startParam.startsWith('duel_')) {
+        const parts = startParam.replace('duel_', '').split('_');
+        const game = parts[0];
+        const room = parts[1] || 'ROOM1';
+        window.location.hash = `#/games/${game}?room=${room}&mode=online&role=black`;
       } else if (['hokm', 'backgammon', 'ludo', 'pasur', 'billiards'].includes(startParam)) {
         if (typeof window !== 'undefined' && !window.location.pathname.includes(`/games/${startParam}`)) {
           window.location.hash = `#/games/${startParam}`;

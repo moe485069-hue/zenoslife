@@ -67,12 +67,14 @@ export default function BackgammonSetupModal({
   const handleStart = (mode) => {
     soundEngine.playLevelUp?.();
     haptics.success?.();
+    const rawMode = mode || activeTab;
+    const finalMode = (rawMode === 'telegram') ? 'online' : rawMode;
     onStartGame({
-      mode: mode || activeTab,
+      mode: finalMode,
       botDifficulty,
       matchSets,
       wager,
-      roomCode: (mode === 'telegram' || mode === 'online') ? roomCode : null
+      roomCode: (finalMode === 'online') ? roomCode : null
     });
     onClose();
   };

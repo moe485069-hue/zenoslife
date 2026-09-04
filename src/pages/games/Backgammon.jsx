@@ -13,6 +13,7 @@ import BackgammonSetupModal from '../../components/games/BackgammonSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import InGameReactions from '../../components/games/InGameReactions';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
+import realtimeNetwork from '../../services/realtimeNetwork';
 
 // 3D Dice Face Renderer
 const RenderDiceFace = ({ value, isRolling, size = 'md' }) => {
@@ -151,10 +152,12 @@ export default function Backgammon() {
   const paramMode = searchParams.get('mode');
   const paramDiff = searchParams.get('diff');
   const paramTheme = searchParams.get('theme');
+  const paramRole = searchParams.get('role');
 
   // Match Configuration & Modal State
+  const initialMode = paramMode || (paramRoom ? 'online' : 'bot');
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode);
-  const [gameMode, setGameMode] = useState(paramMode || 'bot'); // 'bot' | 'local' | 'online'
+  const [gameMode, setGameMode] = useState(initialMode); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
   const [botDifficulty, setBotDifficulty] = useState(paramDiff || 'medium');
   const [boardTheme, setBoardTheme] = useState(paramTheme && THEMES[paramTheme] ? paramTheme : 'wood');
@@ -180,9 +183,12 @@ export default function Backgammon() {
   const [setWinner, setSetWinner] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Online Multiplayer State
+  // Persistent User Identity & Online Multiplayer State
+  const myUserId = useRef(localStorage.getItem('life_os_user_id') || ('usr_' + Math.random().toString(36).substr(2, 7))).current;
+  const myUserName = useRef(localStorage.getItem('life_os_user_name') || 'کاربر چاژا').current;
+
   const [onlineRoomCode, setOnlineRoomCode] = useState(paramRoom || 'NARD-777');
-  const [myOnlineRole, setMyOnlineRole] = useState(paramRoom ? 'black' : 'white');
+  const [myOnlineRole, setMyOnlineRole] = useState(paramRole || (paramRoom ? 'black' : 'white'));
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { id: 1, text: isRtl ? 'به تخته نرد شاهانه خوش آمدید!' : 'Welcome to Royal Backgammon!', sender: 'system' }
@@ -196,41 +202,116 @@ export default function Backgammon() {
     } catch (_) {}
   };
 
+  // Broadcast Helper for multi-device realtime sync
+  const broadcastPayload = (actionType, payload) => {
+    if (gameMode !== 'online') return;
+    const packet = {
+      type: 'GAME_ACTION',
+      gameType: 'backgammon',
+      roomCode: onlineRoomCode,
+      senderId: myUserId,
+      senderName: myUserName,
+      actionType,
+      payload,
+      timestamp: Date.now()
+    };
+    // 1. Universal Realtime Network
+    realtimeNetwork.publish(packet, `zenoslife_v3_game_${onlineRoomCode}`);
+    // 2. Local tab fallback
+    try {
+      chatChannelRef.current?.postMessage(packet);
+    } catch (_) {}
+  };
+
   // ----------------------------------------------------
-  // ONLINE SYNC
+  // ONLINE MULTIPLAYER REALTIME SYNC
   // ----------------------------------------------------
   useEffect(() => {
     if (gameMode === 'online') {
-      const channel = new BroadcastChannel(`lifeos_backgammon_${onlineRoomCode}`);
-      chatChannelRef.current = channel;
+      // 1. Connect to Universal Realtime WebSocket/SSE
+      realtimeNetwork.subscribeGameRoom(onlineRoomCode);
 
-      channel.onmessage = (event) => {
-        const { type, payload } = event.data || {};
-        if (type === 'CHAT') {
+      const handleIncomingAction = (data) => {
+        if (!data || data.roomCode !== onlineRoomCode) return;
+        if (data.senderId === myUserId) return; // ignore own packets
+
+        const { actionType, payload } = data;
+        if (actionType === 'CHAT') {
           setChatMessages(prev => [...prev, payload]);
           soundEngine.playTap?.();
-        } else if (type === 'DICE_ROLLED') {
+        } else if (actionType === 'DICE_ROLLED') {
           setDice(payload.dice);
           setRemainingMoves(payload.moves);
           setHasRolled(true);
-          soundEngine.playLevelUp?.();
-        } else if (type === 'BOARD_UPDATE') {
+          setTurn(payload.turn || (myOnlineRole === 'white' ? 'black' : 'white'));
+          setLastMoveMsg(isRtl ? `🎲 حریف تاس انداخت: ${payload.dice[0]} و ${payload.dice[1]}` : `Opponent rolled ${payload.dice[0]} & ${payload.dice[1]}`);
+          soundEngine.playDiceRoll?.();
+          haptics.tap?.();
+        } else if (actionType === 'BOARD_UPDATE') {
           setPoints(payload.points);
           setBar(payload.bar);
           setBorneOff(payload.borneOff);
           setTurn(payload.turn);
-          setRemainingMoves(payload.remainingMoves);
-          setHasRolled(payload.hasRolled);
+          setRemainingMoves(payload.remainingMoves || []);
+          setHasRolled(payload.hasRolled || false);
           setSelectedPoint(null);
+          if (payload.lastMsg) setLastMoveMsg(payload.lastMsg);
           soundEngine.playCheckmark?.();
+        } else if (actionType === 'PLAYER_JOINED') {
+          setLastMoveMsg(isRtl ? `👋 ${data.senderName || 'حریف'} وارد بازی شد!` : `Opponent joined!`);
+          soundEngine.playLevelUp?.();
+        } else if (actionType === 'SET_WIN') {
+          setSetWinner(payload.setWinner);
+          if (payload.scoreWhite !== undefined) setScoreWhite(payload.scoreWhite);
+          if (payload.scoreBlack !== undefined) setScoreBlack(payload.scoreBlack);
+          soundEngine.playLevelUp?.();
         }
       };
 
+      const unsubscribe = realtimeNetwork.subscribe(handleIncomingAction);
+
+      // 2. BroadcastChannel for local same-device tabs fallback
+      const channel = new BroadcastChannel(`lifeos_backgammon_${onlineRoomCode}`);
+      chatChannelRef.current = channel;
+      channel.onmessage = (event) => {
+        handleIncomingAction(event.data);
+      };
+
+      // Announce arrival
+      setTimeout(() => {
+        broadcastPayload('PLAYER_JOINED', { role: myOnlineRole });
+      }, 500);
+
       return () => {
+        unsubscribe?.();
         channel.close();
+        realtimeNetwork.leaveGameRoom();
       };
     }
-  }, [gameMode, onlineRoomCode]);
+  }, [gameMode, onlineRoomCode, myOnlineRole]);
+
+  // In-Game Chat Message Sender
+  const handleSendMessage = (text) => {
+    if (!text || !text.trim()) return;
+    const roleText = myOnlineRole === 'white' ? (isRtl ? 'سفید' : 'White') : (isRtl ? 'سیاه' : 'Black');
+    const msgObj = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      text: text.trim(),
+      sender: `${myUserName} (${roleText})`,
+      senderId: myUserId,
+      time: new Date().toLocaleTimeString(isRtl ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true
+    };
+    setChatMessages(prev => [...prev, msgObj]);
+    soundEngine.playTap?.();
+
+    if (gameMode === 'online') {
+      broadcastPayload('CHAT', {
+        ...msgObj,
+        isMe: false
+      });
+    }
+  };
 
   const rollIntervalRef = useRef(null);
 
@@ -275,10 +356,11 @@ export default function Backgammon() {
             setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
           }
 
-          if (gameMode === 'online' && chatChannelRef.current) {
-            chatChannelRef.current.postMessage({
-              type: 'DICE_ROLLED',
-              payload: { dice: rolledDice, moves }
+          if (gameMode === 'online') {
+            broadcastPayload('DICE_ROLLED', {
+              dice: rolledDice,
+              moves,
+              turn
             });
           }
 
@@ -296,8 +378,18 @@ export default function Backgammon() {
       setLastMoveMsg(isRtl ? '👈 لطفاً یکی از مهره‌های درخشان را برای حرکت لمس کنید' : 'Tap a glowing checker to move');
       return;
     }
-    if (gameMode === 'bot' && turn === 'black') return;
-    if (gameMode === 'online' && turn !== myOnlineRole) return;
+    if (gameMode === 'bot' && turn === 'black') {
+      setLastMoveMsg(isRtl ? '🤖 نوبت ربات هوشمند است...' : 'Bot is thinking...');
+      return;
+    }
+    if (gameMode === 'online' && turn !== myOnlineRole) {
+      const needed = turn === 'white' ? (isRtl ? 'سفید' : 'White') : (isRtl ? 'سیاه' : 'Black');
+      setLastMoveMsg(isRtl 
+        ? `⏳ اکنون نوبت مهره‌های ${needed} است! منتظر تاس حریف بمانید یا رنگ خود را از نوار بالا تغییر دهید.` 
+        : `Waiting for ${needed} to roll.`);
+      soundEngine.playTap?.();
+      return;
+    }
 
     rollDiceAction();
   };
@@ -527,6 +619,18 @@ export default function Backgammon() {
     setRemainingMoves(newMoves);
     setSelectedPoint(null);
 
+    if (gameMode === 'online') {
+      broadcastPayload('BOARD_UPDATE', {
+        points: newPoints,
+        bar: newBar,
+        borneOff: newBorneOff,
+        turn,
+        remainingMoves: newMoves,
+        hasRolled: true,
+        lastMsg: isRtl ? `حریف یک مهره حرکت داد` : `Opponent moved a checker`
+      });
+    }
+
     if (newBorneOff[turn] >= 15) {
       handleSetWin(turn, newBorneOff, newBar);
       return;
@@ -547,23 +651,25 @@ export default function Backgammon() {
     setSelectedPoint(null);
     setDice([null, null]);
 
-    if (nextTurn === 'white') {
+    const isNextMe = gameMode === 'bot' 
+      ? nextTurn === 'white' 
+      : (gameMode === 'online' ? nextTurn === myOnlineRole : true);
+
+    if (isNextMe) {
       setLastMoveMsg(isRtl ? 'نوبت شماست! دکمه پرتاب تاس را بزنید 🎲' : 'Your turn! Roll the dice 🎲');
     } else {
-      setLastMoveMsg(isRtl ? '🤖 نوبت حریف است...' : 'Opponent is playing...');
+      setLastMoveMsg(isRtl ? `⏳ نوبت ${nextTurn === 'white' ? 'سفید' : 'سیاه'} است...` : 'Opponent is playing...');
     }
 
-    if (gameMode === 'online' && chatChannelRef.current) {
-      chatChannelRef.current.postMessage({
-        type: 'BOARD_UPDATE',
-        payload: {
-          points: pts,
-          bar: curBar,
-          borneOff: curOff,
-          turn: nextTurn,
-          remainingMoves: [],
-          hasRolled: false
-        }
+    if (gameMode === 'online') {
+      broadcastPayload('BOARD_UPDATE', {
+        points: pts,
+        bar: curBar,
+        borneOff: curOff,
+        turn: nextTurn,
+        remainingMoves: [],
+        hasRolled: false,
+        lastMsg: isRtl ? `نوبت ${nextTurn === 'white' ? 'سفید' : 'سیاه'} است` : `Turn passed`
       });
     }
   };
@@ -603,6 +709,14 @@ export default function Backgammon() {
     setScoreWhite(newScoreW);
     setScoreBlack(newScoreB);
     setSetWinner({ winner, type: winType, pts: setPointsEarned });
+
+    if (gameMode === 'online') {
+      broadcastPayload('SET_WIN', {
+        setWinner: { winner, type: winType, pts: setPointsEarned },
+        scoreWhite: newScoreW,
+        scoreBlack: newScoreB
+      });
+    }
 
     playSfx(soundEngine.playLevelUp);
     haptics.success?.();
@@ -744,6 +858,7 @@ export default function Backgammon() {
   };
 
   // Pip Counts
+  const isWhiteMe = gameMode === 'bot' || myOnlineRole === 'white';
   const pipWhite = points.reduce((acc, p, idx) => acc + (p.player === 'white' ? p.count * idx : 0), 0) + (bar.white * 25);
   const pipBlack = points.reduce((acc, p, idx) => acc + (p.player === 'black' ? p.count * (25 - idx) : 0), 0) + (bar.black * 25);
 
@@ -870,6 +985,23 @@ export default function Backgammon() {
             <span className="text-[10px]">دعوت</span>
           </button>
 
+          {/* In-Game Chat Toggle */}
+          <button
+            onClick={() => {
+              setIsChatOpen(!isChatOpen);
+              soundEngine.playTap?.();
+            }}
+            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-indigo-300 hover:text-white relative"
+            title="چت حین بازی"
+          >
+            <MessageSquare size={15} />
+            {chatMessages.length > 1 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-bold text-white flex items-center justify-center">
+                {chatMessages.length - 1}
+              </span>
+            )}
+          </button>
+
           {/* Theme Switcher */}
           <button
             onClick={() => {
@@ -914,7 +1046,11 @@ export default function Backgammon() {
               {scoreWhite}
             </div>
             <div>
-              <span className="text-[11px] font-black text-amber-300 block leading-tight">سفید (شما)</span>
+              <span className="text-[11px] font-black text-amber-300 block leading-tight">
+                {gameMode === 'bot' 
+                  ? (isRtl ? 'سفید (شما)' : 'White (You)') 
+                  : (myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White (You)') : (isRtl ? 'سفید (حریف)' : 'White (Opponent)'))}
+              </span>
               <span className="text-[9px] text-slate-400 font-mono">پیپ: {pipWhite}</span>
             </div>
           </div>
@@ -931,7 +1067,9 @@ export default function Backgammon() {
           <div className="flex items-center gap-2">
             <div className="text-end">
               <span className="text-[11px] font-black text-cyan-300 block leading-tight">
-                {gameMode === 'bot' ? 'ربات' : 'سیاه'}
+                {gameMode === 'bot' 
+                  ? (isRtl ? '🤖 ربات' : '🤖 Bot') 
+                  : (myOnlineRole === 'black' ? (isRtl ? 'سیاه (شما)' : 'Black (You)') : (isRtl ? 'سیاه (حریف)' : 'Black (Opponent)'))}
               </span>
               <span className="text-[9px] text-slate-400 font-mono">پیپ: {pipBlack}</span>
             </div>
@@ -940,6 +1078,62 @@ export default function Backgammon() {
             </div>
           </div>
         </div>
+
+        {/* 2.5. Online Room Info & Role Selector Bar */}
+        {gameMode === 'online' && (
+          <div className="py-2 px-3 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900/80 to-indigo-950/60 border border-cyan-500/30 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+              <span className="text-xs font-black text-cyan-200">
+                اتاق: <code className="text-amber-300 bg-black/40 px-1.5 py-0.5 rounded font-mono text-[11px]">{onlineRoomCode}</code>
+              </span>
+            </div>
+
+            {/* Quick Role Switcher */}
+            <div className="flex items-center gap-1 bg-black/60 p-1 rounded-xl border border-white/10 text-xs">
+              <button
+                onClick={() => {
+                  setMyOnlineRole('white');
+                  soundEngine.playTap?.();
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all ${
+                  myOnlineRole === 'white'
+                    ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-md scale-105'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="بازی با مهره‌های سفید (شروع‌کننده)"
+              >
+                ⚪ من سفیدم
+              </button>
+              <button
+                onClick={() => {
+                  setMyOnlineRole('black');
+                  soundEngine.playTap?.();
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all ${
+                  myOnlineRole === 'black'
+                    ? 'bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 shadow-md scale-105'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="بازی با مهره‌های سیاه"
+              >
+                ⚫ من سیاهم
+              </button>
+            </div>
+
+            {/* In-Game Chat Button */}
+            <button
+              onClick={() => {
+                setIsChatOpen(!isChatOpen);
+                soundEngine.playTap?.();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/50 text-indigo-200 text-xs font-black active:scale-95 transition-all"
+            >
+              <MessageSquare size={14} />
+              <span>چت ({chatMessages.length})</span>
+            </button>
+          </div>
+        )}
 
         {/* 3. Main Board */}
         <div className={`w-full rounded-[2rem] p-2.5 sm:p-3.5 border-2 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl`}>
@@ -1032,7 +1226,9 @@ export default function Backgammon() {
             <div className="flex items-center gap-2">
               <div className={`w-3.5 h-3.5 rounded-full ${turn === 'white' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-cyan-500 shadow-[0_0_12px_#06b6d4]'}`} />
               <span className="text-xs font-black text-slate-200">
-                {turn === 'white' ? (isRtl ? 'نوبت سفید (شما)' : 'White\'s Turn') : (isRtl ? (gameMode === 'bot' ? '🤖 نوبت ربات...' : 'نوبت سیاه') : 'Black\'s Turn')}
+                {turn === 'white' 
+                  ? (isWhiteMe ? (isRtl ? '⚪ نوبت سفید (شما)' : 'White\'s Turn (You)') : (isRtl ? '⚪ نوبت سفید (حریف)' : 'White\'s Turn'))
+                  : (gameMode === 'bot' ? '🤖 نوبت ربات...' : (!isWhiteMe ? (isRtl ? '⚫ نوبت سیاه (شما)' : 'Black\'s Turn (You)') : (isRtl ? '⚫ نوبت سیاه (حریف)' : 'Black\'s Turn')))}
               </span>
             </div>
 
@@ -1040,7 +1236,9 @@ export default function Backgammon() {
             <div 
               onClick={handleRollDice}
               className={`flex items-center gap-2.5 cursor-pointer p-1.5 rounded-2xl hover:bg-white/5 transition-all overflow-x-auto flex-nowrap ${
-                !hasRolled && !isRolling && (turn === 'white' || gameMode === 'local') ? 'ring-2 ring-amber-400/80 animate-pulse bg-amber-500/10' : ''
+                !hasRolled && !isRolling && (gameMode === 'local' || (gameMode === 'bot' && turn === 'white') || (gameMode === 'online' && turn === myOnlineRole)) 
+                  ? 'ring-2 ring-amber-400/80 animate-pulse bg-amber-500/10' 
+                  : ''
               }`}
             >
               <RenderDiceFace value={dice[0]} isRolling={isRolling} size="md" />
@@ -1075,11 +1273,21 @@ export default function Backgammon() {
             ) : (
               <button
                 onClick={handleRollDice}
-                disabled={isRolling || (gameMode === 'bot' && turn === 'black') || (gameMode === 'online' && turn !== myOnlineRole)}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-xl shadow-amber-500/40 active:scale-95 disabled:opacity-40 transition-all flex items-center gap-2 cursor-pointer animate-pulse"
+                disabled={isRolling || (gameMode === 'bot' && turn === 'black')}
+                className={`px-6 py-3 rounded-2xl font-black text-xs shadow-xl active:scale-95 transition-all flex items-center gap-2 cursor-pointer ${
+                  (gameMode === 'online' && turn !== myOnlineRole)
+                    ? 'bg-slate-800/90 text-slate-400 border border-white/10 hover:bg-slate-800'
+                    : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-500/40 animate-pulse'
+                }`}
               >
                 <Shuffle size={16} className={isRolling ? 'animate-spin' : ''} />
-                <span>{isRolling ? 'در حال چرخش...' : 'پرتاب تاس 🎲'}</span>
+                <span>
+                  {isRolling 
+                    ? 'در حال چرخش...' 
+                    : (gameMode === 'online' && turn !== myOnlineRole)
+                      ? `⏳ نوبت ${turn === 'white' ? 'سفید' : 'سیاه'}`
+                      : 'پرتاب تاس 🎲'}
+                </span>
               </button>
             )}
 
@@ -1164,12 +1372,27 @@ export default function Backgammon() {
         currentTheme={boardTheme}
         onThemeChange={(newTheme) => setBoardTheme(newTheme)}
         onStartGame={({ mode, botDifficulty: diff, matchSets: sets, roomCode: rCode }) => {
-          setGameMode(mode);
+          const finalMode = (mode === 'telegram') ? 'online' : mode;
+          setGameMode(finalMode);
           if (diff) setBotDifficulty(diff);
           if (sets) setMatchSets(sets);
           if (rCode) setOnlineRoomCode(rCode);
+          setMyOnlineRole('white');
           handleResetMatch();
         }}
+      />
+
+      {/* In-Game Chat Drawer */}
+      <InGameChatDrawer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onToggle={() => setIsChatOpen(!isChatOpen)}
+        roomCode={onlineRoomCode}
+        gameTitle={isRtl ? "تخته نرد آنلاین چاژا" : "Chazha Backgammon"}
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
+        isRtl={isRtl}
       />
 
     </div>

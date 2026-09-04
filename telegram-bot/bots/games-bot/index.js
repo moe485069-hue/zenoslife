@@ -99,7 +99,7 @@ async function onMessage(msg) {
         inline_keyboard: [
           [{
             text: '🪵 ورود به تخته نرد و شروع مسابقه 🎲',
-            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online` }
+            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black` }
           }]
         ]
       }
@@ -397,7 +397,9 @@ async function onInlineQuery(iq) {
   const senderName = iq.from.first_name || 'کاربر چاژا';
   const senderId = iq.from.id;
   const roomCode = `CHZ-${senderId}`;
-  const duelGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online`;
+  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black`;
+  const hostGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=white`;
+  const botStartUrl = `https://t.me/chazha_bot?start=duel_backgammon_${roomCode}`;
 
   const results = [
     // 1. Interactive Duel Challenge Card (with Accept & Decline buttons)
@@ -405,11 +407,14 @@ async function onInlineQuery(iq) {
       type: 'article',
       id: 'duel_challenge_' + senderId,
       title: `⚔️ ارسال چالش مسابقه تخته نرد (با ${senderName})`,
-      description: 'ارسال کارت دعوت با دکمه‌های قبول درخواست مسابقه یا رد درخواست',
+      description: 'ارسال کارت دعوت با دکمه‌های شروع مسابقه، ورود میزبان یا رد درخواست',
       thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',
       input_message_content: {
         message_text: `🪵 <b>چالش دوئل تخته نرد چاژا!</b>\n\n` +
                       `👤 <b>${senderName}</b> شما را به یک مسابقه هیجان‌انگیز تخته نرد دعوت کرده است! 🎲\n\n` +
+                      `🔹 بازی زنده و آنلاین بدون تاخیر با تاس‌های واقعی\n` +
+                      `💬 همراه با چت و کل‌کل درون بازی\n` +
+                      `👑 کد اتاق: <code>${roomCode}</code>\n\n` +
                       `آیا جرات دارید این چالش را قبول کنید و هوش خود را محک بزنید؟`,
         parse_mode: 'HTML'
       },
@@ -417,8 +422,18 @@ async function onInlineQuery(iq) {
         inline_keyboard: [
           [
             {
-              text: '✅ قبول درخواست (شروع مسابقه) 🎲',
-              url: duelGameUrl
+              text: '⚔️ قبول مسابقه و شروع بازی 🎲',
+              url: guestGameUrl
+            }
+          ],
+          [
+            {
+              text: '🤖 باز کردن در ربات چاژا 🚀',
+              url: botStartUrl
+            },
+            {
+              text: '👑 ورود میزبان (سفید)',
+              url: hostGameUrl
             }
           ],
           [
