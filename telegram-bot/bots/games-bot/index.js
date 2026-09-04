@@ -78,6 +78,26 @@ async function onMessage(msg) {
 
   getUser(userId, msg.from.first_name);
 
+  // Handling Direct Duel Challenge Links (e.g. /start duel_backgammon_ZEN1234)
+  if (text.startsWith('/start duel_backgammon_')) {
+    const roomCode = text.replace('/start duel_backgammon_', '').trim();
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: `⚔️ <b>دعوت‌نامه دوئل تخته نرد چاژا!</b>\n\n` +
+            `شما به اتاق مسابقه <code>${roomCode}</code> دعوت شده‌اید!\n` +
+            `آماده‌اید هوش و شانس خود را در تخته نرد محک بزنید؟`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{
+            text: '🪵 ورود به تخته نرد و شروع مسابقه 🎲',
+            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online` }
+          }]
+        ]
+      }
+    });
+  }
+
   if (text.startsWith('/start') || text === '🔙 بازگشت به منوی بازی‌ها') {
     return sendGamesDashboard(chatId, userId);
   }

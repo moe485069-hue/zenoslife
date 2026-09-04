@@ -9,7 +9,7 @@ import {
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
-import GameMatchSetupModal from '../../components/games/GameMatchSetupModal';
+import BackgammonSetupModal from '../../components/games/BackgammonSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import InGameReactions from '../../components/games/InGameReactions';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
@@ -807,27 +807,43 @@ export default function Backgammon() {
   return (
     <div className="min-h-screen bg-[#050711] text-white pb-24 select-none font-sans" dir="rtl">
       
-      {/* 1. Header */}
-      <div className="sticky top-0 z-30 p-3 sm:p-4 bg-slate-900/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between">
+      {/* 1. Header (Clean & Sleek) */}
+      <div className="sticky top-0 z-30 px-3 py-2.5 bg-slate-900/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/games')}
-            className="p-2 rounded-2xl bg-white/5 hover:bg-white/10 text-white"
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white active:scale-95 transition-all"
             title={isRtl ? 'بازگشت به بازی‌ها' : 'Back to Games'}
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </button>
           <div>
-            <h1 className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500">
-              🎲 تخته نرد شاهانه ایرانی
-            </h1>
-            <span className="text-[10px] text-slate-400 block">
-              {gameMode === 'bot' ? '🤖 بازی با ربات هوشمند' : gameMode === 'local' ? '📱 دونفره در یک دستگاه' : `🌐 اتاق آنلاین: ${onlineRoomCode}`}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-black text-amber-300">
+                تخته نرد چاژا 🎲
+              </h1>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-amber-200">
+                {gameMode === 'bot' ? '🤖 ربات' : (gameMode === 'telegram' || gameMode === 'online') ? `⚔️ ${onlineRoomCode || 'آنلاین'}` : '📱 دونفره'}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {/* Quick Telegram Invite Button */}
+          <button
+            onClick={() => {
+              setIsSetupModalOpen(true);
+              soundEngine.playTap?.();
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/30 text-xs font-black hover:bg-sky-500/30 flex items-center gap-1 active:scale-95 transition-all"
+            title="دعوت دوستان در تلگرام"
+          >
+            <Share2 size={13} />
+            <span className="text-[10px]">دعوت</span>
+          </button>
+
+          {/* Theme Switcher */}
           <button
             onClick={() => {
               const themesKeys = Object.keys(THEMES);
@@ -835,89 +851,71 @@ export default function Backgammon() {
               setBoardTheme(themesKeys[nextIdx]);
               soundEngine.playTap?.();
             }}
-            className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold flex items-center gap-1"
+            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs"
+            title="تغییر ظاهر تخته"
           >
-            <span>{themeConfig.icon}</span>
-            <span className="text-[10px] hidden sm:inline">{themeConfig.nameFa}</span>
+            {themeConfig.icon}
           </button>
 
-          {gameMode === 'online' && (
-            <button
-              onClick={() => {
-                const shareUrl = `https://t.me/zenoslife_bot/app?startapp=nard_${onlineRoomCode}`;
-                const shareText = isRtl ? `بیا در تخته نرد بازی کنیم! کد اتاق: ${onlineRoomCode}` : `Join my Backgammon room! Code: ${onlineRoomCode}`;
-                window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
-                soundEngine.playTap?.();
-              }}
-              className="px-2.5 py-1.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs font-black hover:bg-blue-500/30 flex items-center gap-1"
-              title={isRtl ? 'اشتراکگذاری اتاق' : 'Share Room'}
-            >
-              <Share2 size={13} />
-              <span className="hidden sm:inline">{isRtl ? 'دعوت' : 'Invite'}</span>
-            </button>
-          )}
-
+          {/* Settings Modal Button */}
           <button
             onClick={() => setIsSetupModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black hover:bg-amber-500/30 flex items-center gap-1"
+            className="p-1.5 rounded-xl bg-white/5 text-slate-300 hover:text-white"
+            title="تنظیمات بازی"
           >
-            <Settings size={13} />
-            <span>تنظیمات</span>
+            <Settings size={15} />
           </button>
 
+          {/* Sound Toggle */}
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white"
+            className="p-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white"
+            title="صدا"
           >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto min-h-[calc(100vh-80px)] p-3 sm:p-4 space-y-3">
+      <div className="max-w-lg mx-auto min-h-[calc(100vh-70px)] p-2.5 sm:p-4 space-y-2.5">
 
-        {/* 2. Scoreboard & Pip */}
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-950/50 via-slate-900 to-cyan-950/50 border border-amber-500/30 flex items-center justify-between px-4 shadow-xl">
+        {/* 2. Sleek Compact Scoreboard */}
+        <div className="py-2 px-3 rounded-2xl bg-black/40 border border-white/10 flex items-center justify-between shadow-lg backdrop-blur-md">
+          {/* White Player */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-amber-400 border-2 border-amber-300 shadow-sm flex items-center justify-center text-xs font-black text-black">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-b from-amber-200 to-amber-400 border border-amber-300 shadow-sm flex items-center justify-center text-xs font-black text-black">
               {scoreWhite}
             </div>
             <div>
-              <span className="text-xs font-bold text-amber-300 block">{isRtl ? 'سفید (شما)' : 'White'}</span>
-              <span className="text-[9px] text-amber-400/80 font-mono">Pip: {pipWhite}</span>
+              <span className="text-[11px] font-black text-amber-300 block leading-tight">سفید (شما)</span>
+              <span className="text-[9px] text-slate-400 font-mono">پیپ: {pipWhite}</span>
             </div>
           </div>
 
-          <div className="text-xs font-mono font-black px-3 py-1 rounded-xl bg-black/60 border border-slate-700 text-slate-200 text-center">
-            <div>{isRtl ? `ست ${currentSet} از ${matchSets}` : `Set ${currentSet}/${matchSets}`}</div>
-            <div className="text-[9px] text-amber-400">{isRtl ? 'هدف: برد در دست‌ها' : 'Target Sets'}</div>
+          {/* Match Set Pill */}
+          <div className="text-center px-2.5 py-1 rounded-xl bg-white/5 border border-white/10">
+            <div className="text-[11px] font-black text-white font-mono">ست {currentSet} از {matchSets}</div>
+            <div className="text-[9px] font-bold text-amber-400">
+              {turn === 'white' ? '⚪ نوبت سفید' : '⚫ نوبت سیاه'}
+            </div>
           </div>
 
+          {/* Black Player */}
           <div className="flex items-center gap-2">
             <div className="text-end">
-              <span className="text-xs font-bold text-cyan-300 block">{isRtl ? (gameMode === 'bot' ? 'ربات هوشمند' : 'سیاه') : 'Black'}</span>
-              <span className="text-[9px] text-cyan-400/80 font-mono">Pip: {pipBlack}</span>
+              <span className="text-[11px] font-black text-cyan-300 block leading-tight">
+                {gameMode === 'bot' ? 'ربات' : 'سیاه'}
+              </span>
+              <span className="text-[9px] text-slate-400 font-mono">پیپ: {pipBlack}</span>
             </div>
-            <div className="w-8 h-8 rounded-full bg-cyan-700 border-2 border-cyan-400 shadow-sm flex items-center justify-center text-xs font-black text-white">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-b from-cyan-600 to-cyan-800 border border-cyan-400 shadow-sm flex items-center justify-center text-xs font-black text-white">
               {scoreBlack}
             </div>
           </div>
         </div>
 
-        {gameMode === 'bot' && (
-          <div className="text-center text-[10px] text-slate-400">
-            {isRtl ? 'حالت تمرینی — بدون شرطبندی' : 'Practice Mode — No Wager'}
-          </div>
-        )}
-
         {/* 3. Main Board */}
-        <div className={`w-full rounded-[2.5rem] p-3 sm:p-4 border-4 transition-all duration-500 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl`}>
-          
-          {themeConfig.faravaharBg && (
-            <div className="text-center py-1 text-[11px] font-black tracking-widest text-amber-400/80 border-b border-white/10 mb-2 uppercase">
-              {themeConfig.faravaharBg}
-            </div>
-          )}
+        <div className={`w-full rounded-[2rem] p-2.5 sm:p-3.5 border-2 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-2xl`}>
 
           <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px]">
             
@@ -1133,14 +1131,16 @@ export default function Backgammon() {
       </AnimatePresence>
 
       {/* Setup Modal */}
-      <GameMatchSetupModal
+      <BackgammonSetupModal
         isOpen={isSetupModalOpen}
         onClose={() => setIsSetupModalOpen(false)}
-        titleFa="تنظیمات تخته نرد شاهانه"
-        onStartMatch={({ mode, sets, difficulty }) => {
+        currentTheme={boardTheme}
+        onThemeChange={(newTheme) => setBoardTheme(newTheme)}
+        onStartGame={({ mode, botDifficulty: diff, matchSets: sets, roomCode: rCode }) => {
           setGameMode(mode);
-          setMatchSets(sets);
-          setBotDifficulty(difficulty);
+          if (diff) setBotDifficulty(diff);
+          if (sets) setMatchSets(sets);
+          if (rCode) setOnlineRoomCode(rCode);
           handleResetMatch();
         }}
       />
