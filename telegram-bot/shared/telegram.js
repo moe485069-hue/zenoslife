@@ -119,6 +119,8 @@ class TelegramBotRunner {
             await this.handlers.onCallback(update.callback_query);
           } else if (update.pre_checkout_query && this.handlers.onPreCheckout) {
             await this.handlers.onPreCheckout(update.pre_checkout_query);
+          } else if (update.inline_query && this.handlers.onInlineQuery) {
+            await this.handlers.onInlineQuery(update.inline_query);
           }
         } catch (handlerErr) {
           console.error(`⚠️ [${this.name}] Update dispatch error:`, handlerErr.message);

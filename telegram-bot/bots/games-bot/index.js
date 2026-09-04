@@ -29,6 +29,7 @@ const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
 function getGamesReplyKeyboard() {
   return {
     keyboard: [
+      [{ text: '🪵 بازی تخته نرد (آنلاین و بات)' }],
       [{ text: '🪨 سنگ، کاغذ، قیچی ✂️' }, { text: '🎲 دوئل رولت تاس' }],
       [{ text: '🧠 مسابقه اطلاعات عمومی (کوئیز)' }, { text: '🎡 گردونه شانس روزانه' }],
       [{ text: '🏆 رتبه‌بندی قهرمانان' }, { text: '💎 کیف‌پول و شارژ سکه' }],
@@ -81,6 +82,13 @@ async function onMessage(msg) {
     return sendGamesDashboard(chatId, userId);
   }
 
+  if (text === '🪵 بازی تخته نرد (آنلاین و بات)' || text === '/backgammon' || text === 'تخته نرد') {
+    return callTgApi(BOT_TOKEN, 'sendGame', {
+      chat_id: chatId,
+      game_short_name: 'backgammon'
+    });
+  }
+
   if (text === '🪨 سنگ، کاغذ، قیچی ✂️') {
     return callTgApi(BOT_TOKEN, 'sendMessage', {
       chat_id: chatId,
@@ -129,6 +137,15 @@ async function onCallback(cq) {
   const userId = String(cq.from.id);
   const data = cq.data || '';
 
+  // 1. Telegram Game Launcher (Play Backgammon, etc.)
+  if (cq.game_short_name) {
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/${cq.game_short_name}`
+    });
+  }
+
+  // 2. Normal callback acknowledge
   try {
     await callTgApi(BOT_TOKEN, 'answerCallbackQuery', { callback_query_id: cq.id });
   } catch (_) {}
@@ -223,11 +240,31 @@ async function onCallback(cq) {
 }
 
 // ----------------------------------------------------
+// INLINE QUERY ROUTER (For sharing games in any chat)
+// ----------------------------------------------------
+async function onInlineQuery(iq) {
+  const results = [
+    {
+      type: 'game',
+      id: 'game_backgammon',
+      game_short_name: 'backgammon'
+    }
+  ];
+
+  return callTgApi(BOT_TOKEN, 'answerInlineQuery', {
+    inline_query_id: iq.id,
+    results: results,
+    cache_time: 1
+  }).catch(err => console.warn('[Chazha] Inline query notice:', err.message));
+}
+
+// ----------------------------------------------------
 // RUNNER INITIALIZATION
 // ----------------------------------------------------
 const runner = new TelegramBotRunner('Chazha Games Bot', BOT_TOKEN, {
   onMessage,
   onCallback,
+  onInlineQuery,
   onPayment: (msg) => handlePaymentSuccess(BOT_TOKEN, msg),
   onPreCheckout: (pcq) => handlePreCheckout(BOT_TOKEN, pcq)
 });
@@ -240,6 +277,7 @@ async function start() {
     },
     commands: [
       { command: 'start', description: '🚀 منوی بازی‌های چاژا' },
+      { command: 'backgammon', description: '🪵 بازی تخته نرد' },
       { command: 'games', description: '🎮 بازی‌ها و دوئل‌ها' },
       { command: 'wheel', description: '🎡 گردونه شانس روزانه' },
       { command: 'top', description: '🏆 جدول قهرمانان' },
