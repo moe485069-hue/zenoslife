@@ -149,13 +149,15 @@ export default function Backgammon() {
 
   const paramRoom = searchParams.get('room');
   const paramMode = searchParams.get('mode');
+  const paramDiff = searchParams.get('diff');
+  const paramTheme = searchParams.get('theme');
 
   // Match Configuration & Modal State
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode);
   const [gameMode, setGameMode] = useState(paramMode || 'bot'); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
-  const [botDifficulty, setBotDifficulty] = useState('medium');
-  const [boardTheme, setBoardTheme] = useState('persia');
+  const [botDifficulty, setBotDifficulty] = useState(paramDiff || 'medium');
+  const [boardTheme, setBoardTheme] = useState(paramTheme && THEMES[paramTheme] ? paramTheme : 'wood');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Match Scores

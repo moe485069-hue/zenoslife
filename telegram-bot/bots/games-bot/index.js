@@ -5,7 +5,7 @@
  */
 
 const { CONFIG } = require('../../shared/config');
-const { db, saveDb, getUser, checkDailyStreak } = require('../../shared/db');
+const { db, saveDb, getUser, updateUser, checkDailyStreak } = require('../../shared/db');
 const { TelegramBotRunner, callTgApi } = require('../../shared/telegram');
 const {
   sendInvoiceForPackage,
@@ -113,7 +113,20 @@ async function onMessage(msg) {
   if (text.includes('تخته نرد') || text === '/backgammon') {
     return callTgApi(BOT_TOKEN, 'sendGame', {
       chat_id: chatId,
-      game_short_name: 'backgammon'
+      game_short_name: 'backgammon',
+      reply_markup: {
+        inline_keyboard: [
+          // Row 1: The official Game Play button (must be first)
+          [{ text: '🪵 شروع بازی تخته نرد (Play) 🎲', callback_game: {} }],
+          // Row 2: Send Challenge to friends/groups
+          [{ text: '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }],
+          // Row 3: Solo vs Bot & Choose Theme
+          [
+            { text: '🤖 بازی تک‌نفره با ربات', callback_data: 'bg_play_bot' },
+            { text: '🎨 تغییر تم تخته نرد', callback_data: 'bg_themes_menu' }
+          ]
+        ]
+      }
     });
   }
 
@@ -265,13 +278,159 @@ async function onCallback(cq) {
     const days = parseInt(data.replace('buy_vip_', ''), 10);
     return sendInvoiceForVip(BOT_TOKEN, chatId, userId, days);
   }
+
+  // ----------------------------------------------------
+  // BACKGAMMON ACTION BUTTONS
+  // ----------------------------------------------------
+  // 1. Play Solo vs Bot
+  if (data === 'bg_play_bot') {
+    const user = getUser(userId);
+    const curTheme = user.backgammonTheme || 'wood';
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '🤖 <b>بازی تک‌نفره تخته نرد با ربات هوشمند چاژا:</b>\nدرجه سختی مسابقه را انتخاب کنید:',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🟢 مبتدی (Easy)', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?mode=bot&diff=easy&theme=${curTheme}` } },
+            { text: '🟡 متوسط (Medium)', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?mode=bot&diff=medium&theme=${curTheme}` } },
+            { text: '🔴 استاد (Master)', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?mode=bot&diff=master&theme=${curTheme}` } }
+          ],
+          [{ text: '🪵 ورود مستقیم به تخته با ربات 🎲', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?mode=bot&theme=${curTheme}` } }]
+        ]
+      }
+    });
+  }
+
+  // 2. Themes Selection Menu (Free & Future Stars Themes)
+  if (data === 'bg_themes_menu') {
+    const user = getUser(userId);
+    const curTheme = user.backgammonTheme || 'wood';
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: `🎨 <b>انتخاب تم ظاهری تخته نرد چاژا:</b>\n\n` +
+            `تم‌های فعلی برای تمامی کاربران <b>کاملاً رایگان</b> هستند.\n` +
+            `⭐ تم‌های سلطنتی و سفارشی در آینده با <b>تلگرام استارز (Stars)</b> قابل خریداری خواهند بود.\n\n` +
+            `تم مورد نظر خود را انتخاب کنید:`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: `${curTheme === 'wood' ? '✅ ' : ''}🪵 چوب گردو کلاسیک (رایگان)`, callback_data: 'bg_set_theme_wood' }
+          ],
+          [
+            { text: `${curTheme === 'persia' ? '✅ ' : ''}🏛️ تخت جمشید باستان (رایگان)`, callback_data: 'bg_set_theme_persia' }
+          ],
+          [
+            { text: `${curTheme === 'cosmic' ? '✅ ' : ''}🌌 کهکشان کیهانی (رایگان)`, callback_data: 'bg_set_theme_cosmic' }
+          ],
+          [
+            { text: '👑 طلای سلطنتی ۲۴ عیار (⭐ بزودی با Stars)', callback_data: 'bg_theme_stars_preview_gold' }
+          ],
+          [
+            { text: '⚡ نئون سایبرپانک ۲۰۷۷ (⭐ بزودی با Stars)', callback_data: 'bg_theme_stars_preview_cyber' }
+          ]
+        ]
+      }
+    });
+  }
+
+  // 3. Set Free Theme
+  if (data.startsWith('bg_set_theme_')) {
+    const selected = data.replace('bg_set_theme_', '');
+    updateUser(userId, { backgammonTheme: selected });
+    const names = { wood: 'چوب گردو کلاسیک', persia: 'تخت جمشید باستان', cosmic: 'کهکشان کیهانی' };
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: `✅ تم تخته نرد با موفقیت روی «${names[selected] || selected}» تنظیم شد!`,
+      show_alert: true
+    });
+  }
+
+  // 4. Preview Stars Themes
+  if (data.startsWith('bg_theme_stars_preview_')) {
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: '⭐ این تم لوکس اختصاصی در آپدیت بعدی با پرداخت Telegram Stars قابل خرید خواهد بود!',
+      show_alert: true
+    });
+  }
+
+  // 5. Decline Duel Challenge (Bilingual Decline Notice + Ad for Chazha)
+  if (data.startsWith('bg_decline_duel')) {
+    const declinerName = cq.from.first_name || 'کاربر';
+    const declineText = `🚫 <b>درخواست مسابقه توسط ${declinerName} رد شد!</b>\n\n` +
+      `🌟 <b>اما چاژا پر از هیجانه!</b> شما هم می‌توانید همین الان وارد کنسول بازی‌های چاژا شوید و بیش از ۱۵ بازی دونفره و جذاب را رایگان بازی کنید و سکه ببرید:\n` +
+      `👉 @chazha_bot\n\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `🇬🇧 <b>Challenge declined by ${declinerName}!</b>\n` +
+      `🌟 But the fun never stops! Join Chazha Games right now, play 15+ multiplayer games for free, and win coins:\n` +
+      `👉 @chazha_bot`;
+
+    const editPayload = {
+      text: declineText,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎮 ورود به چاژا | Join Chazha 🚀', url: 'https://t.me/chazha_bot' }]
+        ]
+      }
+    };
+
+    if (cq.inline_message_id) {
+      editPayload.inline_message_id = cq.inline_message_id;
+    } else if (cq.message) {
+      editPayload.chat_id = cq.message.chat.id;
+      editPayload.message_id = cq.message.message_id;
+    }
+
+    return callTgApi(BOT_TOKEN, 'editMessageText', editPayload)
+      .catch(err => console.warn('[Chazha] Edit decline msg error:', err.message));
+  }
 }
 
 // ----------------------------------------------------
 // INLINE QUERY ROUTER (For sharing games in any chat)
 // ----------------------------------------------------
 async function onInlineQuery(iq) {
+  const senderName = iq.from.first_name || 'کاربر چاژا';
+  const senderId = iq.from.id;
+  const roomCode = `CHZ-${senderId}`;
+  const duelGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online`;
+
   const results = [
+    // 1. Interactive Duel Challenge Card (with Accept & Decline buttons)
+    {
+      type: 'article',
+      id: 'duel_challenge_' + senderId,
+      title: `⚔️ ارسال چالش مسابقه تخته نرد (با ${senderName})`,
+      description: 'ارسال کارت دعوت با دکمه‌های قبول درخواست مسابقه یا رد درخواست',
+      thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',
+      input_message_content: {
+        message_text: `🪵 <b>چالش دوئل تخته نرد چاژا!</b>\n\n` +
+                      `👤 <b>${senderName}</b> شما را به یک مسابقه هیجان‌انگیز تخته نرد دعوت کرده است! 🎲\n\n` +
+                      `آیا جرات دارید این چالش را قبول کنید و هوش خود را محک بزنید؟`,
+        parse_mode: 'HTML'
+      },
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: '✅ قبول درخواست (شروع مسابقه) 🎲',
+              url: duelGameUrl
+            }
+          ],
+          [
+            {
+              text: '❌ رد درخواست مسابقه',
+              callback_data: `bg_decline_duel_${senderId}`
+            }
+          ]
+        ]
+      }
+    },
+    // 2. Direct Game Result
     {
       type: 'game',
       id: 'game_backgammon',

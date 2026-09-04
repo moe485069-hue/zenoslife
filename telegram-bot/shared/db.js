@@ -164,6 +164,13 @@ function checkVipExpiration() {
   if (modified) saveDb();
 }
 
+function updateUser(userId, updates = {}) {
+  const user = getUser(userId);
+  Object.assign(user, updates);
+  saveDb();
+  return user;
+}
+
 setInterval(checkVipExpiration, 6 * 3600 * 1000);
 
 module.exports = {
@@ -171,6 +178,7 @@ module.exports = {
   saveDb,
   createDatabaseBackup,
   getUser,
+  updateUser,
   addXp,
   addCoins,
   checkDailyStreak,
