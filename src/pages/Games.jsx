@@ -5,13 +5,14 @@ import {
   Gamepad2, Users, Trophy, Plus, Globe, Play,
   Lock, Unlock, Radio, Clock, RotateCcw, X,
   Crown, Sparkles, Swords, Zap, ChevronLeft, ChevronRight,
-  Flame, Target, Layers, Brain, Coins, Gift, Sun, Moon, Share2
+  Flame, Target, Layers, Brain, Coins, Gift, Sun, Moon, Share2, Copy, Send
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
 import gameRoomsService from '../services/gameRoomsService';
+import { shareToTelegram, shareViaInlineQuery } from '../utils/telegram';
 import CoinShopModal from '../components/shop/CoinShopModal';
 import TournamentHubModal from '../components/games/TournamentHubModal';
 import ReferralHubModal from '../components/referral/ReferralHubModal';
@@ -632,22 +633,60 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isR
                   <p className="text-sm text-slate-300 mt-2 font-mono bg-black/40 px-3 py-1.5 rounded-xl inline-block border border-white/10">{createdRoom.room.roomId}</p>
                 </div>
                 
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2.5 pt-2">
+                  {/* Primary 1-Click Telegram Direct Send & Auto-Enter */}
                   <button
-                    onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent('https://t.me/zenoslife_bot/app?startapp=room_'+createdRoom.room.roomId)}&text=${encodeURIComponent('بیا با من بازی کن! کد اتاق: '+createdRoom.room.roomId)}`, '_blank')}
-                    className="w-full py-3.5 rounded-2xl bg-[#0088cc] hover:bg-[#0077b3] text-white font-black text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                    onClick={() => {
+                      const roomCode = createdRoom.room.roomId;
+                      const gameType = createdRoom.game?.id || 'backgammon';
+                      const gameTitle = createdRoom.game?.titleFa || 'تخته نرد';
+                      shareToTelegram({ roomCode, gameType, gameTitleFa: gameTitle });
+                      handleEnterRoom();
+                    }}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-sm shadow-xl shadow-sky-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Share2 size={18} />
-                    {isRtl ? '📤 دعوت از طریق تلگرام' : '📤 Share via Telegram'}
+                    {isRtl ? '🚀 ارسال به چت دوستان و شروع بازی' : '🚀 Send to Friend & Start Game'}
                   </button>
-                  
+
+                  {/* Inline Interactive Challenge Card */}
                   <button
-                    onClick={handleEnterRoom}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-sm shadow-xl shadow-purple-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    onClick={() => {
+                      const roomCode = createdRoom.room.roomId;
+                      shareViaInlineQuery({ roomCode });
+                      handleEnterRoom();
+                    }}
+                    className="w-full py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 text-sky-300 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-2 border border-sky-400/20 cursor-pointer"
                   >
-                    <Play size={18} />
-                    {isRtl ? 'ورود به اتاق' : 'Enter Room'}
+                    <Sparkles size={15} className="text-amber-400" />
+                    {isRtl ? '✨ ارسال کارت رسمی مسابقه در تلگرام' : '✨ Send Interactive Match Card'}
                   </button>
+
+                  {/* Copy Link & Direct Enter */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        const roomCode = createdRoom.room.roomId;
+                        const link = `https://t.me/chazha_bot/app?startapp=room_${roomCode}`;
+                        navigator.clipboard?.writeText(link);
+                        soundEngine.playCheckmark?.();
+                        haptics.success?.();
+                        alert(isRtl ? 'لینک مستقیم اتاق کپی شد!' : 'Direct room link copied!');
+                      }}
+                      className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-white/10 cursor-pointer"
+                    >
+                      <Copy size={15} />
+                      {isRtl ? 'کپی لینک' : 'Copy Link'}
+                    </button>
+
+                    <button
+                      onClick={handleEnterRoom}
+                      className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-xs shadow-xl shadow-purple-500/30 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Play size={15} />
+                      {isRtl ? 'ورود به بازی' : 'Enter Room'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -660,6 +699,7 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isR
 
 // Game Mode Selector & Matchmaking Modal
 function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl }) {
+  const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
   const [searchTimer, setSearchTimer] = useState(0);
   const [showWager, setShowWager] = useState(false);
@@ -861,6 +901,33 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl }) {
                 </div>
                 <ChevronLeft size={18} className={`text-amber-400 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
+
+              {/* Option 4: Fast Telegram Challenge */}
+              <button
+                onClick={() => {
+                  onClose();
+                  const prefix = game.id === 'backgammon' ? 'BACK-' : game.id === 'hokm' ? 'HOKM-' : `${game.id.slice(0, 4).toUpperCase()}-`;
+                  const randomCode = prefix + Math.random().toString(36).substring(2, 6).toUpperCase();
+                  shareToTelegram({ roomCode: randomCode, gameType: game.id, gameTitleFa: game.titleFa });
+                  navigate(`${game.path}?mode=online&room=${randomCode}&role=white`);
+                }}
+                className="w-full p-4 rounded-2xl bg-gradient-to-r from-sky-900/60 to-blue-950/80 border border-sky-500/40 hover:border-sky-400 text-start flex items-center justify-between group active:scale-95 transition-all shadow-lg shadow-sky-950/40 cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-sky-600/30 border border-sky-400/40 flex items-center justify-center text-xl text-sky-300 group-hover:scale-110 transition-transform">
+                    🚀
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white group-hover:text-sky-300">
+                      {isRtl ? 'دعوت دوستان در تلگرام' : 'Challenge Friends in Telegram'}
+                    </h4>
+                    <p className="text-[10px] text-slate-300 mt-0.5">
+                      {isRtl ? 'ارسال دعوت به چت دوستان و ورود مستقیم به اتاق' : 'Send invite to any Telegram chat and enter room'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronLeft size={18} className={`text-sky-400 ${isRtl ? '' : 'rotate-180'}`} />
+              </button>
             </div>
           )}
         </motion.div>
@@ -1006,10 +1073,17 @@ export default function Games() {
             </p>
           </div>
           <button 
-            onClick={() => window.open('https://t.me/zenoslife_bot/app', '_blank')}
-            className="relative z-10 px-5 py-2.5 bg-white text-purple-700 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 whitespace-nowrap mx-auto sm:mx-0"
+            onClick={() => {
+              const tg = window.Telegram?.WebApp;
+              if (tg?.openTelegramLink) {
+                tg.openTelegramLink('https://t.me/chazha_bot');
+              } else {
+                window.open('https://t.me/chazha_bot', '_blank');
+              }
+            }}
+            className="relative z-10 px-5 py-2.5 bg-white text-purple-700 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 whitespace-nowrap mx-auto sm:mx-0 cursor-pointer"
           >
-            {isRtl ? 'باز کردن ربات تلگرام' : 'Open Telegram Bot'} <ChevronLeft size={16} className={isRtl ? '' : 'rotate-180'} />
+            {isRtl ? 'باز کردن ربات چاژا' : 'Open Chazha Bot'} <ChevronLeft size={16} className={isRtl ? '' : 'rotate-180'} />
           </button>
         </div>
 

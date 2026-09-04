@@ -86,19 +86,41 @@ async function onMessage(msg) {
 
   getUser(userId, msg.from.first_name);
 
-  if (text.startsWith('/start duel_backgammon_')) {
-    const roomCode = text.replace('/start duel_backgammon_', '').trim();
+  if (text.startsWith('/start room_') || text.startsWith('/start duel_')) {
+    let roomCode = '';
+    let gameType = 'backgammon';
+    let gameName = 'تخته نرد';
+
+    if (text.startsWith('/start room_')) {
+      roomCode = text.replace('/start room_', '').trim();
+      if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameName = 'حکم آنلاین'; }
+      else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameName = 'منچ آنلاین'; }
+      else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameName = 'پاسور چهاربرگ'; }
+      else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameName = 'بیلیارد'; }
+      else if (roomCode.startsWith('CHSS-')) { gameType = 'cosmic_chess'; gameName = 'شطرنج'; }
+    } else if (text.startsWith('/start duel_backgammon_')) {
+      roomCode = text.replace('/start duel_backgammon_', '').trim();
+      gameType = 'backgammon';
+      gameName = 'تخته نرد';
+    } else if (text.startsWith('/start duel_')) {
+      const parts = text.replace('/start duel_', '').trim().split('_');
+      gameType = parts[0] || 'backgammon';
+      roomCode = parts[1] || 'ROOM1';
+      const names = { backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد' };
+      gameName = names[gameType] || gameType;
+    }
+
     return callTgApi(BOT_TOKEN, 'sendMessage', {
       chat_id: chatId,
-      text: `⚔️ <b>دعوت‌نامه دوئل تخته نرد چاژا!</b>\n\n` +
+      text: `⚔️ <b>دعوت‌نامه دوئل ${gameName} چاژا!</b>\n\n` +
             `شما به اتاق مسابقه <code>${roomCode}</code> دعوت شده‌اید!\n` +
-            `آماده‌اید هوش و شانس خود را در تخته نرد محک بزنید؟`,
+            `آماده‌اید هوش و مهارت خود را محک بزنید؟ برای شروع روی دکمه زیر بزنید:`,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [{
-            text: '🎲 ورود و شروع بازی',
-            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black&autostart=1` }
+            text: `🎲 ورود و شروع بازی ${gameName}`,
+            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1` }
           }]
         ]
       }
@@ -399,28 +421,55 @@ async function onCallback(cq) {
 async function onInlineQuery(iq) {
   const senderName = iq.from.first_name || 'کاربر چاژا';
   const senderId = iq.from.id;
-  const roomCode = `CHZ-${senderId}`;
-  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=black&autostart=1`;
-  const hostGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/backgammon?room=${roomCode}&mode=online&role=white`;
-  const botStartUrl = `https://t.me/chazha_bot?start=duel_backgammon_${roomCode}`;
+  const query = (iq.query || '').trim();
+
+  let roomCode = `CHZ-${senderId}`;
+  let gameType = 'backgammon';
+  let gameTitle = 'تخته نرد';
+
+  if (query) {
+    if (query.startsWith('BACK-') || query.startsWith('backgammon')) {
+      gameType = 'backgammon';
+      gameTitle = 'تخته نرد';
+      roomCode = query.startsWith('BACK-') ? query : (query.split(' ')[1] || `BACK-${senderId}`);
+    } else if (query.startsWith('HOKM-') || query.startsWith('hokm')) {
+      gameType = 'hokm';
+      gameTitle = 'حکم';
+      roomCode = query.startsWith('HOKM-') ? query : (query.split(' ')[1] || `HOKM-${senderId}`);
+    } else if (query.startsWith('LUDO-') || query.startsWith('ludo')) {
+      gameType = 'ludo';
+      gameTitle = 'منچ';
+      roomCode = query.startsWith('LUDO-') ? query : (query.split(' ')[1] || `LUDO-${senderId}`);
+    } else if (query.startsWith('room_')) {
+      roomCode = query.replace('room_', '');
+      if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameTitle = 'حکم'; }
+      else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameTitle = 'منچ'; }
+      else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameTitle = 'پاسور'; }
+      else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameTitle = 'بیلیارد'; }
+    } else if (query.length >= 4 && query !== 'duel') {
+      roomCode = query;
+    }
+  }
+
+  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
 
   const results = [
     // 1. Interactive Duel Challenge Card (with Accept & Decline buttons)
     {
       type: 'article',
-      id: 'duel_challenge_' + senderId,
-      title: `⚔️ ارسال چالش مسابقه تخته نرد (با ${senderName})`,
-      description: 'ارسال کارت دعوت با دکمه‌های شروع مسابقه، ورود میزبان یا رد درخواست',
+      id: `duel_${gameType}_${senderId}_${Date.now() % 10000}`,
+      title: `⚔️ ارسال چالش مسابقه ${gameTitle} (با ${senderName})`,
+      description: `کد اتاق: ${roomCode} • کلیک کنید تا کارت ارسال شود`,
       thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',
       input_message_content: {
-        message_text: `🎲 <b>چالش تخته نرد چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه تخته نرد دعوت کرده!\n\n⚔️ برای قبول چالش، دکمه زیر را بزنید:`,
+        message_text: `🎲 <b>چالش ${gameTitle} چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه ${gameTitle} دعوت کرده!\nکد اتاق: <code>${roomCode}</code>\n\n⚔️ برای قبول چالش و شروع بازی، دکمه زیر را بزنید:`,
         parse_mode: 'HTML'
       },
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: '🎲 شروع بازی تخته نرد ⚔️',
+              text: `🎲 شروع بازی ${gameTitle} ⚔️`,
               web_app: { url: guestGameUrl }
             }
           ],

@@ -35,15 +35,34 @@ export default function BackgammonSetupModal({
 
   // Deep Link for Telegram Duel Challenge
   const botUsername = 'chazha_bot';
+  const miniAppDuelLink = `https://t.me/${botUsername}/app?startapp=room_${roomCode}`;
   const telegramDuelLink = `https://t.me/${botUsername}?start=duel_backgammon_${roomCode}`;
-  const challengeMessage = `🪵 من تو رو به چالش تخته نرد در چاژا دعوت کردم! 🎲\nبیا ببینم کی برنده میشه! روی لینک زیر بزن: 👇\n${telegramDuelLink}`;
+  const challengeMessage = `🪵 من تو رو به چالش تخته نرد در چاژا دعوت کردم! 🎲\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇\n${miniAppDuelLink}`;
 
   const handleShareToTelegram = () => {
     soundEngine.playTap?.();
     haptics.tap?.();
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDuelLink)}&text=${encodeURIComponent('🪵 بیا تخته نرد با من بازی کن ببینم کی برنده میشه! 🎲👑')}`;
-    window.open(shareUrl, '_blank');
+    const text = `🎲 بیا تخته نرد با من بازی کن!\nکد اتاق: ${roomCode}`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(miniAppDuelLink)}&text=${encodeURIComponent(text)}`;
+    const tg = window.Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(shareUrl);
+    } else {
+      window.open(shareUrl, '_blank');
+    }
     // Auto-join host immediately into the game room!
+    handleStart('telegram');
+  };
+
+  const handleInlineChallenge = () => {
+    soundEngine.playTap?.();
+    haptics.tap?.();
+    const tg = window.Telegram?.WebApp;
+    if (tg?.switchInlineQuery) {
+      tg.switchInlineQuery(roomCode, ['users', 'groups']);
+    } else {
+      handleShareToTelegram();
+    }
     handleStart('telegram');
   };
 
@@ -55,13 +74,18 @@ export default function BackgammonSetupModal({
 
     let cleanId = targetUsername.trim().replace('@', '');
     const userDirectUrl = `https://t.me/${cleanId}?text=${encodeURIComponent(challengeMessage)}`;
-    window.open(userDirectUrl, '_blank');
+    const tg = window.Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(userDirectUrl);
+    } else {
+      window.open(userDirectUrl, '_blank');
+    }
     // Auto-join host immediately into the game room!
     handleStart('telegram');
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard?.writeText(telegramDuelLink);
+    navigator.clipboard?.writeText(miniAppDuelLink);
     setCopied(true);
     soundEngine.playCheckmark?.();
     haptics.success?.();
@@ -187,10 +211,19 @@ export default function BackgammonSetupModal({
                 {/* Main Share Button */}
                 <button
                   onClick={handleShareToTelegram}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-500/30 active:scale-95 transition-all"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-500/30 active:scale-95 transition-all cursor-pointer"
                 >
                   <Share2 size={16} />
                   <span>ارسال چالش به دوستان یا گروه‌ها 🚀</span>
+                </button>
+
+                {/* Inline Card Share */}
+                <button
+                  onClick={handleInlineChallenge}
+                  className="w-full py-2 rounded-xl bg-white/10 hover:bg-white/15 text-sky-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-sky-400/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Sparkles size={14} className="text-amber-400" />
+                  <span>ارسال کارت بازی تعاملی در چت ✨</span>
                 </button>
               </div>
 

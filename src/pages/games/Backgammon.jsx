@@ -16,6 +16,7 @@ import InGameReactions from '../../components/games/InGameReactions';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
 import realtimeNetwork from '../../services/realtimeNetwork';
+import { shareToTelegram } from '../../utils/telegram';
 
 // 3D Dice Face Renderer — Enhanced with perspective & depth
 const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) => {
@@ -1938,12 +1939,9 @@ export default function Backgammon() {
           navigate('/games');
         }}
         onShareTelegram={() => {
-          const botUsername = 'chazha_bot';
-          const telegramDuelLink = `https://t.me/${botUsername}?start=duel_backgammon_${onlineRoomCode}`;
-          const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDuelLink)}&text=${encodeURIComponent('🎲 بیا تخته نرد با من بازی کن!')}`;
-          window.open(shareUrl, '_blank');
+          shareToTelegram({ roomCode: onlineRoomCode, gameType: 'backgammon', gameTitleFa: 'تخته نرد' });
         }}
-        shareLink={`https://t.me/chazha_bot?start=duel_backgammon_${onlineRoomCode}`}
+        shareLink={`https://t.me/chazha_bot/app?startapp=room_${onlineRoomCode}`}
         isRtl={isRtl}
         colorMode={colorMode}
       />

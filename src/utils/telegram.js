@@ -64,7 +64,9 @@ export const initTelegramMiniApp = (appStore) => {
     }
 
     // 4. Handle start_param Deep Linking & Referrals
-    const startParam = tg.initDataUnsafe?.start_param;
+    const urlParams = new URLSearchParams(window.location.search);
+    const startParamFromUrl = urlParams.get('startapp') || urlParams.get('tgWebAppStartParam');
+    const startParam = tg.initDataUnsafe?.start_param || startParamFromUrl;
     if (startParam) {
       if (startParam.startsWith('ref_')) {
         const referrerId = startParam.replace('ref_', '');
@@ -74,14 +76,24 @@ export const initTelegramMiniApp = (appStore) => {
           appStore.claimReferralBounty(referrerId);
           localStorage.setItem(`zen_ref_claimed_${referrerId}`, 'true');
         }
+      } else if (startParam.startsWith('room_')) {
+        const roomId = startParam.replace('room_', '');
+        let game = 'backgammon';
+        if (roomId.startsWith('BACK-')) game = 'backgammon';
+        else if (roomId.startsWith('HOKM-')) game = 'hokm';
+        else if (roomId.startsWith('LUDO-')) game = 'ludo';
+        else if (roomId.startsWith('PASS-')) game = 'pasur';
+        else if (roomId.startsWith('BILL-')) game = 'billiards';
+        else if (roomId.startsWith('CHSS-')) game = 'cosmic_chess';
+        window.location.hash = `#/games/${game}?room=${roomId}&mode=online&role=black&autostart=1`;
       } else if (startParam.startsWith('duel_backgammon_')) {
         const room = startParam.replace('duel_backgammon_', '');
-        window.location.hash = `#/games/backgammon?room=${room}&mode=online&role=black`;
+        window.location.hash = `#/games/backgammon?room=${room}&mode=online&role=black&autostart=1`;
       } else if (startParam.startsWith('duel_')) {
         const parts = startParam.replace('duel_', '').split('_');
-        const game = parts[0];
+        const game = parts[0] || 'backgammon';
         const room = parts[1] || 'ROOM1';
-        window.location.hash = `#/games/${game}?room=${room}&mode=online&role=black`;
+        window.location.hash = `#/games/${game}?room=${room}&mode=online&role=black&autostart=1`;
       } else if (['hokm', 'backgammon', 'ludo', 'pasur', 'billiards'].includes(startParam)) {
         if (typeof window !== 'undefined' && !window.location.pathname.includes(`/games/${startParam}`)) {
           window.location.hash = `#/games/${startParam}`;
@@ -90,6 +102,15 @@ export const initTelegramMiniApp = (appStore) => {
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
           window.location.hash = '#/chat';
         }
+      }
+    } else {
+      // Check query parameter fallback for direct web visitors
+      const roomFromUrl = urlParams.get('room');
+      if (roomFromUrl && (!window.location.hash || window.location.hash === '#/' || window.location.hash === '')) {
+        let game = urlParams.get('game') || 'backgammon';
+        if (roomFromUrl.startsWith('BACK-')) game = 'backgammon';
+        else if (roomFromUrl.startsWith('HOKM-')) game = 'hokm';
+        window.location.hash = `#/games/${game}?room=${roomFromUrl}&mode=online&role=black&autostart=1`;
       }
     }
 
@@ -103,6 +124,29 @@ export const initTelegramMiniApp = (appStore) => {
 
   } catch (err) {
     console.warn('Telegram WebApp init warning:', err);
+  }
+};
+
+export const shareToTelegram = ({ roomCode, gameType = 'backgammon', gameTitleFa = 'تخته نرد' }) => {
+  const botUsername = 'chazha_bot';
+  const miniAppUrl = `https://t.me/${botUsername}/app?startapp=room_${roomCode}`;
+  const text = `🎲 بیا ${gameTitleFa} با من بازی کن!\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(miniAppUrl)}&text=${encodeURIComponent(text)}`;
+
+  const tg = getTelegramWebApp();
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, '_blank');
+  }
+};
+
+export const shareViaInlineQuery = ({ roomCode }) => {
+  const tg = getTelegramWebApp();
+  if (tg?.switchInlineQuery) {
+    tg.switchInlineQuery(roomCode, ['users', 'groups']);
+  } else {
+    shareToTelegram({ roomCode });
   }
 };
 
@@ -123,5 +167,7 @@ export default {
   getTelegramWebApp,
   isTelegramMiniApp,
   initTelegramMiniApp,
+  shareToTelegram,
+  shareViaInlineQuery,
   triggerTelegramHaptic
 };
