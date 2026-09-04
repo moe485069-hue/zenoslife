@@ -5,7 +5,7 @@ import {
   ChevronLeft, RotateCcw, Volume2, VolumeX, Sparkles, Trophy, 
   Users, Bot, Globe, Shield, MessageSquare, Send, Award, Flame, 
   HelpCircle, Settings, ArrowRight, CheckCircle2, Shuffle, Play, Share2,
-  Sun, Moon, Undo2
+  Sun, Moon, Undo2, RotateCw
 } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
@@ -244,6 +244,12 @@ export default function Backgammon() {
 
   const [onlineRoomCode, setOnlineRoomCode] = useState(paramRoom || 'NARD-777');
   const [myOnlineRole, setMyOnlineRole] = useState(paramRole || (paramRoom ? 'black' : 'white'));
+  
+  // Board Perspective Flip (180deg view):
+  // When playing as Black, board flips so Black's home is at bottom-left (like Plato)!
+  const [manualFlip, setManualFlip] = useState(null);
+  const isFlipped = manualFlip !== null ? manualFlip : (myOnlineRole === 'black');
+
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([
     { id: 1, text: isRtl ? 'به تخته نرد شاهانه خوش آمدید!' : 'Welcome to Royal Backgammon!', sender: 'system' }
@@ -1190,6 +1196,22 @@ export default function Backgammon() {
             {themeConfig.icon}
           </button>
 
+          {/* Perspective Flip Button (180deg view) */}
+          <button
+            onClick={() => {
+              setManualFlip(prev => (prev === null ? !isFlipped : !prev));
+              soundEngine.playTap?.();
+            }}
+            className={`p-1.5 rounded-xl text-xs transition-all active:scale-90 ${
+              isFlipped
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-400/40 shadow-sm'
+                : (colorMode === 'light' ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-slate-300 hover:text-white')
+            }`}
+            title={isRtl ? (isFlipped ? 'زاویه دید: مهره‌های سیاه (پلاتو) • کلیک برای معکوس' : 'زاویه دید: مهره‌های سفید • کلیک برای چرخش ۱۸۰ درجه') : 'Flip Board Perspective'}
+          >
+            <RotateCw size={15} className={isFlipped ? 'text-amber-400' : ''} />
+          </button>
+
           {/* Settings Modal Button */}
           <button
             onClick={() => setIsSetupModalOpen(true)}
@@ -1319,28 +1341,65 @@ export default function Backgammon() {
 
           <div className="flex gap-2 h-[280px] xs:h-[320px] sm:h-[400px]">
             
-            {/* Left Quadrant (Outer Board: Points 13-18 Top, 12-7 Bottom) */}
+            {/* If Flipped (Black Perspective): Tray is on Left */}
+            {isFlipped && (
+              <div 
+                onClick={() => {
+                  if (activeValidDestinations.includes('off')) {
+                    const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
+                    const offMove = validMoves.find(m => m.target === 'off');
+                    if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                  }
+                }}
+                className={`w-9 sm:w-11 rounded-2xl p-1 border flex flex-col justify-between items-center cursor-pointer transition-colors shadow-inner shrink-0 ${
+                  colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-black/50 border-white/10'
+                } ${
+                  activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
+                }`}
+                title={isRtl ? 'سینی خروج مهره‌ها' : 'Bearing Off Tray'}
+              >
+                <div className="flex flex-col items-center gap-1 pt-1">
+                  <span className="text-[8px] font-black text-amber-500">OUT</span>
+                  <span className="text-xs font-black text-amber-600">{borneOff.white}/15</span>
+                </div>
+
+                <div className={`text-[9px] font-mono rotate-90 font-bold ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                  TRAY
+                </div>
+
+                <div className="flex flex-col items-center gap-1 pb-1">
+                  <span className="text-xs font-black text-cyan-600">{borneOff.black}/15</span>
+                  <span className="text-[8px] font-black text-cyan-500">OUT</span>
+                </div>
+              </div>
+            )}
+
+            {/* Left Quadrant:
+                Normal: Outer Board (13-18 Top, 12-7 Bottom)
+                Flipped: Black Home Board at Bottom-Left (24-19 Bottom, 1-6 Top) */}
             <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
               <div className="flex h-[46%] w-full">
-                {[13, 14, 15, 16, 17, 18].map(p => renderPoint(p, true))}
+                {(isFlipped ? [1, 2, 3, 4, 5, 6] : [13, 14, 15, 16, 17, 18]).map(p => renderPoint(p, true))}
               </div>
               <div className="flex h-[46%] w-full">
-                {[12, 11, 10, 9, 8, 7].map(p => renderPoint(p, false))}
+                {(isFlipped ? [24, 23, 22, 21, 20, 19] : [12, 11, 10, 9, 8, 7]).map(p => renderPoint(p, false))}
               </div>
             </div>
 
             {/* Center Bar */}
             <div 
               onClick={() => handlePointClick('bar')}
-              className={`w-10 sm:w-12 rounded-2xl p-1 flex flex-col items-center justify-between cursor-pointer border border-white/10 ${themeConfig.barBg} shadow-inner ${
+              className={`w-10 sm:w-12 rounded-2xl p-1 flex flex-col items-center justify-between cursor-pointer border border-white/10 ${themeConfig.barBg} shadow-inner shrink-0 ${
                 selectedPoint === 'bar' ? 'ring-2 ring-amber-400' : ''
               }`}
             >
               <div className="flex flex-col items-center gap-1 pt-2">
                 <span className="text-[8px] font-black text-slate-400 uppercase">BAR</span>
-                {bar.white > 0 && (
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${themeConfig.checkerWhite} animate-pulse`}>
-                    {bar.white}
+                {(isFlipped ? bar.white : bar.black) > 0 && (
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
+                    isFlipped ? themeConfig.checkerWhite : themeConfig.checkerBlack
+                  } animate-pulse`}>
+                    {isFlipped ? bar.white : bar.black}
                   </div>
                 )}
               </div>
@@ -1348,55 +1407,61 @@ export default function Backgammon() {
               <span className="text-sm opacity-40">👑</span>
 
               <div className="flex flex-col items-center gap-1 pb-2">
-                {bar.black > 0 && (
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${themeConfig.checkerBlack} animate-pulse`}>
-                    {bar.black}
+                {(isFlipped ? bar.black : bar.white) > 0 && (
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs ${
+                    isFlipped ? themeConfig.checkerBlack : themeConfig.checkerWhite
+                  } animate-pulse`}>
+                    {isFlipped ? bar.black : bar.white}
                   </div>
                 )}
                 <span className="text-[8px] font-black text-slate-400 uppercase">BAR</span>
               </div>
             </div>
 
-            {/* Right Quadrant (Home Board: Points 19-24 Top, 6-1 Bottom) */}
+            {/* Right Quadrant:
+                Normal: Home Board (19-24 Top, 6-1 Bottom)
+                Flipped: Outer Board (7-12 Top, 18-13 Bottom) */}
             <div className={`flex-1 rounded-2xl p-1 sm:p-2 flex flex-col justify-between ${themeConfig.innerBg} border border-white/5 shadow-inner`}>
               <div className="flex h-[46%] w-full">
-                {[19, 20, 21, 22, 23, 24].map(p => renderPoint(p, true))}
+                {(isFlipped ? [7, 8, 9, 10, 11, 12] : [19, 20, 21, 22, 23, 24]).map(p => renderPoint(p, true))}
               </div>
               <div className="flex h-[46%] w-full">
-                {[6, 5, 4, 3, 2, 1].map(p => renderPoint(p, false))}
+                {(isFlipped ? [18, 17, 16, 15, 14, 13] : [6, 5, 4, 3, 2, 1]).map(p => renderPoint(p, false))}
               </div>
             </div>
 
-            {/* Tray (Bearing Off) */}
-            <div 
-              onClick={() => {
-                if (activeValidDestinations.includes('off')) {
-                  const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-                  const offMove = validMoves.find(m => m.target === 'off');
-                  if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
-                }
-              }}
-              className={`w-9 sm:w-11 rounded-2xl p-1 border flex flex-col justify-between items-center cursor-pointer transition-colors shadow-inner ${
-                colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-black/50 border-white/10'
-              } ${
-                activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
-              }`}
-              title={isRtl ? 'سینی خروج مهره‌ها' : 'Bearing Off Tray'}
-            >
-              <div className="flex flex-col items-center gap-1 pt-1">
-                <span className="text-[8px] font-black text-cyan-500">OUT</span>
-                <span className="text-xs font-black text-cyan-600">{borneOff.black}/15</span>
-              </div>
+            {/* If NOT Flipped (White Perspective): Tray is on Right */}
+            {!isFlipped && (
+              <div 
+                onClick={() => {
+                  if (activeValidDestinations.includes('off')) {
+                    const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
+                    const offMove = validMoves.find(m => m.target === 'off');
+                    if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                  }
+                }}
+                className={`w-9 sm:w-11 rounded-2xl p-1 border flex flex-col justify-between items-center cursor-pointer transition-colors shadow-inner shrink-0 ${
+                  colorMode === 'light' ? 'bg-slate-100 border-slate-300' : 'bg-black/50 border-white/10'
+                } ${
+                  activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
+                }`}
+                title={isRtl ? 'سینی خروج مهره‌ها' : 'Bearing Off Tray'}
+              >
+                <div className="flex flex-col items-center gap-1 pt-1">
+                  <span className="text-[8px] font-black text-cyan-500">OUT</span>
+                  <span className="text-xs font-black text-cyan-600">{borneOff.black}/15</span>
+                </div>
 
-              <div className={`text-[9px] font-mono rotate-90 font-bold ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                TRAY
-              </div>
+                <div className={`text-[9px] font-mono rotate-90 font-bold ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                  TRAY
+                </div>
 
-              <div className="flex flex-col items-center gap-1 pb-1">
-                <span className="text-xs font-black text-amber-500">{borneOff.white}/15</span>
-                <span className="text-[8px] font-black text-amber-600">OUT</span>
+                <div className="flex flex-col items-center gap-1 pb-1">
+                  <span className="text-xs font-black text-amber-500">{borneOff.white}/15</span>
+                  <span className="text-[8px] font-black text-amber-600">OUT</span>
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 

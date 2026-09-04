@@ -117,15 +117,15 @@ export default function InGameChatDrawer({
               </div>
 
               {/* Messages Body */}
-              <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5 text-xs no-scrollbar">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 text-xs no-scrollbar bg-black/40">
                 {messages.map((m, idx) => {
-                  const isMe = m.sender === myRoleName || m.sender === 'شما' || m.sender === 'me' || m.isMe;
+                  const isMe = m.isMe || (m.sender && (m.sender.includes('شما') || m.sender.includes('You'))) || m.senderId === myRoleName;
                   const isSystem = m.sender === 'system';
 
                   if (isSystem) {
                     return (
-                      <div key={idx} className="text-center my-0.5">
-                        <span className="px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[9px] text-cyan-300 font-bold">
+                      <div key={idx} className="text-center my-1">
+                        <span className="px-3 py-1 rounded-full bg-slate-800/90 border border-amber-400/40 text-[10px] text-amber-300 font-black shadow-sm inline-block">
                           📢 {m.text}
                         </span>
                       </div>
@@ -133,15 +133,15 @@ export default function InGameChatDrawer({
                   }
 
                   return (
-                    <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                      <span className="text-[8px] text-slate-400 font-mono px-1">
+                    <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} my-0.5`}>
+                      <span className={`text-[9px] font-bold px-1.5 mb-0.5 ${isMe ? 'text-amber-300' : 'text-cyan-300'}`}>
                         {isMe ? (isRtl ? 'شما' : 'You') : m.sender}
                       </span>
                       <div
-                        className={`max-w-[85%] px-2.5 py-1.5 rounded-xl text-[11px] ${
+                        className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs font-black shadow-md ${
                           isMe
-                            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-xs'
-                            : 'bg-slate-800 text-slate-100 border border-white/10 rounded-bl-xs'
+                            ? 'rounded-br-xs bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-slate-950 border border-amber-300'
+                            : 'rounded-bl-xs bg-slate-800 text-white border-2 border-cyan-400/60'
                         }`}
                       >
                         {m.text}
@@ -153,7 +153,7 @@ export default function InGameChatDrawer({
               </div>
 
               {/* Quick Emojis Bar */}
-              <div className="px-2 py-1 bg-black/40 border-t border-white/5 flex gap-1 overflow-x-auto no-scrollbar">
+              <div className="px-2 py-1 bg-black/60 border-t border-white/10 flex gap-1 overflow-x-auto no-scrollbar">
                 {QUICK_EMOJIS.map(emoji => (
                   <button
                     key={emoji}
@@ -166,19 +166,20 @@ export default function InGameChatDrawer({
               </div>
 
               {/* Input Form */}
-              <form onSubmit={handleSend} className="p-1.5 bg-black/70 border-t border-white/10 flex gap-1.5">
+              <form onSubmit={handleSend} className="p-2 bg-slate-950 border-t border-white/10 flex gap-2">
                 <input
                   type="text"
                   value={inputText}
                   onChange={e => setInputText(e.target.value)}
-                  placeholder={isRtl ? 'پیام یا کل‌کل...' : 'Type message...'}
-                  className="flex-1 px-2.5 py-1.5 rounded-xl bg-slate-800/90 border border-white/10 text-xs text-white outline-none focus:border-cyan-400 placeholder:text-slate-500"
+                  placeholder={isRtl ? 'پیام یا کل‌کل خود را بنویسید...' : 'Type your message...'}
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-800 border border-white/20 text-xs text-white font-bold outline-none focus:border-amber-400 placeholder:text-slate-400"
                 />
                 <button
                   type="submit"
                   disabled={!inputText.trim()}
-                  className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-30 text-white shadow-md transition-all active:scale-95 text-xs font-bold flex items-center justify-center"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 disabled:opacity-30 text-slate-950 shadow-md transition-all active:scale-95 text-xs font-black flex items-center justify-center gap-1"
                 >
+                  <span>{isRtl ? 'ارسال' : 'Send'}</span>
                   <Send size={13} className={isRtl ? 'rotate-180' : ''} />
                 </button>
               </form>
