@@ -1,0 +1,19 @@
+{
+  "name": "Life OS | زندگی‌ساز",
+  "short_name": "Life OS",
+  "description": "سیستم عامل زندگی شما",
+  "theme_color": "#6d28d9",
+  "background_color": "#030014",
+  "display": "standalone",
+  "orientation": "any",
+  "scope": "./",
+  "start_url": "./",
+  "id": "life-os-pwa",
+  "icons": [
+    {"src": "icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml"},
+    {"src": "icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable any"}
+  ],
+  "categories": ["lifestyle", "productivity"],
+  "lang": "fa",
+  "dir": "rtl"
+}
