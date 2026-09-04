@@ -18,69 +18,109 @@ import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponent
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram } from '../../utils/telegram';
 
-// 3D Dice Face Renderer — Enhanced with perspective & depth
+// 3D Telegram-Style Dice Face Renderer — Multi-axis tumbling, fast cycling pips & dynamic floor shadow
 const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) => {
-  const displayVal = value ? Math.max(1, Math.min(6, value)) : (isRolling ? 1 : null);
-  const pips = displayVal ? {
+  const [rollFace, setRollFace] = useState(value || 1);
+
+  useEffect(() => {
+    if (!isRolling) return;
+    const interval = setInterval(() => {
+      setRollFace(Math.floor(Math.random() * 6) + 1);
+    }, 55);
+    return () => clearInterval(interval);
+  }, [isRolling]);
+
+  const activeVal = isRolling ? rollFace : (value ? Math.max(1, Math.min(6, value)) : null);
+  const pips = activeVal ? {
     1: [4],
     2: [0, 8],
     3: [0, 4, 8],
     4: [0, 2, 6, 8],
     5: [0, 2, 4, 6, 8],
     6: [0, 2, 3, 5, 6, 8]
-  }[displayVal] || [4] : [];
+  }[activeVal] || [4] : [];
 
   const sizeClasses = size === 'lg' ? 'w-14 h-14 sm:w-16 sm:h-16' : size === 'sm' ? 'w-11 h-11' : 'w-12 h-12 sm:w-14 sm:h-14';
   const dotSize = size === 'lg' ? 'w-2.5 h-2.5' : size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5';
 
-  if (!displayVal && !isRolling) {
+  if (!activeVal && !isRolling) {
     return (
-      <div className={`${sizeClasses} rounded-xl bg-white/5 border-2 border-dashed border-amber-400/40 flex items-center justify-center text-amber-300 text-sm font-black`}>
+      <div className={`${sizeClasses} rounded-2xl bg-white/5 border-2 border-dashed border-amber-400/40 flex items-center justify-center text-amber-300 text-sm font-black`}>
         🎲
       </div>
     );
   }
 
   return (
-    <motion.div
-      key={isRolling ? 'dice-rolling' : `dice-${displayVal}`}
-      initial={isRolling ? {} : { scale: 0.5, rotateX: 180, rotateY: 90, y: -40 }}
-      animate={
-        isRolling
-          ? {
-              rotateX: [0, 120, 240, 360],
-              rotateY: [0, -90, 180, 0],
-              scale: [0.9, 1.1, 0.85, 1.05],
-            }
-          : { scale: 1, rotateX: 0, rotateY: 0, y: 0 }
-      }
-      transition={
-        isRolling
-          ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' }
-          : { type: 'spring', damping: 12, stiffness: 200, duration: 0.5 }
-      }
-      style={{ perspective: '600px', transformStyle: 'preserve-3d' }}
-      className={`${sizeClasses} rounded-xl bg-gradient-to-br from-[#fffdf5] via-[#fef3c7] to-[#fcd34d] border-2 ${
-        isSelected
-          ? 'border-amber-400 ring-4 ring-amber-400/80 scale-110 shadow-[0_6px_25px_rgba(251,191,36,0.6)]'
-          : 'border-[#b45309] shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_2px_0_rgba(255,255,255,0.4)]'
-      } p-1.5 flex flex-col justify-between items-center relative select-none shrink-0`}
-    >
-      <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center">
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
-          <div key={idx} className="w-full h-full flex items-center justify-center">
-            {pips.includes(idx) && (
-              <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#451a03] to-[#78350f] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4),0_1px_0_rgba(255,255,255,0.15)]`} />
-            )}
-          </div>
-        ))}
-      </div>
-      {value && !isRolling && (
-        <span className="absolute -bottom-1.5 -right-1.5 px-1.5 py-0.5 rounded-lg bg-amber-900 text-amber-100 text-[9px] font-black leading-tight border border-amber-600/60 shadow-md font-mono">
-          {value}
-        </span>
-      )}
-    </motion.div>
+    <div className="relative inline-flex items-center justify-center">
+      {/* Dynamic 3D Floor Shadow */}
+      <motion.div
+        animate={
+          isRolling
+            ? {
+                scale: [0.55, 1.25, 0.45, 1.15, 0.6],
+                opacity: [0.2, 0.7, 0.15, 0.55, 0.3],
+                y: [3, 6, 2, 7, 4]
+              }
+            : { scale: 1, opacity: 0.4, y: 3 }
+        }
+        transition={isRolling ? { duration: 0.5, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.3 }}
+        className="absolute -bottom-1.5 w-[85%] h-2.5 bg-black/80 rounded-full filter blur-[3px] pointer-events-none"
+      />
+
+      {/* 3D Multi-Axis Tumbling Cube */}
+      <motion.div
+        key={isRolling ? 'rolling' : `face-${value}`}
+        initial={isRolling ? {} : { scale: 0.8, rotateX: 60, rotateY: -45, y: -20 }}
+        animate={
+          isRolling
+            ? {
+                rotateX: [0, 180, 360, 540, 720],
+                rotateY: [0, 360, 180, 540, 720],
+                rotateZ: [-25, 30, -15, 20, 0],
+                y: [-24, 6, -16, 4, 0],
+                scale: [0.95, 1.12, 0.9, 1.06, 0.95]
+              }
+            : {
+                scale: isSelected ? 1.08 : 1,
+                rotateX: 0,
+                rotateY: 0,
+                rotateZ: 0,
+                y: 0
+              }
+        }
+        transition={
+          isRolling
+            ? { duration: 0.55, repeat: Infinity, ease: 'easeInOut' }
+            : { type: 'spring', damping: 12, stiffness: 220, mass: 0.8 }
+        }
+        style={{ perspective: '800px', transformStyle: 'preserve-3d' }}
+        className={`${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#fffbeb] to-[#fef3c7] border-2 ${
+          isSelected
+            ? 'border-amber-400 ring-4 ring-amber-400/80 shadow-[0_8px_25px_rgba(251,191,36,0.7)]'
+            : 'border-[#b45309]/80 shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_2px_1px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(180,83,9,0.2)]'
+        } p-1.5 flex flex-col justify-between items-center relative select-none shrink-0 overflow-hidden`}
+      >
+        {/* Specular Highlight Sheen */}
+        <div className="absolute inset-x-1 top-0.5 h-1/3 bg-gradient-to-b from-white/70 to-transparent rounded-t-xl pointer-events-none" />
+
+        <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center relative z-10">
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
+            <div key={idx} className="w-full h-full flex items-center justify-center">
+              {pips.includes(idx) && (
+                <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#291305] via-[#451a03] to-[#78350f] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.7),0_1px_0_rgba(255,255,255,0.3)]`} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {value && !isRolling && (
+          <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-md bg-amber-900/90 text-amber-100 text-[8px] font-black leading-tight border border-amber-600/50 shadow font-mono z-20">
+            {value}
+          </span>
+        )}
+      </motion.div>
+    </div>
   );
 };
 
@@ -257,6 +297,10 @@ export default function Backgammon() {
   const [setWinner, setSetWinner] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // Parabolic Checker Flight Animation & Board Container Ref
+  const [flyingChecker, setFlyingChecker] = useState(null);
+  const boardContainerRef = useRef(null);
+
   // Persistent User Identity & Online Multiplayer State
   const myUserId = useRef(localStorage.getItem('life_os_user_id') || ('usr_' + Math.random().toString(36).substr(2, 7))).current;
   const myUserName = useRef(localStorage.getItem('life_os_user_name') || 'کاربر چاژا').current;
@@ -333,6 +377,31 @@ export default function Backgammon() {
           soundEngine.playDiceRoll?.();
           haptics.tap?.();
         } else if (actionType === 'BOARD_UPDATE') {
+          if (payload.from !== undefined && payload.to !== undefined) {
+            try {
+              const movingPlayer = payload.turn;
+              const startSelector = payload.from === 'bar' ? `[data-bar-jail="${movingPlayer}"]` : `[data-point-id="${payload.from}"]`;
+              const endSelector = payload.to === 'off' ? `[data-tray-groove="${movingPlayer}"]` : `[data-point-id="${payload.to}"]`;
+              const startEl = document.querySelector(startSelector);
+              const endEl = document.querySelector(endSelector);
+              const container = boardContainerRef.current;
+              if (startEl && endEl && container) {
+                const sRect = startEl.getBoundingClientRect();
+                const eRect = endEl.getBoundingClientRect();
+                const cRect = container.getBoundingClientRect();
+                setFlyingChecker({
+                  id: Date.now(),
+                  startX: sRect.left + sRect.width / 2 - cRect.left,
+                  startY: sRect.top + sRect.height / 2 - cRect.top,
+                  endX: eRect.left + eRect.width / 2 - cRect.left,
+                  endY: eRect.top + eRect.height / 2 - cRect.top,
+                  player: movingPlayer
+                });
+                setTimeout(() => setFlyingChecker(null), 320);
+              }
+            } catch (_) {}
+            soundEngine.playCheckerMove?.();
+          }
           setPoints(payload.points);
           setBar(payload.bar);
           setBorneOff(payload.borneOff);
@@ -714,6 +783,31 @@ export default function Backgammon() {
       }
     ]);
 
+    // 2. Parabolic gliding arc animation for moving checker
+    try {
+      const startSelector = from === 'bar' ? `[data-bar-jail="${turn}"]` : `[data-point-id="${from}"]`;
+      const endSelector = to === 'off' ? `[data-tray-groove="${turn}"]` : `[data-point-id="${to}"]`;
+      const startEl = document.querySelector(startSelector);
+      const endEl = document.querySelector(endSelector);
+      const container = boardContainerRef.current;
+      if (startEl && endEl && container) {
+        const sRect = startEl.getBoundingClientRect();
+        const eRect = endEl.getBoundingClientRect();
+        const cRect = container.getBoundingClientRect();
+        setFlyingChecker({
+          id: Date.now(),
+          startX: sRect.left + sRect.width / 2 - cRect.left,
+          startY: sRect.top + sRect.height / 2 - cRect.top,
+          endX: eRect.left + eRect.width / 2 - cRect.left,
+          endY: eRect.top + eRect.height / 2 - cRect.top,
+          player: turn
+        });
+        setTimeout(() => setFlyingChecker(null), 320);
+      }
+    } catch (_) {}
+
+    soundEngine.playCheckerMove?.();
+
     const newPoints = points.map(p => ({ ...p }));
     const newBar = { ...bar };
     const newBorneOff = { ...borneOff };
@@ -771,6 +865,8 @@ export default function Backgammon() {
         turn,
         remainingMoves: newMoves,
         hasRolled: true,
+        from,
+        to,
         lastMsg: isRtl ? `حریف یک مهره حرکت داد` : `Opponent moved a checker`
       });
     }
@@ -1102,6 +1198,7 @@ export default function Backgammon() {
     return (
       <div
         key={pIdx}
+        data-point-id={pIdx}
         onClick={() => handlePointClick(pIdx)}
         className={`flex-1 h-full relative flex flex-col ${isTop ? 'justify-start' : 'justify-end'} items-center cursor-pointer transition-all ${
           isSelected 
@@ -1141,6 +1238,107 @@ export default function Backgammon() {
 
         {/* Checkers Stack */}
         {renderCheckersStack(pt, isTop, pIdx, isSelected, isFriendlyAndMovable)}
+      </div>
+    );
+  };
+
+  // High-End Tournament Bearing-Off Tray with Physical Stacked Checkers
+  const renderBearingOffTray = (isLeft) => {
+    // When isFlipped (Black perspective): Top is White, Bottom is Black
+    // When !isFlipped (White perspective): Top is Black, Bottom is White
+    const topPlayer = isFlipped ? 'white' : 'black';
+    const bottomPlayer = isFlipped ? 'black' : 'white';
+
+    const renderSlot = (player) => {
+      const count = borneOff[player] || 0;
+      const isPlayerTurn = turn === player;
+      const canBearOff = isPlayerTurn && activeValidDestinations.includes('off');
+      const checkerStyle = player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
+      const label = player === 'white' ? (isRtl ? 'سفید' : 'White') : (isRtl ? 'سیاه' : 'Black');
+      const discIcon = player === 'white' ? '⚪' : '⚫';
+
+      return (
+        <div 
+          key={player}
+          data-tray-groove={player}
+          onClick={() => {
+            if (canBearOff) {
+              const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
+              const offMove = validMoves.find(m => m.target === 'off');
+              if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+            }
+          }}
+          className={`flex-1 w-full flex flex-col items-center justify-between p-1 rounded-xl transition-all relative select-none ${
+            canBearOff 
+              ? 'ring-2 ring-emerald-400 bg-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.5)] animate-pulse cursor-pointer' 
+              : 'cursor-default'
+          }`}
+          title={isRtl ? `جایگاه خروج مهره‌های ${label} (${count}/15)` : `${label} Bearing Off Tray (${count}/15)`}
+        >
+          {/* Header Info */}
+          <div className="flex flex-col items-center leading-tight mb-0.5">
+            <span className="text-[8px] font-black text-slate-300 flex items-center gap-0.5">
+              <span>{discIcon}</span>
+              <span>{label}</span>
+            </span>
+            <span className={`text-[10px] font-mono font-black ${player === 'white' ? 'text-amber-400' : 'text-cyan-400'}`}>
+              {count}/15
+            </span>
+          </div>
+
+          {/* Bearing Off Active Prompt Overlay */}
+          {canBearOff && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-black text-[8px] shadow-lg animate-bounce whitespace-nowrap">
+                🎯 خروج
+              </span>
+            </div>
+          )}
+
+          {/* Physical Felt Slot with Stacked 3D Checker Slabs */}
+          <div className={`w-full flex-1 flex flex-col-reverse items-center justify-start p-1 rounded-lg border relative overflow-hidden transition-all ${
+            colorMode === 'light'
+              ? 'bg-slate-300/80 border-slate-400/60 shadow-[inset_0_2px_6px_rgba(0,0,0,0.2)]'
+              : 'bg-black/60 border-white/10 shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]'
+          }`}>
+            {count > 0 ? (
+              <div className="w-full flex flex-col-reverse items-center gap-[2px] z-10">
+                {Array.from({ length: Math.min(15, count) }).map((_, cIdx) => (
+                  <motion.div
+                    key={cIdx}
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: 1, opacity: 1 }}
+                    className={`w-full ${count > 10 ? 'h-1.5 sm:h-2' : 'h-2 sm:h-2.5'} rounded-sm border shadow-sm shrink-0 transition-all ${checkerStyle}`}
+                    style={{
+                      boxShadow: player === 'white'
+                        ? '0 1px 2px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.7)'
+                        : '0 1px 2px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.2)'
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center opacity-30 text-[8px] font-bold text-slate-400">
+                <span>خالی</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div 
+        className={`w-12 sm:w-14 rounded-2xl p-1 border-2 flex flex-col justify-between items-center transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.8),0_4px_12px_rgba(0,0,0,0.5)] shrink-0 gap-1 ${
+          colorMode === 'light' ? 'bg-slate-200/90 border-slate-300' : 'bg-[#150d07]/90 border-amber-800/40'
+        }`}
+      >
+        {renderSlot(topPlayer)}
+
+        {/* Divider / Brass Pin */}
+        <div className="w-6 h-0.5 rounded-full bg-amber-500/40 shrink-0" />
+
+        {renderSlot(bottomPlayer)}
       </div>
     );
   };
@@ -1380,58 +1578,44 @@ export default function Backgammon() {
                 {myOnlineRole === 'white' ? '⚪ شما: سفید (شروع‌کننده)' : '⚫ شما: سیاه'}
               </span>
             </div>
-
-            {/* In-Game Chat Button */}
-            <button
-              onClick={() => {
-                setIsChatOpen(!isChatOpen);
-                soundEngine.playTap?.();
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black active:scale-95 transition-all shadow-sm"
-            >
-              <MessageSquare size={13} />
-              <span>چت ({chatMessages.length})</span>
-            </button>
           </div>
         )}
 
         {/* 3. Main Board */}
-        <div className={`w-full rounded-[2.2rem] p-2.5 sm:p-3.5 border-4 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.15)] relative`}>
+        <div ref={boardContainerRef} className={`w-full rounded-[2.2rem] p-2.5 sm:p-3.5 border-4 transition-all duration-300 ${themeConfig.boardBg} ${themeConfig.borderDesign} shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(255,255,255,0.15)] relative`}>
+
+          {/* Parabolic Flying Checker Animation */}
+          {flyingChecker && (
+            <motion.div
+              key={flyingChecker.id}
+              initial={{
+                left: flyingChecker.startX,
+                top: flyingChecker.startY,
+                scale: 1.15,
+                x: '-50%',
+                y: '-50%',
+                boxShadow: '0 14px 28px rgba(0,0,0,0.6)'
+              }}
+              animate={{
+                left: flyingChecker.endX,
+                top: flyingChecker.endY,
+                scale: [1.15, 1.35, 1.0],
+                x: '-50%',
+                y: ['-50%', '-100%', '-50%']
+              }}
+              transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1.0] }}
+              className={`absolute w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
+                flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
+              }`}
+            >
+              <div className="w-[66%] h-[66%] rounded-full border border-current opacity-40" />
+            </motion.div>
+          )}
 
           <div className="flex gap-1.5 sm:gap-2.5 h-[280px] xs:h-[320px] sm:h-[400px]">
             
             {/* If Flipped (Black Perspective): Tray is on Left */}
-            {isFlipped && (
-              <div 
-                onClick={() => {
-                  if (activeValidDestinations.includes('off')) {
-                    const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-                    const offMove = validMoves.find(m => m.target === 'off');
-                    if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
-                  }
-                }}
-                className={`w-9 sm:w-11 rounded-2xl p-1 border-2 flex flex-col justify-between items-center cursor-pointer transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] shrink-0 ${
-                  colorMode === 'light' ? 'bg-slate-200 border-slate-300' : 'bg-black/60 border-white/10'
-                } ${
-                  activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
-                }`}
-                title={isRtl ? 'سینی خروج مهره‌ها (بردن بیرون)' : 'Bearing Off Tray'}
-              >
-                <div className="flex flex-col items-center gap-0.5 pt-1">
-                  <span className="text-[7px] font-black text-amber-500">خروج</span>
-                  <span className="text-xs font-black text-amber-500 font-mono">{borneOff.white}/15</span>
-                </div>
-
-                <div className={`text-[8px] font-mono rotate-90 font-black tracking-widest ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                  TRAY
-                </div>
-
-                <div className="flex flex-col items-center gap-0.5 pb-1">
-                  <span className="text-xs font-black text-cyan-400 font-mono">{borneOff.black}/15</span>
-                  <span className="text-[7px] font-black text-cyan-400">خروج</span>
-                </div>
-              </div>
-            )}
+            {isFlipped && renderBearingOffTray(true)}
 
             {/* Left Quadrant:
                 Normal: Outer Board (13-18 Top, 12-7 Bottom)
@@ -1461,6 +1645,7 @@ export default function Backgammon() {
                 >
                   {/* Top Hit Slot */}
                   <div 
+                    data-bar-jail={topColor}
                     onClick={() => {
                       if (topColor === turn && topCount > 0) handlePointClick('bar');
                     }}
@@ -1515,6 +1700,7 @@ export default function Backgammon() {
 
                   {/* Bottom Hit Slot */}
                   <div 
+                    data-bar-jail={bottomColor}
                     onClick={() => {
                       if (bottomColor === turn && bottomCount > 0) handlePointClick('bar');
                     }}
@@ -1576,37 +1762,7 @@ export default function Backgammon() {
             </div>
 
             {/* If NOT Flipped (White Perspective): Tray is on Right */}
-            {!isFlipped && (
-              <div 
-                onClick={() => {
-                  if (activeValidDestinations.includes('off')) {
-                    const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-                    const offMove = validMoves.find(m => m.target === 'off');
-                    if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
-                  }
-                }}
-                className={`w-9 sm:w-11 rounded-2xl p-1 border-2 flex flex-col justify-between items-center cursor-pointer transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] shrink-0 ${
-                  colorMode === 'light' ? 'bg-slate-200 border-slate-300' : 'bg-black/60 border-white/10'
-                } ${
-                  activeValidDestinations.includes('off') ? 'ring-4 ring-emerald-400 bg-emerald-500/20 animate-pulse' : 'hover:border-emerald-400'
-                }`}
-                title={isRtl ? 'سینی خروج مهره‌ها (بردن بیرون)' : 'Bearing Off Tray'}
-              >
-                <div className="flex flex-col items-center gap-0.5 pt-1">
-                  <span className="text-[7px] font-black text-cyan-400">خروج</span>
-                  <span className="text-xs font-black text-cyan-400 font-mono">{borneOff.black}/15</span>
-                </div>
-
-                <div className={`text-[8px] font-mono rotate-90 font-black tracking-widest ${colorMode === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                  TRAY
-                </div>
-
-                <div className="flex flex-col items-center gap-0.5 pb-1">
-                  <span className="text-xs font-black text-amber-500 font-mono">{borneOff.white}/15</span>
-                  <span className="text-[7px] font-black text-amber-500">خروج</span>
-                </div>
-              </div>
-            )}
+            {!isFlipped && renderBearingOffTray(false)}
 
           </div>
 
@@ -1746,25 +1902,19 @@ export default function Backgammon() {
                   </button>
                 )}
 
-                {/* Primary Action Button (Roll) */}
+                {/* Primary Action Button (Sleek Compact Dice Icon Roll Trigger) */}
                 {(!hasRolled || remainingMoves.length === 0) && (
                   <button
                     onClick={handleRollDice}
-                    disabled={isRolling || (gameMode === 'bot' && turn === 'black')}
-                    className={`px-3.5 sm:px-4 py-2 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer ${
+                    disabled={isRolling || (gameMode === 'bot' && turn === 'black') || (gameMode === 'online' && turn !== myOnlineRole)}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-base sm:text-lg shadow-md active:scale-95 transition-all cursor-pointer shrink-0 ${
                       (gameMode === 'online' && turn !== myOnlineRole)
-                        ? 'bg-slate-800 text-slate-400 border border-white/10'
-                        : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-500/30 animate-pulse'
+                        ? 'bg-white/5 text-slate-500 border border-white/10 opacity-40 cursor-not-allowed'
+                        : 'bg-gradient-to-br from-amber-400 via-yellow-300 to-amber-500 text-slate-950 shadow-amber-500/40 animate-pulse hover:scale-105 border border-amber-300'
                     }`}
+                    title={isRtl ? 'پرتاب تاس 🎲' : 'Roll Dice 🎲'}
                   >
-                    <Shuffle size={14} className={isRolling ? 'animate-spin' : ''} />
-                    <span>
-                      {isRolling 
-                        ? (isRtl ? 'چرخش...' : 'Rolling...') 
-                        : (gameMode === 'online' && turn !== myOnlineRole)
-                          ? (isRtl ? `نوبت ${turn === 'white' ? 'سفید' : 'سیاه'}` : `Waiting...`)
-                          : (isRtl ? 'پرتاب تاس 🎲' : 'Roll Dice 🎲')}
-                    </span>
+                    <span className={isRolling ? 'animate-spin inline-block' : ''}>🎲</span>
                   </button>
                 )}
               </div>
@@ -1782,6 +1932,19 @@ export default function Backgammon() {
               </div>
             )}
           </div>
+
+          {/* 5. Plato-Style Integrated In-Game Chat Capsule & Quick Emojis */}
+          <InGameChatDrawer
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            onToggle={() => setIsChatOpen(!isChatOpen)}
+            roomCode={onlineRoomCode}
+            gameTitle={isRtl ? "تخته نرد آنلاین چاژا" : "Chazha Backgammon"}
+            messages={chatMessages}
+            onSendMessage={handleSendMessage}
+            myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
+            isRtl={isRtl}
+          />
 
         </div>
 
@@ -1967,19 +2130,6 @@ export default function Backgammon() {
             setOpponentJoined(false);
           }
         }}
-      />
-
-      {/* In-Game Chat Drawer */}
-      <InGameChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        onToggle={() => setIsChatOpen(!isChatOpen)}
-        roomCode={onlineRoomCode}
-        gameTitle={isRtl ? "تخته نرد آنلاین چاژا" : "Chazha Backgammon"}
-        messages={chatMessages}
-        onSendMessage={handleSendMessage}
-        myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
-        isRtl={isRtl}
       />
 
     </div>

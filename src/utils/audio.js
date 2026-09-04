@@ -497,26 +497,113 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Dice roll sound
+  // Authentic Acoustic Dice Roll: Multi-impact wood clatter, cup shake rattle & felt thump
   playDiceRoll() {
     if (this.isMuted) return;
     try {
       this.init();
       if (!this.ctx) return;
       const t = this.ctx.currentTime;
-      [0, 0.05, 0.11, 0.17, 0.24].forEach((offset, idx) => {
+
+      // 1. Initial rattle noise burst (dice colliding inside cup/hand)
+      const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.14), this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < noiseBuffer.length; i++) {
+        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.04));
+      }
+      const whiteNoise = this.ctx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+
+      const noiseFilter = this.ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(2200, t);
+      noiseFilter.Q.setValueAtTime(2.2, t);
+
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.2, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+      whiteNoise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
+      whiteNoise.start(t);
+
+      // 2. Successive uneven wooden bounces & tumbling taps on backgammon board
+      const bounces = [
+        { offset: 0.02, freq: 190, clickFreq: 1800, gain: 0.28, decay: 0.05 },
+        { offset: 0.07, freq: 230, clickFreq: 2200, gain: 0.24, decay: 0.045 },
+        { offset: 0.13, freq: 210, clickFreq: 1600, gain: 0.20, decay: 0.04 },
+        { offset: 0.20, freq: 250, clickFreq: 2400, gain: 0.16, decay: 0.035 },
+        { offset: 0.27, freq: 220, clickFreq: 1900, gain: 0.12, decay: 0.03 },
+        { offset: 0.35, freq: 260, clickFreq: 2100, gain: 0.09, decay: 0.025 },
+        { offset: 0.42, freq: 180, clickFreq: 1400, gain: 0.06, decay: 0.04 }
+      ];
+
+      bounces.forEach(({ offset, freq, clickFreq, gain, decay }) => {
+        const bounceTime = t + offset;
+
+        // Wood resonance body (thump)
         const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        const oscGain = this.ctx.createGain();
         osc.type = 'triangle';
-        const freq = 300 + Math.random() * 400;
-        osc.frequency.setValueAtTime(freq, t + offset);
-        gain.gain.setValueAtTime(0.12 - idx * 0.015, t + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.04);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(t + offset);
-        osc.stop(t + offset + 0.05);
+        osc.frequency.setValueAtTime(freq, bounceTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, bounceTime + decay);
+        oscGain.gain.setValueAtTime(gain, bounceTime);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, bounceTime + decay);
+        osc.connect(oscGain);
+        oscGain.connect(this.ctx.destination);
+        osc.start(bounceTime);
+        osc.stop(bounceTime + decay + 0.01);
+
+        // High-frequency acrylic/wood impact click
+        const click = this.ctx.createOscillator();
+        const clickGain = this.ctx.createGain();
+        click.type = 'sine';
+        click.frequency.setValueAtTime(clickFreq, bounceTime);
+        click.frequency.exponentialRampToValueAtTime(clickFreq * 0.5, bounceTime + 0.015);
+        clickGain.gain.setValueAtTime(gain * 0.7, bounceTime);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, bounceTime + 0.02);
+        click.connect(clickGain);
+        clickGain.connect(this.ctx.destination);
+        click.start(bounceTime);
+        click.stop(bounceTime + 0.025);
       });
+    } catch (_) {}
+  }
+
+  // Tactile wood checker slide & land snap
+  playCheckerMove() {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      // Wood glide friction
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.06);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.08);
+
+      // Snap landing
+      const snap = this.ctx.createOscillator();
+      const snapGain = this.ctx.createGain();
+      snap.type = 'sine';
+      snap.frequency.setValueAtTime(1600, t + 0.01);
+      snap.frequency.exponentialRampToValueAtTime(600, t + 0.04);
+      snapGain.gain.setValueAtTime(0.22, t + 0.01);
+      snapGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      snap.connect(snapGain);
+      snapGain.connect(this.ctx.destination);
+      snap.start(t + 0.01);
+      snap.stop(t + 0.06);
     } catch (_) {}
   }
 
