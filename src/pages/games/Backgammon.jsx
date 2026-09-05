@@ -2045,7 +2045,7 @@ export default function Backgammon() {
         onShareTelegram={() => {
           shareToTelegram({ roomCode: onlineRoomCode, gameType: 'backgammon', gameTitleFa: 'تخته نرد' });
         }}
-        shareLink={`https://t.me/chazha_bot/app?startapp=room_${onlineRoomCode}`}
+        shareLink={`https://t.me/chazha_bot?start=room_${onlineRoomCode}`}
         isRtl={isRtl}
         colorMode={colorMode}
       />

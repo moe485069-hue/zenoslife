@@ -90,28 +90,40 @@ async function onMessage(msg) {
 
   getUser(userId, msg.from.first_name);
 
-  if (text.startsWith('/start room_') || text.startsWith('/start duel_')) {
+  const isStartWithRoom = text.startsWith('/start room_') || 
+                          text.startsWith('/start duel_') || 
+                          text.startsWith('/start room-') || 
+                          text.startsWith('/start CHZ-') || 
+                          text.startsWith('/start BACK-') || 
+                          text.startsWith('/start NARD-');
+
+  if (isStartWithRoom) {
     let roomCode = '';
     let gameType = 'backgammon';
     let gameName = 'تخته نرد';
 
     if (text.startsWith('/start room_')) {
       roomCode = text.replace('/start room_', '').trim();
-      if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameName = 'حکم آنلاین'; }
-      else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameName = 'منچ آنلاین'; }
-      else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameName = 'پاسور چهاربرگ'; }
-      else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameName = 'بیلیارد'; }
-      else if (roomCode.startsWith('CHSS-')) { gameType = 'cosmic_chess'; gameName = 'شطرنج'; }
+    } else if (text.startsWith('/start room-')) {
+      roomCode = text.replace('/start room-', '').trim();
     } else if (text.startsWith('/start duel_backgammon_')) {
       roomCode = text.replace('/start duel_backgammon_', '').trim();
-      gameType = 'backgammon';
-      gameName = 'تخته نرد';
     } else if (text.startsWith('/start duel_')) {
       const parts = text.replace('/start duel_', '').trim().split('_');
       gameType = parts[0] || 'backgammon';
       roomCode = parts[1] || 'ROOM1';
+    } else if (text.startsWith('/start ')) {
+      roomCode = text.replace('/start ', '').trim();
+    }
+
+    if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameName = 'حکم آنلاین'; }
+    else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameName = 'منچ آنلاین'; }
+    else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameName = 'پاسور چهاربرگ'; }
+    else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameName = 'بیلیارد'; }
+    else if (roomCode.startsWith('CHSS-')) { gameType = 'cosmic_chess'; gameName = 'شطرنج'; }
+    else {
       const names = { backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد' };
-      gameName = names[gameType] || gameType;
+      gameName = names[gameType] || 'تخته نرد';
     }
 
     return callTgApi(BOT_TOKEN, 'sendMessage', {

@@ -131,9 +131,10 @@ export const initTelegramMiniApp = (appStore) => {
 
 export const shareToTelegram = ({ roomCode, gameType = 'backgammon', gameTitleFa = 'تخته نرد' }) => {
   const botUsername = 'chazha_bot';
-  const miniAppUrl = `https://t.me/${botUsername}/app?startapp=room_${roomCode}`;
+  // Use ?start=room_ so Telegram opens the bot without requiring an app short-name, and presents the direct game card!
+  const directLink = `https://t.me/${botUsername}?start=room_${roomCode}`;
   const text = `🎲 بیا ${gameTitleFa} با من بازی کن!\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇`;
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(miniAppUrl)}&text=${encodeURIComponent(text)}`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(directLink)}&text=${encodeURIComponent(text)}`;
 
   const tg = getTelegramWebApp();
   if (tg?.openTelegramLink) {

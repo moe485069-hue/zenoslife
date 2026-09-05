@@ -667,7 +667,7 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isR
                     <button
                       onClick={() => {
                         const roomCode = createdRoom.room.roomId;
-                        const link = `https://t.me/chazha_bot/app?startapp=room_${roomCode}`;
+                        const link = `https://t.me/chazha_bot?start=room_${roomCode}`;
                         navigator.clipboard?.writeText(link);
                         soundEngine.playCheckmark?.();
                         haptics.success?.();

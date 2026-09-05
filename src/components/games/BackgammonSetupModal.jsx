@@ -33,17 +33,16 @@ export default function BackgammonSetupModal({
 
   if (!isOpen) return null;
 
-  // Deep Link for Telegram Duel Challenge
+  // Deep Link for Telegram Duel Challenge (uses ?start=room_ to guarantee it never errors)
   const botUsername = 'chazha_bot';
-  const miniAppDuelLink = `https://t.me/${botUsername}/app?startapp=room_${roomCode}`;
-  const telegramDuelLink = `https://t.me/${botUsername}?start=duel_backgammon_${roomCode}`;
-  const challengeMessage = `🪵 من تو رو به چالش تخته نرد در چاژا دعوت کردم! 🎲\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇\n${miniAppDuelLink}`;
+  const telegramDuelLink = `https://t.me/${botUsername}?start=room_${roomCode}`;
+  const challengeMessage = `🪵 من تو رو به چالش تخته نرد در چاژا دعوت کردم! 🎲\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇\n${telegramDuelLink}`;
 
   const handleShareToTelegram = () => {
     soundEngine.playTap?.();
     haptics.tap?.();
-    const text = `🎲 بیا تخته نرد با من بازی کن!\nکد اتاق: ${roomCode}`;
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(miniAppDuelLink)}&text=${encodeURIComponent(text)}`;
+    const text = `🎲 بیا تخته نرد با من بازی کن!\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(telegramDuelLink)}&text=${encodeURIComponent(text)}`;
     const tg = window.Telegram?.WebApp;
     if (tg?.openTelegramLink) {
       tg.openTelegramLink(shareUrl);
@@ -79,7 +78,7 @@ export default function BackgammonSetupModal({
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard?.writeText(miniAppDuelLink);
+    navigator.clipboard?.writeText(telegramDuelLink);
     setCopied(true);
     soundEngine.playCheckmark?.();
     haptics.success?.();
