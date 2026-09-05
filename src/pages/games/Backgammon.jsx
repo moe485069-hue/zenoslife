@@ -5,7 +5,7 @@ import {
   ChevronLeft, RotateCcw, Volume2, VolumeX, Sparkles, Trophy, 
   Users, Bot, Globe, Shield, MessageSquare, Send, Award, Flame, 
   HelpCircle, Settings, ArrowRight, CheckCircle2, Shuffle, Play, Share2,
-  Sun, Moon, Undo2, RotateCw, MoreVertical, Smile
+  Sun, Moon, Undo2, RotateCw, MoreVertical, Smile, ShoppingBag
 } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
@@ -15,6 +15,7 @@ import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
 import OpponentProfileModal from '../../components/games/OpponentProfileModal';
+import ChazhaStoreModal from '../../components/games/ChazhaStoreModal';
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram } from '../../utils/telegram';
 
@@ -236,7 +237,11 @@ const createInitialPoints = () => {
 export default function Backgammon() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { language, addXP, addCoins, recordGameResult, incrementGameStat } = useAppStore();
+  const { 
+    language, addXP, addCoins, recordGameResult, incrementGameStat,
+    equippedPieceSkin = 'faravahar', equippedFrame, equippedBanners, userProfile 
+  } = useAppStore();
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const gameStartTimeRef = useRef(Date.now());
   const isRtl = language === 'fa';
 
@@ -1383,12 +1388,31 @@ export default function Backgammon() {
                     : 'shadow-[0_3px_5px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)]'
               }`}
             >
-              {/* Concentric Engraved Ring for authentic 3D lathe-turned backgammon checker look */}
-              <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
-                {isTopChecker && pt.count > 5 ? (
-                  <span className="text-[10px] font-black opacity-100">{pt.count}</span>
-                ) : null}
-              </div>
+              {/* Engraved Relief: Faravahar Ancient Winged Emblem or Classic Lathe Ring */}
+              {equippedPieceSkin === 'faravahar' ? (
+                <div className="w-[82%] h-[82%] rounded-full border border-current/30 flex items-center justify-center pointer-events-none relative overflow-hidden">
+                  <svg viewBox="0 0 100 64" className="w-[86%] h-[86%] opacity-75 fill-current drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.7)] pointer-events-none">
+                    <circle cx="50" cy="32" r="9" fill="none" stroke="currentColor" strokeWidth="2.5" />
+                    <circle cx="50" cy="18" r="4" />
+                    <path d="M47 13 L50 9 L53 13 Z" />
+                    <path d="M46 23 C46 21 54 21 54 23 L56 31 L44 31 Z" />
+                    <path d="M40 28 C26 21, 10 20, 2 24 C14 28, 28 32, 40 32 Z" />
+                    <path d="M38 33 C26 34, 12 37, 6 41 C18 41, 28 39, 38 37 Z" />
+                    <path d="M60 28 C74 21, 90 20, 98 24 C86 28, 72 32, 60 32 Z" />
+                    <path d="M62 33 C74 34, 88 37, 94 41 C82 41, 72 39, 62 37 Z" />
+                    <path d="M46 42 L50 58 L54 42 Z" />
+                  </svg>
+                  {isTopChecker && pt.count > 5 ? (
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black bg-black/60 rounded-full text-white">{pt.count}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
+                  {isTopChecker && pt.count > 5 ? (
+                    <span className="text-[10px] font-black opacity-100">{pt.count}</span>
+                  ) : null}
+                </div>
+              )}
             </motion.div>
           );
         })}
@@ -1566,64 +1590,75 @@ export default function Backgammon() {
   return (
     <div data-dark-surface="true" className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between bg-[#191512] text-white select-none font-sans relative" dir="ltr">
       
-      {/* 1. Header (Plato Exact Replica) */}
-      <div className="shrink-0 h-14 px-3 flex items-center justify-between z-30 bg-[#14100d]/95 backdrop-blur-xl border-b border-white/10 shadow-sm relative">
+      {/* 1. Header (Plato Exact Replica — Safe Area Padded, No away text) */}
+      <div className="shrink-0 pt-[env(safe-area-inset-top,6px)] pt-2.5 pb-1.5 px-3 flex items-center justify-between z-30 bg-[#14100d]/95 backdrop-blur-xl border-b border-white/10 shadow-sm relative min-h-[62px]">
         {/* Left: Circular Back Button */}
         <button
           onClick={() => navigate('/games')}
-          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white"
+          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white shrink-0"
           title={isRtl ? 'بازگشت به بازی‌ها' : 'Back to Games'}
         >
           <ChevronLeft size={20} />
         </button>
 
         {/* Centered Players Bar */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center max-w-xs">
-          {/* Top Player (Opponent) - Clickable to open Profile & Friend Request */}
+        <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center max-w-sm">
+          {/* Top Player (Opponent) - Clickable to open Profile */}
           <button
             onClick={() => handleOpenPlayerProfile('top')}
             className="flex flex-col items-center hover:scale-105 active:scale-95 transition-transform cursor-pointer px-2 py-0.5 rounded-xl hover:bg-white/5 group"
             title={isRtl ? 'مشاهده پروفایل حریف و ارسال درخواست دوستی' : 'View profile & send friend request'}
           >
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{topAway}-away</span>
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border border-amber-600/40 flex items-center justify-center text-xs shadow-inner group-hover:border-amber-400">
+            <div className="relative">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900 border-2 border-amber-500/50 flex items-center justify-center text-sm shadow-md group-hover:border-amber-400">
+                {gameMode === 'bot' ? '🤖' : (topPlayerRole === 'white' ? '⚪' : '⚫')}
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-slate-950 border border-amber-400/80 flex items-center justify-center text-[8px] shadow">
                 {topPlayerRole === 'white' ? '⚪' : '⚫'}
               </div>
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-1 mt-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-              <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px] group-hover:text-amber-300">{topPlayerName}</span>
+              <span className="text-[11px] text-slate-200 font-bold truncate max-w-[75px] sm:max-w-[95px] group-hover:text-amber-300">
+                {topPlayerName}
+              </span>
             </div>
             <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
               {turn === topPlayerRole ? formatTimer(turnTimerSeconds) : '01:05'}
             </span>
           </button>
 
-          {/* Centered "vs" */}
-          <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">
-            vs
+          {/* Centered "VS" & Set Scores */}
+          <div className="flex flex-col items-center justify-center px-1.5">
+            <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">VS</span>
+            <span className="text-[10px] font-mono font-bold text-slate-400">{topScore} - {bottomScore}</span>
           </div>
 
           {/* Bottom Player (You) - Clickable to view own profile */}
           <button
             onClick={() => handleOpenPlayerProfile('bottom')}
             className="flex flex-col items-center hover:scale-105 active:scale-95 transition-transform cursor-pointer px-2 py-0.5 rounded-xl hover:bg-white/5 group"
-            title={isRtl ? 'پروفایل و آمار شما' : 'Your profile & stats'}
+            title={isRtl ? 'پروفایل و کارنامه شما' : 'Your profile & stats'}
           >
-            <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border-2 border-sky-400 flex items-center justify-center text-xs shadow-[0_0_8px_rgba(56,189,248,0.5)] group-hover:border-sky-300">
+            <div className="relative">
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900 border-2 flex items-center justify-center text-sm shadow-md group-hover:border-sky-300 ${
+                isMyTurn ? 'border-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.6)]' : 'border-slate-700'
+              }`}>
                 {bottomPlayerRole === 'white' ? '⚪' : '⚫'}
               </div>
-              <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{bottomAway}-away</span>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-slate-950 border border-sky-400/80 flex items-center justify-center text-[8px] shadow">
+                {bottomPlayerRole === 'white' ? '⚪' : '⚫'}
+              </div>
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-1 mt-1">
               {isMyTurn ? (
-                <span className="px-2 py-0.2 rounded-full bg-sky-500 text-white text-[9px] font-black shadow-sm animate-pulse">
+                <span className="px-2 py-0.5 rounded-full bg-sky-500 text-white text-[9px] font-black shadow-sm animate-pulse">
                   Your Turn
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px] group-hover:text-sky-300">{bottomPlayerName}</span>
+                <span className="text-[11px] text-slate-200 font-bold truncate max-w-[75px] sm:max-w-[95px] group-hover:text-sky-300">
+                  {bottomPlayerName}
+                </span>
               )}
             </div>
             <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
@@ -1632,17 +1667,29 @@ export default function Backgammon() {
           </button>
         </div>
 
-        {/* Right: Circular 3-Dot Menu Button */}
-        <button
-          onClick={() => {
-            setIsMoreMenuOpen(!isMoreMenuOpen);
-            soundEngine.playTap?.();
-          }}
-          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white"
-          title="گزینه‌ها"
-        >
-          <MoreVertical size={18} />
-        </button>
+        {/* Right: Circular Action Buttons (Store & 3-Dot Menu) */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => {
+              soundEngine.playTap?.();
+              setIsStoreModalOpen(true);
+            }}
+            className="w-9 h-9 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 active:scale-95 transition-all flex items-center justify-center text-amber-300 shadow-sm"
+            title="فروشگاه اقلام و مهره‌ها"
+          >
+            <ShoppingBag size={17} />
+          </button>
+          <button
+            onClick={() => {
+              setIsMoreMenuOpen(!isMoreMenuOpen);
+              soundEngine.playTap?.();
+            }}
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white"
+            title="گزینه‌ها"
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Incoming Friend Request Notification Banner */}
@@ -1757,6 +1804,19 @@ export default function Backgammon() {
             >
               <span>تنظیمات بازی و رقبا</span>
               <Settings size={14} className="text-amber-400" />
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
+                setIsStoreModalOpen(true);
+                soundEngine.playTap?.();
+              }}
+              style={{ color: '#fbbf24' }}
+              className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 hover:from-amber-500/30 hover:to-yellow-500/30 font-black flex items-center justify-between border border-amber-400/40 shadow-sm transition-all active:scale-95"
+            >
+              <span>🛍️ فروشگاه اقلام و مهره‌ها</span>
+              <ShoppingBag size={14} className="text-amber-400" />
             </button>
 
             <button
@@ -2300,8 +2360,18 @@ export default function Backgammon() {
         isFriend={selectedProfilePlayer && friendsList.includes(selectedProfilePlayer.id)}
         onSendFriendRequest={handleSendFriendRequest}
         onRequestChat={handleRequestChat}
+        onOpenStore={() => {
+          setIsProfileModalOpen(false);
+          setIsStoreModalOpen(true);
+        }}
         isRtl={isRtl}
         colorMode={colorMode}
+      />
+
+      {/* Chazha Mega Store (Faravahar Checkers, 5-Banners, Frames, Crypto/Stars) */}
+      <ChazhaStoreModal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
       />
 
       {/* Setup Modal */}

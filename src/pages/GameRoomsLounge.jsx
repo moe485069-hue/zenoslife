@@ -4,13 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, Users, MessageSquare, Trophy, Plus, Search, 
   Sparkles, Swords, UserPlus, Send, RefreshCw, Lock, Globe,
-  Check, Flame, Shield, ArrowRight, Gamepad2, Coins
+  Check, Flame, Shield, ArrowRight, Gamepad2, Coins, ShoppingBag
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
 import realtimeNetwork from '../services/realtimeNetwork';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
+import OpponentProfileModal from '../components/games/OpponentProfileModal';
+import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
 
 // Supported Games in the Lounge
 const LOUNGE_GAMES = [
@@ -125,6 +127,8 @@ export default function GameRoomsLounge() {
   const [activeTab, setActiveTab] = useState('rooms');
   const [selectedGameFilter, setSelectedGameFilter] = useState('all');
   const [searchRoomCode, setSearchRoomCode] = useState('');
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+  const [selectedProfileUser, setSelectedProfileUser] = useState(null);
 
   // Rooms State
   const [rooms, setRooms] = useState(() => {
@@ -353,11 +357,18 @@ export default function GameRoomsLounge() {
           </div>
         </div>
 
-        {/* User Coin Balance */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-black shadow-inner">
-          <Coins size={14} className="text-amber-400" />
+        {/* User Coin Balance & Store Button */}
+        <button
+          onClick={() => {
+            soundEngine.playTap?.();
+            setIsStoreOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 text-xs font-black shadow-inner transition-all active:scale-95"
+          title="فروشگاه اقلام، مهره‌ها و شارژ سکه"
+        >
+          <ShoppingBag size={14} className="text-amber-400" />
           <span>{coins?.toLocaleString('fa-IR') || '۱,۵۰۰'}</span>
-        </div>
+        </button>
       </div>
 
       {/* 2. Navigation Tabs */}
@@ -554,7 +565,14 @@ export default function GameRoomsLounge() {
                     key={player.id}
                     className="p-3 rounded-2xl bg-[#221a15] border border-white/5 flex items-center justify-between gap-2 shadow-sm"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div 
+                      className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity"
+                      onClick={() => {
+                        soundEngine.playTap?.();
+                        setSelectedProfileUser(player);
+                      }}
+                      title="مشاهده پروفایل و بنرها"
+                    >
                       <div className="relative">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 flex items-center justify-center text-lg shadow">
                           {player.avatar}
@@ -870,6 +888,26 @@ export default function GameRoomsLounge() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 5-Banner Plato-Style Profile Modal */}
+      <OpponentProfileModal
+        isOpen={!!selectedProfileUser}
+        onClose={() => setSelectedProfileUser(null)}
+        player={selectedProfileUser}
+        isFriend={selectedProfileUser && friendRequestsSent.includes(selectedProfileUser.id)}
+        onSendFriendRequest={handleFriendRequest}
+        onOpenStore={() => {
+          setSelectedProfileUser(null);
+          setIsStoreOpen(true);
+        }}
+        isRtl={true}
+      />
+
+      {/* Chazha Mega Store Modal */}
+      <ChazhaStoreModal
+        isOpen={isStoreOpen}
+        onClose={() => setIsStoreOpen(false)}
+      />
 
     </div>
   );

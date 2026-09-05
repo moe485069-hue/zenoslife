@@ -62,6 +62,8 @@ const useAppStore = create((set, get) => ({
   equippedFrame: localStorage.getItem('lifeos_equipped_frame') || 'none',
   equippedNameColor: localStorage.getItem('lifeos_equipped_name_color') || 'default',
   equippedBubble: localStorage.getItem('lifeos_equipped_bubble') || 'default',
+  equippedPieceSkin: localStorage.getItem('lifeos_equipped_piece_skin') || 'faravahar',
+  equippedBanners: JSON.parse(localStorage.getItem('lifeos_equipped_banners') || '["banner_persepolis", "banner_royal_gold", "banner_cyber_neon"]'),
   badges: ['first_step', 'streak_3'],
   todayScore: 65,
   showInstallPrompt: false,
@@ -393,6 +395,24 @@ const useAppStore = create((set, get) => ({
     } else if (type === 'bubble') {
       localStorage.setItem('lifeos_equipped_bubble', id);
       set({ equippedBubble: id });
+    } else if (type === 'pieceSkin') {
+      localStorage.setItem('lifeos_equipped_piece_skin', id);
+      set({ equippedPieceSkin: id });
+    } else if (type === 'banner') {
+      const current = get().equippedBanners || [];
+      let updated;
+      if (current.includes(id)) {
+        updated = current.filter((b) => b !== id);
+        if (updated.length === 0) updated = [id];
+      } else {
+        if (current.length >= 5) {
+          updated = [...current.slice(1), id];
+        } else {
+          updated = [...current, id];
+        }
+      }
+      localStorage.setItem('lifeos_equipped_banners', JSON.stringify(updated));
+      set({ equippedBanners: updated });
     }
     soundEngine.playTap?.();
   },

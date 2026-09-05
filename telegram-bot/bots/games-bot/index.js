@@ -145,7 +145,9 @@ async function sendWalletMenu(chatId, userId) {
 
   const keyboard = [
     [{ text: isEn ? '🪙 Buy Coin Packs (Stars ⭐)' : '🪙 خرید بسته‌های سکه (با تلگرام استارز ⭐)', callback_data: 'shop_buy_coins' }],
+    [{ text: isEn ? '💎 Pay with Crypto (TON / USDT) +20% Bonus' : '💎 پرداخت با رمزارز (TON / USDT) +۲۰٪ بانس', callback_data: 'crypto_pay_info' }],
     [{ text: isEn ? '👑 Upgrade to VIP Pass' : '👑 ارتقا به VIP (سکه و XP مضاعف)', callback_data: 'shop_buy_vip' }],
+    [{ text: isEn ? '🛍️ Items & Banners Shop' : '🛍️ فروشگاه اقلام، مهره‌ها و بنرها', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }],
     [
       { text: isEn ? '🎁 Daily Spin Bonus' : '🎁 گردونه شانس روزانه', callback_data: 'spin_wheel_action' },
       { text: isEn ? '👥 Invite Friends (+500 Coins)' : '👥 دعوت دوستان (+۵۰۰ سکه)', callback_data: 'show_referral' }
@@ -168,6 +170,7 @@ async function sendProfileMenu(chatId, userId) {
 
   const friendsCount = (user.friends || []).length;
   const refsCount = (user.referrals || []).length;
+  const bioText = user.bio || (isEn ? 'No bio set yet. Use /setbio <text> to set your bio!' : 'هنوز بیوگرافی ثبت نشده است. با ارسال /setbio بیو خود را ثبت کنید.');
 
   const text = isEn
     ? `👤 <b>Player Profile Card</b>\n\n` +
@@ -176,6 +179,7 @@ async function sendProfileMenu(chatId, userId) {
       `🏆 Level: <b>Level ${user.level || 1}</b> (${user.xp || 0} XP)\n` +
       `🪙 Coins: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
       `👑 VIP: <b>${user.is_vip ? 'Active Royal VIP ⭐' : 'Standard Member'}</b>\n` +
+      `📝 Bio: <i>${bioText}</i>\n` +
       `🔥 Daily Streak: <b>${user.streak_days || 1} Days</b>\n` +
       `🤝 Friends: <b>${friendsCount} Friends</b>\n` +
       `👥 Referrals: <b>${refsCount} Invited</b>\n\n` +
@@ -186,6 +190,7 @@ async function sendProfileMenu(chatId, userId) {
       `🏆 سطح: <b>سطح ${user.level || 1}</b> (${user.xp || 0} XP)\n` +
       `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
       `👑 اشتراک VIP: <b>${user.is_vip ? 'VIP طلایی فعال ⭐' : 'کاربر عادی'}</b>\n` +
+      `📝 بیوگرافی: <i>${bioText}</i>\n` +
       `🔥 استریک روزانه: <b>${user.streak_days || 1} روز متوالی</b>\n` +
       `🤝 دوستان چاژا: <b>${friendsCount} نفر</b>\n` +
       `👥 زیرمجموعه‌ها: <b>${refsCount} نفر</b>\n\n` +
@@ -193,10 +198,12 @@ async function sendProfileMenu(chatId, userId) {
 
   const keyboard = [
     [{ text: isEn ? `🤝 My Friends List (${friendsCount})` : `🤝 لیست دوستان چاژا (${friendsCount} نفر)`, callback_data: 'profile_view_friends' }],
+    [{ text: isEn ? '🛍️ Items & Banners Shop' : '🛍️ فروشگاه اقلام، مهره‌ها و بنرها', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }],
     [
-      { text: isEn ? '🚀 Invite Friends Link' : '🚀 لینک اختصاصی دعوت و پاداش', callback_data: 'show_referral' },
-      { text: isEn ? '🎨 Board Themes' : '🎨 تم‌های تخته نرد', callback_data: 'bg_themes_menu' }
-    ]
+      { text: isEn ? '✏️ Edit Profile Bio' : '✏️ تنظیم بیوگرافی', callback_data: 'prompt_set_bio' },
+      { text: isEn ? '🚀 Invite Friends Link' : '🚀 لینک اختصاصی دعوت', callback_data: 'show_referral' }
+    ],
+    [{ text: isEn ? '🎨 Board Themes' : '🎨 تم‌های تخته نرد', callback_data: 'bg_themes_menu' }]
   ];
 
   return callTgApi(BOT_TOKEN, 'sendMessage', {
@@ -373,6 +380,91 @@ async function onMessage(msg) {
         updateUser(userId, { coins: user.coins });
       }
     }
+  }
+
+  // Handle Direct In-Game Chat Link (/start chat_<targetId>)
+  if (text.startsWith('/start chat_')) {
+    const targetId = text.replace('/start chat_', '').trim();
+    const targetUser = getUser(targetId);
+    const currentUser = getUser(userId, msg.from.first_name);
+
+    if (targetId && targetId !== userId) {
+      callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: targetId,
+        text: `💬 <b>درخواست گفت‌وگو از طرف ${currentUser.name || 'کاربر چاژا'}!</b>\nاین کاربر در بازی برای شما درخواست چت فرستاده است.`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ شروع چت و گفت‌وگو', callback_data: `chat_accept_${userId}` },
+              { text: '❌ رد کردن', callback_data: `chat_decline_${userId}` }
+            ],
+            [{ text: '🎲 دعوت متقابل به تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+          ]
+        }
+      }).catch(() => {});
+
+      return callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: chatId,
+        text: `💬 <b>درخواست گفت‌وگو برای ${targetUser.name || 'کاربر'} ارسال شد.</b>\nبه محض تایید، گفت‌وگو آغاز خواهد شد.`,
+        parse_mode: 'HTML'
+      });
+    }
+  }
+
+  // Handle Custom Bio Command (/setbio <text>)
+  if (text.startsWith('/setbio')) {
+    const newBio = text.replace('/setbio', '').trim();
+    if (!newBio) {
+      return callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: chatId,
+        text: '✏️ <b>تنظیم بیوگرافی پروفایل:</b>\nبرای ثبت یا ویرایش بیوگرافی، دستور را همراه با متن بفرستید:\n\nمثال:\n<code>/setbio قهرمان تخته نرد چاژا و آماده رقابت 🎲</code>',
+        parse_mode: 'HTML'
+      });
+    }
+    const sanitizedBio = newBio.slice(0, 140);
+    updateUser(userId, { bio: sanitizedBio });
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: `✅ <b>بیوگرافی با موفقیت ذخیره شد:</b>\n<i>"${sanitizedBio}"</i>\nاین متن در کارت پروفایل و بنرهای شما در بازی‌ها نمایش داده می‌شود.`,
+      parse_mode: 'HTML'
+    });
+  }
+
+  // Handle Shop Command / Menu
+  if (text === '/shop' || text.includes('فروشگاه') || text.toLowerCase() === 'shop') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    const shopText = isEn
+      ? `🛍️ <b>Chazha Cosmetics & Skins Mega Store</b>\n\n` +
+        `🪙 Balance: <b>${(user.coins || 0).toLocaleString()} Coins</b>\n\n` +
+        `Customize your account with:\n` +
+        `• 🦅 <b>Faravahar Ancient Checkers Skin</b>\n` +
+        `• 🖼️ <b>5-Banner Profile Carousel</b>\n` +
+        `• 👑 <b>Royal Gold & Neon Avatar Frames</b>\n` +
+        `• 💬 <b>Custom Glowing Chat Bubbles</b>\n\n` +
+        `Tap below to open the interactive store:`
+      : `🛍️ <b>فروشگاه بزرگ اقلام تزئینی، مهره‌ها و بنرهای چاژا</b>\n\n` +
+        `🪙 موجودی شما: <b>${(user.coins || 0).toLocaleString()} سکه</b>\n\n` +
+        `شخصی‌سازی ظاهر بازی با:\n` +
+        `• 🦅 <b>مهره‌های منبت‌کاری شده فروهر باستان</b> (تخته نرد)\n` +
+        `• 🖼️ <b>بنرهای ۵ تایی پروفایل</b> (تخت جمشید، طلای سلطنتی و...)\n` +
+        `• 👑 <b>قاب‌های دور عکس آواتار</b> (طلایی، نئونی، سنگی)\n` +
+        `• 💬 <b>حباب‌های پیام چت درخشان</b>\n\n` +
+        `برای مشاهده و خرید اقلام با سکه، روی دکمه زیر بزنید:`;
+
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: shopText,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '🛍️ Open Chazha Store 🚀' : '🛍️ ورود به فروشگاه آنلاین چاژا 🚀', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }],
+          [{ text: isEn ? '⭐ Buy Coins (Stars)' : '⭐ خرید سکه با Telegram Stars', callback_data: 'shop_buy_coins' }],
+          [{ text: isEn ? '💎 Pay with Crypto (TON / USDT)' : '💎 پرداخت با رمزارز (TON / USDT 🪙)', callback_data: 'crypto_pay_info' }]
+        ]
+      }
+    });
   }
 
   // ----------------------------------------------------
@@ -877,6 +969,90 @@ async function onCallback(cq) {
           [{ text: isEn ? '📤 Share Link' : '📤 ارسال لینک برای دوستان', switch_inline_query: `ref_${userId}` }]
         ]
       }
+    });
+  }
+
+  // 14. Wallet: Crypto & TON Coin Payment Info
+  if (data === 'crypto_pay_info') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    const text = isEn
+      ? `💎 <b>Cryptocurrency & TON Coin Payments</b>\n\n` +
+        `Recharge your Chazha coins using <b>TON</b> or <b>USDT (TRC20 / TON)</b> with a <b>+20% bonus</b>!\n\n` +
+        `👛 <b>Official Chazha TON Deposit Address:</b>\n` +
+        `<code>EQB5ChazhaGamingTreasuryWalletOfficial2026TON</code>\n\n` +
+        `⚡ <b>Instructions:</b>\n` +
+        `1. Send your desired amount of TON or USDT.\n` +
+        `2. In the transaction memo/comment, include your User ID: <code>${userId}</code>\n` +
+        `3. Coins will be credited automatically within minutes!\n\n` +
+        `For manual confirmation or assistance, contact support.`
+      : `💎 <b>پرداخت با رمزارز و شبکه تون (TON / USDT)</b>\n\n` +
+        `شارژ موجودی سکه چاژا از طریق <b>TON Coin</b> یا <b>تتر (USDT)</b> با <b>۲۰٪ بانس مضاعف</b>!\n\n` +
+        `👛 <b>آدرس کیف‌پول رسمی چاژا در شبکه TON:</b>\n` +
+        `<code>EQB5ChazhaGamingTreasuryWalletOfficial2026TON</code>\n\n` +
+        `⚡ <b>راهنمای پرداخت:</b>\n` +
+        `۱. مقدار دلخواه TON یا USDT را به آدرس بالا منتقل کنید.\n` +
+        `۲. در قسمت کامنت/ممو تراکنش، شناسه کاربری خود را بنویسید: <code>${userId}</code>\n` +
+        `۳. سکه‌ها به صورت آنی به حسابتان افزوده می‌شوند.\n\n` +
+        `در صورت نیاز به راهنمایی با پشتیبانی در ارتباط باشید.`;
+
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '💬 Support Contact' : '💬 ارتباط با پشتیبانی', url: 'https://t.me/chazha_bot' }],
+          [{ text: isEn ? '🔙 Back to Wallet' : '🔙 بازگشت به کیف‌پول', callback_data: 'nav_wallet' }]
+        ]
+      }
+    });
+  }
+
+  // 15. Navigation: Back to Wallet
+  if (data === 'nav_wallet') {
+    return sendWalletMenu(chatId, userId);
+  }
+
+  // 16. Profile: Prompt Set Bio
+  if (data === 'prompt_set_bio') {
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '✏️ <b>تنظیم یا ویرایش بیوگرافی پروفایل:</b>\nپیام خود را به صورت دستور ارسال کنید:\n\n<code>/setbio متن دلخواه شما</code>\n\nمثال:\n<code>/setbio قهرمان تخته نرد چاژا و آماده رقابت‌های سنگین 🎲</code>',
+      parse_mode: 'HTML'
+    });
+  }
+
+  // 17. In-Game Chat Accept
+  if (data.startsWith('chat_accept_')) {
+    const requesterId = data.replace('chat_accept_', '').trim();
+    const requester = getUser(requesterId);
+    const currentUser = getUser(userId, cq.from.first_name);
+
+    callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: requesterId,
+      text: `🎉 <b>${currentUser.name || 'کاربر چاژا'} درخواست گفت‌وگو را قبول کرد!</b>\nاکنون می‌توانید در ربات برای یکدیگر پیام بفرستید یا مسابقه دهید:`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+        ]
+      }
+    }).catch(() => {});
+
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: `✅ گفت‌وگو با ${requester.name || 'کاربر'} تایید شد!`,
+      show_alert: true
+    });
+  }
+
+  // 18. In-Game Chat Decline
+  if (data.startsWith('chat_decline_')) {
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: 'درخواست گفت‌وگو لغو شد.',
+      show_alert: false
     });
   }
 }
