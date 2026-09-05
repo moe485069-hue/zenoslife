@@ -60,6 +60,9 @@ const SPOTS = {
 
 const SEQUENCE_ORDER = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
 
+const RED_APEX_X = W / 2;
+const RED_APEX_Y = SPOTS.pink.y - (BALL_R * 2 + 3);
+
 // ── 2. Create Initial Official 22 Snooker Balls ──────────────────────
 function createInitialSnookerBalls() {
   const balls = [];
@@ -102,8 +105,8 @@ function createInitialSnookerBalls() {
   });
 
   // 3. 15 Reds in Triangle Rack (Between Pink and Black, Apex near Pink facing down)
-  const redApexX = W / 2;
-  const redApexY = SPOTS.pink.y - (BALL_R * 2 + 3);
+  const redApexX = RED_APEX_X;
+  const redApexY = RED_APEX_Y;
   const rows = [1, 2, 3, 4, 5];
   const rowSpacing = BALL_R * 1.76;
   const colSpacing = BALL_R * 2.05;
@@ -204,6 +207,7 @@ export default function Snooker() {
   const canvasRef = useRef(null);
   const powerSliderRef = useRef(null);
   const fineIntervalRef = useRef(null);
+  const lastTapRef = useRef(0);
   const stateRef = useRef({
     balls: createInitialSnookerBalls(),
     isMoving: false,
@@ -245,6 +249,19 @@ export default function Snooker() {
     try {
       localStorage.setItem('snooker_equipped_cue', cueId);
     } catch (_) {}
+  };
+
+  // Confirm D-Zone Ball Placement and lock in cue stick
+  const confirmBallPlacement = () => {
+    const white = stateRef.current.balls.find(b => b.type === 'white');
+    if (!white) return;
+    setBallInHand(false);
+    setDraggingBall(false);
+    if (!soundMuted) soundEngine?.playTap?.();
+    haptics?.success?.();
+    // Aim from placed ball towards apex of red pyramid
+    const angleToReds = Math.atan2(RED_APEX_Y - white.y, RED_APEX_X - white.x);
+    setAimAngle((angleToReds * 180) / Math.PI);
   };
 
   // ── 3. Start Game Handler ──────────────────────────────────────────
@@ -720,7 +737,7 @@ export default function Snooker() {
     setBallInHand(false);
   };
 
-  // ── 7. Left Power Bar Touch Drag Handler (Plato Style) ──────────────
+  // ── 7. Left Power Bar Touch Drag Handler (Pull Upwards from Bottom) ──
   const handlePowerPointerDown = (e) => {
     if (stateRef.current.isMoving || (gameMode === 'bot' && turn === 'p2')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -736,8 +753,8 @@ export default function Snooker() {
   const updatePowerFromEvent = (e) => {
     const rect = powerSliderRef.current?.getBoundingClientRect();
     if (!rect) return;
-    // Drag down to increase power
-    const relativeY = e.clientY - rect.top;
+    // Drag upwards from bottom to top to increase power
+    const relativeY = rect.bottom - e.clientY;
     const pct = Math.min(100, Math.max(0, (relativeY / rect.height) * 100));
     setShotPower(Math.round(pct));
     setPowerSliderPos(pct);
@@ -746,11 +763,21 @@ export default function Snooker() {
   const handlePowerPointerUp = (e) => {
     if (!isPullingCue) return;
     setIsPullingCue(false);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
     if (shotPower >= 6) {
       handleExecuteShot(shotPower);
     } else {
       setPowerSliderPos(0);
+      setShotPower(0);
     }
+  };
+
+  const handlePowerPointerCancel = (e) => {
+    if (!isPullingCue) return;
+    setIsPullingCue(false);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    setPowerSliderPos(0);
+    setShotPower(0);
   };
 
   // Fine Angle continuous adjustment helpers
@@ -1111,7 +1138,7 @@ export default function Snooker() {
         ctx.fillStyle = '#38bdf8';
         ctx.font = 'bold 10.5px tahoma, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(isRtl ? '📍 توپ سفید را در نیم‌دایره D تنظیم کنید' : '📍 Place Cue Ball inside the D', W / 2, BAULK_Y + 44);
+        ctx.fillText(isRtl ? '📍 تنظیم توپ در D | ۲ بار کلیک برای ظاهر شدن چوب' : '📍 Place ball in D | Double-click for cue', W / 2, BAULK_Y + 44);
       }
 
       // Spot Markers (Colours positions)
@@ -1457,6 +1484,14 @@ export default function Snooker() {
     if (!white) return;
 
     if (ballInHand) {
+      const now = Date.now();
+      if (now - lastTapRef.current < 450) {
+        lastTapRef.current = 0;
+        confirmBallPlacement();
+        return;
+      }
+      lastTapRef.current = now;
+
       const distFromWhite = Math.hypot(clickX - white.x, clickY - white.y);
       const inBaulkArea = clickY >= BAULK_Y - BALL_R * 2;
       const distToCenter = Math.hypot(clickX - W / 2, clickY - BAULK_Y);
@@ -1531,6 +1566,12 @@ export default function Snooker() {
     if (draggingBall) {
       setDraggingBall(false);
       try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  };
+
+  const handleCanvasDoubleClick = () => {
+    if (ballInHand) {
+      confirmBallPlacement();
     }
   };
 
@@ -1794,54 +1835,126 @@ export default function Snooker() {
       {/* ── 3. Main Center Gaming Stage: Table + Left Cue Slider + Right Controls ── */}
       <main className="flex-1 w-full max-w-lg flex items-center justify-center relative px-2 py-1 min-h-0">
         
-        {/* ── Left Side: Tactical Vertical Cue Pull-Down Slider (Plato Style) ── */}
-        <aside className="absolute left-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center">
-          <div className="text-[9px] font-mono font-black text-amber-400 mb-1">
-            {shotPower}%
+        {/* ── Left Side: Tactical Vertical Cue Pull-Up Slider (Bottom-to-Top) ── */}
+        <aside className="absolute left-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center select-none">
+          {/* Power Readout Badge */}
+          <div className="flex flex-col items-center mb-1.5">
+            <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase">
+              {isRtl ? 'قدرت ضربه' : 'POWER'}
+            </span>
+            <div 
+              className={`text-[11px] font-mono font-black px-2.5 py-0.5 rounded-full border transition-all duration-150 ${
+                shotPower > 70 
+                  ? 'text-red-400 border-red-500/70 bg-red-950/60 shadow-[0_0_12px_rgba(239,68,68,0.5)]' 
+                  : shotPower > 30 
+                    ? 'text-amber-300 border-amber-500/70 bg-amber-950/60 shadow-[0_0_12px_rgba(245,158,11,0.4)]' 
+                    : 'text-emerald-400 border-emerald-500/50 bg-slate-950/80 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+              }`}
+            >
+              {shotPower}%
+            </div>
           </div>
 
-          {/* Tactile Power Track */}
+          {/* Tactile Power Track (Bottom-to-Top Drag) */}
           <div
             ref={powerSliderRef}
             onPointerDown={handlePowerPointerDown}
             onPointerMove={handlePowerPointerMove}
             onPointerUp={handlePowerPointerUp}
-            className="w-10 h-72 sm:h-80 rounded-full bg-slate-950/90 border-2 border-amber-500/40 p-1 flex flex-col justify-end items-center relative cursor-pointer touch-none shadow-2xl select-none"
+            onPointerCancel={handlePowerPointerCancel}
+            className="w-11 h-72 sm:h-80 rounded-full bg-gradient-to-b from-slate-950 via-slate-900 to-black border-2 border-amber-500/50 p-1 flex flex-col justify-end items-center relative cursor-pointer touch-none select-none overflow-hidden"
             style={{
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.8), inset 0 2px 8px rgba(0,0,0,0.8)'
+              boxShadow: '0 10px 28px -4px rgba(0, 0, 0, 0.9), inset 0 2px 10px rgba(0,0,0,0.9), 0 0 12px rgba(245,158,11,0.2)'
             }}
           >
-            {/* Illuminated Power Glow Level Underneath */}
+            {/* Calibration Scale Ticks & Max indicator */}
+            <div className="absolute inset-y-3 right-1.5 flex flex-col justify-between items-end pointer-events-none opacity-60 z-10">
+              <span className="text-[7px] font-mono font-bold text-red-400">MAX</span>
+              <div className="w-2.5 h-[1px] bg-red-400" />
+              <div className="w-1.5 h-[1px] bg-amber-400" />
+              <div className="w-2 h-[1px] bg-amber-400" />
+              <div className="w-1.5 h-[1px] bg-emerald-400" />
+              <span className="text-[7px] font-mono font-bold text-emerald-400">0%</span>
+            </div>
+
+            {/* Cue Channel Track (Center groove) */}
+            <div className="absolute top-3 bottom-3 w-1.5 bg-black/70 rounded-full border-x border-white/5 pointer-events-none" />
+
+            {/* Illuminated Power Glow Level (Fills upwards from bottom) */}
             <div
               className="w-full rounded-full transition-all duration-75 relative overflow-hidden"
               style={{
-                height: `${powerSliderPos || shotPower}%`,
-                background: 'linear-gradient(to top, #10b981 0%, #f59e0b 55%, #ef4444 100%)',
-                boxShadow: '0 0 15px rgba(245, 158, 11, 0.6)'
+                height: `${isPullingCue ? powerSliderPos : shotPower}%`,
+                background: 'linear-gradient(to top, #10b981 0%, #eab308 45%, #f97316 75%, #ef4444 100%)',
+                boxShadow: isPullingCue ? '0 0 20px rgba(245, 158, 11, 0.8)' : '0 0 8px rgba(16, 185, 129, 0.4)'
               }}
             >
-              <div className="absolute inset-0 bg-white/20 animate-pulse" />
+              <div className="absolute inset-0 bg-white/25 animate-pulse" />
             </div>
 
-            {/* Cue Stick Graphic sliding down inside track */}
+            {/* Snooker Cue Stick Graphic Inside Track (Slides upwards from bottom) */}
             <div
-              className="absolute w-2.5 rounded-full bg-amber-200 border border-amber-900 pointer-events-none transition-transform duration-75 shadow-md"
+              className="absolute w-3 rounded-full pointer-events-none transition-transform duration-75 flex flex-col items-center"
               style={{
-                top: `${powerSliderPos * 0.7}%`,
+                bottom: `${(isPullingCue ? powerSliderPos : shotPower) * 0.72}%`,
                 height: '75%',
-                background: 'linear-gradient(to bottom, #fef3c7 0%, #d97706 30%, #78350f 100%)'
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))'
               }}
-            />
-
-            {/* Pull Down Indicator Label */}
-            <div className="absolute top-2 text-[8px] font-black text-slate-500 uppercase tracking-tighter pointer-events-none">
-              PULL
+            >
+              {/* Cue Tip (Chalk Sky Blue) */}
+              <div className="w-2 h-1.5 rounded-t-sm bg-sky-400 border-t border-sky-200" />
+              {/* Brass Ferrule */}
+              <div className="w-2 h-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-600" />
+              {/* Maple / Ash Shaft */}
+              <div 
+                className="w-2 flex-1"
+                style={{
+                  background: 'linear-gradient(to bottom, #fef3c7 0%, #fde68a 25%, #d97706 70%, #92400e 100%)'
+                }}
+              />
+              {/* Cue Butt Grip Handle */}
+              <div className="w-2.5 h-7 rounded-b-md bg-gradient-to-b from-stone-900 via-amber-950 to-black border border-amber-700/60 flex items-center justify-center">
+                <div className="w-1.5 h-0.5 bg-amber-400/80 rounded-full" />
+              </div>
             </div>
+
+            {/* Upward Drag Handle / Guide Arrow at Bottom */}
+            {(!isPullingCue && shotPower === 0) ? (
+              <div className="absolute bottom-2 inset-x-0 flex flex-col items-center pointer-events-none animate-bounce">
+                <span className="text-amber-300 text-xs font-black leading-none">▲</span>
+                <span className="text-[7px] font-black text-amber-200 tracking-tighter leading-tight mt-0.5">
+                  {isRtl ? 'به بالا بکشید' : 'PULL UP'}
+                </span>
+              </div>
+            ) : null}
           </div>
         </aside>
 
         {/* ── Center: Vertical Snooker Table Canvas Viewport ── */}
         <div className="relative h-full max-h-[75vh] aspect-[1/2] flex items-center justify-center mx-auto overflow-visible z-20">
+          {/* Ball in Hand floating confirmation indicator */}
+          <AnimatePresence>
+            {ballInHand && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-slate-900/95 border-2 border-amber-400/80 shadow-2xl px-3.5 py-1.5 rounded-full backdrop-blur-md whitespace-nowrap"
+              >
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-[11px] font-black text-amber-300">
+                  {isRtl ? '۲ بار کلیک روی صفحه برای ظاهر شدن چوب' : 'Double-click table to ready cue'}
+                </span>
+                <button
+                  onClick={confirmBallPlacement}
+                  className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-[11px] shadow-lg active:scale-95 transition-transform"
+                >
+                  {isRtl ? 'تایید چوب ✅' : 'Ready Cue ✅'}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <canvas
             ref={canvasRef}
             width={780} /* 480 + 150*2 */
@@ -1849,6 +1962,7 @@ export default function Snooker() {
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
+            onDoubleClick={handleCanvasDoubleClick}
             className="absolute touch-none cursor-crosshair"
             style={{ 
               width: '162.5%', 
