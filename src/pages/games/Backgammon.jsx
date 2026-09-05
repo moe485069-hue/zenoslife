@@ -17,7 +17,7 @@ import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponent
 import OpponentProfileModal from '../../components/games/OpponentProfileModal';
 import ChazhaStoreModal from '../../components/games/ChazhaStoreModal';
 import realtimeNetwork from '../../services/realtimeNetwork';
-import { shareToTelegram } from '../../utils/telegram';
+import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegram';
 
 // 3D Telegram-Style Dice Face Renderer — Multi-axis tumbling, fast cycling pips & dynamic floor shadow
 const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) => {
@@ -2347,6 +2347,29 @@ export default function Backgammon() {
                       className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
                     >
                       {gameMode === 'online' ? 'شروع مسابقه جدید 🎲' : 'بازی مجدد 🎲'}
+                    </button>
+
+                    {/* Share Match Result Card to Telegram */}
+                    <button
+                      onClick={() => {
+                        const isIWon = gameMode === 'bot' ? matchWinner === 'white' : matchWinner === myOnlineRole;
+                        const winnerName = isIWon 
+                          ? (myUserName || 'شما') 
+                          : (gameMode === 'bot' ? 'ربات چاژا 🤖' : (opponentProfile?.name || 'حریف آنلاین'));
+                        shareMatchResultToTelegram({
+                          gameTitleFa: 'تخته نرد',
+                          winnerName,
+                          myScore: scoreWhite,
+                          opponentScore: scoreBlack,
+                          roomCode: onlineRoomCode || `CHZ-${myUserId}`,
+                          gameType: 'backgammon'
+                        });
+                        soundEngine.playTap?.();
+                      }}
+                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black text-xs shadow-lg shadow-sky-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Share2 size={16} />
+                      <span>{isRtl ? '📤 اشتراک‌گذاری کارت نتیجه در تلگرام' : 'Share Result Card to Telegram'}</span>
                     </button>
                   </>
                 ) : (

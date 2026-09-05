@@ -26,6 +26,29 @@ const {
 
 const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
 
+const GAME_BANNER_PHOTOS = {
+  backgammon: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=800&auto=format&fit=crop&q=80',
+  hokm: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80',
+  ludo: 'https://images.unsplash.com/photo-1611891487122-207579d67d98?w=800&auto=format&fit=crop&q=80',
+  default: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=800&auto=format&fit=crop&q=80'
+};
+
+function getShareDuelUrl(gameType = 'backgammon', roomCode = '', customText = '') {
+  const botUsername = 'chazha_bot';
+  const gameNames = {
+    backgammon: 'تخته نرد',
+    hokm: 'حکم آنلاین',
+    ludo: 'منچ آنلاین',
+    pasur: 'پاسور چهاربرگ',
+    billiards: 'بیلیارد',
+    cosmic_chess: 'شطرنج'
+  };
+  const title = gameNames[gameType] || 'تخته نرد';
+  const directLink = `https://t.me/${botUsername}?start=room_${roomCode || 'CHZ-MATCH'}`;
+  const text = customText || `🎲 دعوت به مسابقه دوئل ${title} در چاژا!\n👑 بیا با من مسابقه بده، روی لینک زیر بزن و مستقیم وارد بازی شو: ⚔️👇`;
+  return `https://t.me/share/url?url=${encodeURIComponent(directLink)}&text=${encodeURIComponent(text)}`;
+}
+
 // ----------------------------------------------------
 // MAIN PERSISTENT KEYBOARD (4-SECTION ARCHITECTURE)
 // Row 1 (Top single): Games & Tournaments
@@ -291,25 +314,45 @@ async function onMessage(msg) {
     else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameName = 'بیلیارد'; }
     else if (roomCode.startsWith('CHSS-')) { gameType = 'cosmic_chess'; gameName = 'شطرنج'; }
     else {
-      const names = { backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد' };
+      const names = { backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد', cosmic_chess: 'شطرنج' };
       gameName = names[gameType] || 'تخته نرد';
     }
 
-    return callTgApi(BOT_TOKEN, 'sendMessage', {
-      chat_id: chatId,
-      text: `⚔️ <b>دعوت‌نامه دوئل ${gameName} چاژا!</b>\n\n` +
-            `شما به اتاق مسابقه <code>${roomCode}</code> دعوت شده‌اید!\n` +
-            `آماده‌اید هوش و مهارت خود را محک بزنید؟ برای شروع روی دکمه زیر بزنید:`,
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{
-            text: `🎲 ورود و شروع بازی ${gameName}`,
-            web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1` }
-          }]
-        ]
-      }
-    });
+    const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
+    const photoUrl = GAME_BANNER_PHOTOS[gameType] || GAME_BANNER_PHOTOS.default;
+
+    const caption = `⚔️ <b>کارت دعوت به مسابقه آنلاین ${gameName} چاژا!</b>\n\n` +
+      `🎮 شما به اتاق مسابقه <code>${roomCode}</code> دعوت شده‌اید!\n` +
+      `🔥 آیا آماده‌اید برای قهرمانی و پیروزی؟\n\n` +
+      `👇 برای پیوستن و شروع فوری مسابقه، روی دکمه زیر بزنید:`;
+
+    const inlineKeyboard = [
+      [{
+        text: `🎲 پیوستن به بازی ${gameName} و شروع مسابقه ⚔️`,
+        web_app: { url: guestGameUrl }
+      }],
+      [{
+        text: '🎪 ورود به سالن بازی‌ها و گپ‌وگفت 💬',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` }
+      }]
+    ];
+
+    try {
+      return await callTgApi(BOT_TOKEN, 'sendPhoto', {
+        chat_id: chatId,
+        photo: photoUrl,
+        caption: caption,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: inlineKeyboard }
+      });
+    } catch (err) {
+      return callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: chatId,
+        text: caption,
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: inlineKeyboard }
+      });
+    }
   }
 
   // Handle Friend Request link from In-Game Profile (/start friend_<senderId>)
@@ -337,7 +380,7 @@ async function onMessage(msg) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
         ]
       }
     }).catch(() => {});
@@ -348,7 +391,7 @@ async function onMessage(msg) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${targetFriendId}` }],
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${targetFriendId}`) }],
           [{ text: '🎪 ورود به سالن بازی‌ها و چت 💬', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }]
         ]
       }
@@ -399,7 +442,7 @@ async function onMessage(msg) {
               { text: '✅ شروع چت و گفت‌وگو', callback_data: `chat_accept_${userId}` },
               { text: '❌ رد کردن', callback_data: `chat_decline_${userId}` }
             ],
-            [{ text: '🎲 دعوت متقابل به تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+            [{ text: '🎲 دعوت متقابل به تخته نرد ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
           ]
         }
       }).catch(() => {});
@@ -509,7 +552,7 @@ async function onMessage(msg) {
             { text: isEn ? '🎨 Themes' : '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
             { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
           ],
-          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
         ]
       }
     });
@@ -800,7 +843,7 @@ async function onCallback(cq) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
         ]
       }
     }).catch(() => {});
@@ -826,7 +869,7 @@ async function onCallback(cq) {
             { text: isEn ? '🎨 Themes' : '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
             { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
           ],
-          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
         ]
       }
     });
@@ -932,7 +975,7 @@ async function onCallback(cq) {
       listText += `👤 <b>${fUser.name || 'کاربر'}</b> (سطح ${fUser.level || 1})\n`;
       buttons.push([{
         text: isEn ? `🎲 Challenge ${fUser.name || 'Friend'}` : `🎲 دعوت ${fUser.name || 'دوست'} به بازی`,
-        switch_inline_query: `duel_backgammon_CHZ-${userId}`
+        url: getShareDuelUrl('backgammon', `CHZ-${userId}`)
       }]);
     }
     return callTgApi(BOT_TOKEN, 'sendMessage', {
@@ -960,13 +1003,15 @@ async function onCallback(cq) {
         `🎁 <b>دوست شما هم ۵۰۰ سکه خوش‌آمدگویی هدیه می‌گیرد!</b>\n\n` +
         `🔗 لینک اختصاصی شما:\n<code>${refLink}</code>`;
 
+    const shareRefUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('🎁 بیا در چاژا عضو شو و ۵۰۰ سکه خوش‌آمدگویی هدیه بگیر! 🎮')}`;
+
     return callTgApi(BOT_TOKEN, 'sendMessage', {
       chat_id: chatId,
       text,
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: isEn ? '📤 Share Link' : '📤 ارسال لینک برای دوستان', switch_inline_query: `ref_${userId}` }]
+          [{ text: isEn ? '📤 Share Link' : '📤 ارسال لینک برای دوستان', url: shareRefUrl }]
         ]
       }
     });
@@ -1035,7 +1080,7 @@ async function onCallback(cq) {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', url: getShareDuelUrl('backgammon', `CHZ-${userId}`) }]
         ]
       }
     }).catch(() => {});
@@ -1101,12 +1146,36 @@ async function onInlineQuery(iq) {
   }
 
   const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
+  const photoUrl = GAME_BANNER_PHOTOS[gameType] || GAME_BANNER_PHOTOS.default;
 
   const results = [
-    // Interactive Duel Challenge Card (with Accept & Decline buttons)
+    // 1. Photo Card Result (Rich image with Play button)
+    {
+      type: 'photo',
+      id: `duel_photo_${gameType}_${senderId}_${Date.now() % 10000}`,
+      photo_url: photoUrl,
+      thumb_url: photoUrl,
+      title: `⚔️ ارسال کارت تصویری مسابقه ${gameTitle}`,
+      description: `کد اتاق: ${roomCode} • کارت تصویری همراه با دکمه ورود مستقیم`,
+      caption: `🎲 <b>چالش مسابقه آنلاین ${gameTitle} در چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه دوئل دعوت کرده است!\n⚔️ کد اتاق مسابقه: <code>${roomCode}</code>\n\n👇 برای پیوستن و شروع بازی، روی دکمه زیر بزنید:`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{
+            text: `🎲 شروع بازی ${gameTitle} ⚔️`,
+            web_app: { url: guestGameUrl }
+          }],
+          [{
+            text: '❌ رد درخواست مسابقه',
+            callback_data: `bg_decline_duel_${senderId}`
+          }]
+        ]
+      }
+    },
+    // 2. Interactive Duel Challenge Article Card
     {
       type: 'article',
-      id: `duel_${gameType}_${senderId}_${Date.now() % 10000}`,
+      id: `duel_art_${gameType}_${senderId}_${Date.now() % 10000}`,
       title: `⚔️ ارسال کارت مسابقه ${gameTitle} (با ${senderName})`,
       description: `کد اتاق: ${roomCode} • برای ارسال مستقیم به چت کلیک کنید`,
       thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',

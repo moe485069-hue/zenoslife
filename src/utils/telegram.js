@@ -131,9 +131,30 @@ export const initTelegramMiniApp = (appStore) => {
 
 export const shareToTelegram = ({ roomCode, gameType = 'backgammon', gameTitleFa = 'تخته نرد' }) => {
   const botUsername = 'chazha_bot';
-  // Use ?start=room_ so Telegram opens the bot without requiring an app short-name, and presents the direct game card!
+  // Use ?start=room_ so Telegram opens the bot and presents the direct game card with join button!
   const directLink = `https://t.me/${botUsername}?start=room_${roomCode}`;
-  const text = `🎲 بیا ${gameTitleFa} با من بازی کن!\nکد اتاق: ${roomCode}\nروی لینک زیر بزن و مستقیم وارد بازی شو: 👇`;
+  const text = `🎲 دعوت به مسابقه ${gameTitleFa} در چاژا!\n👑 بیا با من مسابقه بده، روی لینک زیر بزن و مستقیم وارد بازی شو: ⚔️👇`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(directLink)}&text=${encodeURIComponent(text)}`;
+
+  const tg = getTelegramWebApp();
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, '_blank');
+  }
+};
+
+export const shareMatchResultToTelegram = ({
+  gameTitleFa = 'تخته نرد',
+  winnerName = 'من',
+  myScore = 0,
+  opponentScore = 0,
+  roomCode = '',
+  gameType = 'backgammon'
+}) => {
+  const botUsername = 'chazha_bot';
+  const directLink = `https://t.me/${botUsername}?start=room_${roomCode || 'CHZ-REMATCH'}`;
+  const text = `🏆 کارت نتیجه مسابقه ${gameTitleFa} در چاژا:\n\n👑 برنده مسابقه: ${winnerName}\n📊 نتیجه نهایی: ⚪ سفید: ${myScore} | ⚫ سیاه: ${opponentScore}\n\n⚔️ برای بازی مجدد و انتقام، روی دکمه یا لینک زیر بزن:👇`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(directLink)}&text=${encodeURIComponent(text)}`;
 
   const tg = getTelegramWebApp();
