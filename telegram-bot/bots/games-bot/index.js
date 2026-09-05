@@ -626,12 +626,12 @@ async function onCallback(cq) {
   const userId = String(cq.from.id);
   const data = cq.data || '';
 
-  // 1. Telegram Game Launcher (Play Backgammon, etc.)
+  // 1. Telegram Game Launcher (Play Snooker, Backgammon, etc.)
   if (cq.game_short_name) {
     let targetUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${cq.game_short_name}`;
     if (cq.inline_message_id) {
       targetUrl += `?room=tg_${cq.inline_message_id}&mode=online&autostart=1`;
-    } else if (cq.game_short_name === 'backgammon') {
+    } else if (cq.game_short_name === 'backgammon' || cq.game_short_name === 'snooker') {
       targetUrl += `?mode=online&matchmaking=random&autostart=1`;
     }
     return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
