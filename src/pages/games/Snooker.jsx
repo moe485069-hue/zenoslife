@@ -203,6 +203,7 @@ export default function Snooker() {
   // Canvas & Physics Refs
   const canvasRef = useRef(null);
   const powerSliderRef = useRef(null);
+  const fineIntervalRef = useRef(null);
   const stateRef = useRef({
     balls: createInitialSnookerBalls(),
     isMoving: false,
@@ -752,6 +753,25 @@ export default function Snooker() {
     }
   };
 
+  // Fine Angle continuous adjustment helpers
+  const startFineAdjust = (delta) => {
+    if (!soundMuted) soundEngine?.playTap?.();
+    setAimAngle(prev => (prev + delta + 360) % 360);
+    clearInterval(fineIntervalRef.current);
+    fineIntervalRef.current = setInterval(() => {
+      setAimAngle(prev => (prev + delta + 360) % 360);
+    }, 50);
+  };
+
+  const stopFineAdjust = () => {
+    clearInterval(fineIntervalRef.current);
+  };
+
+  // Clean up fine interval on unmount
+  useEffect(() => {
+    return () => clearInterval(fineIntervalRef.current);
+  }, []);
+
   // ── 8. Smart Snooker AI Bot Logic ──────────────────────────────────
   useEffect(() => {
     if (gameMode !== 'bot' || turn !== 'p2' || stateRef.current.isMoving || isShooting || frameWinner) return;
@@ -761,6 +781,13 @@ export default function Snooker() {
       const balls = state.balls;
       const white = balls.find(b => b.type === 'white');
       if (!white || white.potted) return;
+
+      // If bot has ball in hand, place white ball legally in D
+      if (ballInHand) {
+        white.x = W / 2 + (Math.random() - 0.5) * 36;
+        white.y = BAULK_Y + 28;
+        setBallInHand(false);
+      }
 
       const unpottedReds = balls.filter(b => b.type === 'red' && !b.potted);
       const targetType = state.targetBallType;
@@ -846,164 +873,325 @@ export default function Snooker() {
       ctx.save();
       ctx.translate(150, 150);
 
-      // ── Outer Wood Cushion Rail (Luxury Mahogany) ──
+      // ── 1. Outer Wood Cushion Rail (Luxury Mahogany) ──
       const woodGrad = ctx.createLinearGradient(0, 0, W, H);
-      woodGrad.addColorStop(0, '#3a1f14');
-      woodGrad.addColorStop(0.5, '#5c2d1b');
-      woodGrad.addColorStop(1, '#2f170c');
+      woodGrad.addColorStop(0, '#381c11');
+      woodGrad.addColorStop(0.3, '#4e2516');
+      woodGrad.addColorStop(0.7, '#35190e');
+      woodGrad.addColorStop(1, '#241007');
       ctx.fillStyle = woodGrad;
-      ctx.roundRect(0, 0, W, H, 36);
+      ctx.roundRect(0, 0, W, H, 38);
       ctx.fill();
 
-      // Delicate wood highlight
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-      ctx.lineWidth = 1.5;
-      ctx.roundRect(4, 4, W - 8, H - 8, 32);
-      ctx.stroke();
-      
-      // ChaZha Brand Logo Plate (Bottom Cushion)
-      const logoW = 80;
-      const logoH = 16;
-      ctx.fillStyle = '#111';
-      ctx.roundRect(W / 2 - logoW / 2, H - 20, logoW, logoH, 4);
-      ctx.fill();
-      
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 1.5;
+      // Outer gold inlay trim
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.25)';
+      ctx.lineWidth = 1.2;
+      ctx.roundRect(3, 3, W - 6, H - 6, 36);
       ctx.stroke();
 
-      ctx.fillStyle = '#fde047';
-      ctx.font = 'bold 10px "Arial"';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('C h a Z h a', W / 2, H - 11.5);
-      
-      // Diamonds (Sights) on the rails
-      ctx.fillStyle = '#fde047';
-      const drawDiamond = (dx, dy) => {
+      // Inner wood bevel shadow
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.lineWidth = 2.5;
+      ctx.roundRect(MARGIN_X - 10, MARGIN_Y - 10, PLAY_W + 20, PLAY_H + 20, 8);
+      ctx.stroke();
+
+      // ── 2. Tournament Sights (Rhombus Diamonds ◇) ──
+      const drawDiamondSight = (dx, dy) => {
+        ctx.save();
+        ctx.translate(dx, dy);
         ctx.beginPath();
-        ctx.arc(dx, dy, 2.5, 0, Math.PI * 2);
+        ctx.moveTo(0, -4);
+        ctx.lineTo(3.5, 0);
+        ctx.lineTo(0, 4);
+        ctx.lineTo(-3.5, 0);
+        ctx.closePath();
+        ctx.fillStyle = '#fef08a';
         ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        // Mother of pearl center glint
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(dx - 0.5, dy - 0.5, 1, 0, Math.PI * 2);
+        ctx.arc(-0.5, -0.5, 1, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#fde047';
+        ctx.restore();
       };
-      
-      const partsY = 4; // 3 diamonds between pockets
+
+      const partsY = 4;
       const spacingY = (H - MARGIN_Y * 2) / partsY;
       for (let i = 1; i < partsY; i++) {
-         drawDiamond(MARGIN_X / 2, MARGIN_Y + i * spacingY);
-         drawDiamond(W - MARGIN_X / 2, MARGIN_Y + i * spacingY);
+        drawDiamondSight(MARGIN_X / 2 - 1, MARGIN_Y + i * spacingY);
+        drawDiamondSight(W - MARGIN_X / 2 + 1, MARGIN_Y + i * spacingY);
       }
-      const partsX = 2; // 1 diamond on short rails
+      const partsX = 2;
       const spacingX = (W - MARGIN_X * 2) / partsX;
       for (let i = 1; i < partsX; i++) {
-         drawDiamond(MARGIN_X + i * spacingX, MARGIN_Y / 2);
-         drawDiamond(MARGIN_X + i * spacingX, H - MARGIN_Y / 2);
+        drawDiamondSight(MARGIN_X + i * spacingX, MARGIN_Y / 2 - 1);
+        drawDiamondSight(MARGIN_X + i * spacingX, H - MARGIN_Y / 2 + 1);
       }
 
-      // ── Snooker Cloth Playing Bed ──
-      ctx.fillStyle = selectedTheme.clothColor || '#14753c';
+      // ── 3. Luxury Engraved ChaZha Brand Plaque ──
+      const badgeW = 100;
+      const badgeH = 18;
+      const badgeX = W / 2 - badgeW / 2;
+      const badgeY = H - 24;
+
+      // Gold metallic rim
+      const plaqueGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeH);
+      plaqueGrad.addColorStop(0, '#fef08a');
+      plaqueGrad.addColorStop(0.3, '#eab308');
+      plaqueGrad.addColorStop(0.7, '#a16207');
+      plaqueGrad.addColorStop(1, '#ca8a04');
+      ctx.fillStyle = plaqueGrad;
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+      ctx.fill();
+
+      // Plaque dark inner plate
+      ctx.fillStyle = '#18120e';
+      ctx.roundRect(badgeX + 1.5, badgeY + 1.5, badgeW - 3, badgeH - 3, 3);
+      ctx.fill();
+
+      // Inner thin gold frame
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.6)';
+      ctx.lineWidth = 0.8;
+      ctx.roundRect(badgeX + 2.5, badgeY + 2.5, badgeW - 5, badgeH - 5, 2);
+      ctx.stroke();
+
+      // Plaque screws
+      const drawPlaqueScrew = (sx, sy) => {
+        ctx.fillStyle = '#ca8a04';
+        ctx.beginPath(); ctx.arc(sx, sy, 1.2, 0, Math.PI * 2); ctx.fill();
+      };
+      drawPlaqueScrew(badgeX + 5, badgeY + 5);
+      drawPlaqueScrew(badgeX + badgeW - 5, badgeY + 5);
+      drawPlaqueScrew(badgeX + 5, badgeY + badgeH - 5);
+      drawPlaqueScrew(badgeX + badgeW - 5, badgeY + badgeH - 5);
+
+      // ChaZha Typography
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 9.5px "Georgia", "Times New Roman", serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('C h a Z h a', W / 2, badgeY + badgeH / 2);
+
+      // ── 4. Snooker Cloth Playing Bed (Strachan 6811 Tournament Green) ──
+      ctx.fillStyle = selectedTheme.clothColor || '#15803d';
       ctx.fillRect(MARGIN_X, MARGIN_Y, PLAY_W, PLAY_H);
-      
-      // Cloth subtle texture lines (Zambulozimbo)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+
+      // Overhead TV Broadcast Canopy Lighting (Dual Soft Cones)
+      const lightTop = ctx.createRadialGradient(W / 2, MARGIN_Y + PLAY_H * 0.28, 25, W / 2, MARGIN_Y + PLAY_H * 0.28, PLAY_W * 0.75);
+      lightTop.addColorStop(0, 'rgba(255, 255, 255, 0.14)');
+      lightTop.addColorStop(0.55, 'rgba(255, 255, 255, 0.04)');
+      lightTop.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
+      ctx.fillStyle = lightTop;
+      ctx.fillRect(MARGIN_X, MARGIN_Y, PLAY_W, PLAY_H / 2);
+
+      const lightBottom = ctx.createRadialGradient(W / 2, BAULK_Y - 30, 25, W / 2, BAULK_Y - 30, PLAY_W * 0.75);
+      lightBottom.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+      lightBottom.addColorStop(0.55, 'rgba(255, 255, 255, 0.03)');
+      lightBottom.addColorStop(1, 'rgba(0, 0, 0, 0.16)');
+      ctx.fillStyle = lightBottom;
+      ctx.fillRect(MARGIN_X, MARGIN_Y + PLAY_H / 2, PLAY_W, PLAY_H / 2);
+
+      // Velvet texture lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
       ctx.lineWidth = 1;
-      for(let i=0; i<PLAY_W; i+=20) {
+      for (let i = 0; i < PLAY_W; i += 18) {
         ctx.beginPath(); ctx.moveTo(MARGIN_X + i, MARGIN_Y); ctx.lineTo(MARGIN_X + i, H - MARGIN_Y); ctx.stroke();
       }
-      for(let j=0; j<PLAY_H; j+=20) {
-        ctx.beginPath(); ctx.moveTo(MARGIN_X, MARGIN_Y + j); ctx.lineTo(W - MARGIN_X, MARGIN_Y + j); ctx.stroke();
-      }
 
-      // Cushion Nose Lines (Rich green cushion rubber face)
-      ctx.fillStyle = selectedTheme.cushionColor || '#0c5c2a';
-      ctx.fillRect(MARGIN_X, MARGIN_Y - 8, PLAY_W, 8); // Top
-      ctx.fillRect(MARGIN_X, H - MARGIN_Y, PLAY_W, 8); // Bottom
-      ctx.fillRect(MARGIN_X - 8, MARGIN_Y, 8, PLAY_H); // Left
-      ctx.fillRect(W - MARGIN_X, MARGIN_Y, 8, PLAY_H); // Right
+      // ── 5. Authentic 6 Beveled Snooker Cushions ──
+      const cushionColor = selectedTheme.cushionColor || '#0e5e2c';
+      const cushionHighlight = 'rgba(255, 255, 255, 0.15)';
+      const drawCushionPolygon = (points, isHoriz) => {
+        ctx.fillStyle = cushionColor;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.fill();
 
-      // Baulk Line & "D" Markings (Official Snooker Baulk at Bottom)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 1.8;
+        // Cushion nose highlight line
+        ctx.strokeStyle = cushionHighlight;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      };
+
+      // 1. Top Cushion
+      drawCushionPolygon([
+        { x: MARGIN_X + 22, y: MARGIN_Y - 8 },
+        { x: W - MARGIN_X - 22, y: MARGIN_Y - 8 },
+        { x: W - MARGIN_X - 28, y: MARGIN_Y },
+        { x: MARGIN_X + 28, y: MARGIN_Y }
+      ], true);
+
+      // 2. Bottom Cushion
+      drawCushionPolygon([
+        { x: MARGIN_X + 22, y: H - MARGIN_Y + 8 },
+        { x: W - MARGIN_X - 22, y: H - MARGIN_Y + 8 },
+        { x: W - MARGIN_X - 28, y: H - MARGIN_Y },
+        { x: MARGIN_X + 28, y: H - MARGIN_Y }
+      ], true);
+
+      // 3. Top-Left Cushion
+      drawCushionPolygon([
+        { x: MARGIN_X - 8, y: MARGIN_Y + 22 },
+        { x: MARGIN_X, y: MARGIN_Y + 28 },
+        { x: MARGIN_X, y: H / 2 - 18 },
+        { x: MARGIN_X - 8, y: H / 2 - 24 }
+      ], false);
+
+      // 4. Bottom-Left Cushion
+      drawCushionPolygon([
+        { x: MARGIN_X - 8, y: H / 2 + 24 },
+        { x: MARGIN_X, y: H / 2 + 18 },
+        { x: MARGIN_X, y: H - MARGIN_Y - 28 },
+        { x: MARGIN_X - 8, y: H - MARGIN_Y - 22 }
+      ], false);
+
+      // 5. Top-Right Cushion
+      drawCushionPolygon([
+        { x: W - MARGIN_X + 8, y: MARGIN_Y + 22 },
+        { x: W - MARGIN_X, y: MARGIN_Y + 28 },
+        { x: W - MARGIN_X, y: H / 2 - 18 },
+        { x: W - MARGIN_X + 8, y: H / 2 - 24 }
+      ], false);
+
+      // 6. Bottom-Right Cushion
+      drawCushionPolygon([
+        { x: W - MARGIN_X + 8, y: H / 2 + 24 },
+        { x: W - MARGIN_X, y: H / 2 + 18 },
+        { x: W - MARGIN_X, y: H - MARGIN_Y - 28 },
+        { x: W - MARGIN_X + 8, y: H - MARGIN_Y - 22 }
+      ], false);
+
+      // ── 6. Official Snooker Markings: Baulk Line & "D" ──
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.moveTo(MARGIN_X, BAULK_Y);
       ctx.lineTo(W - MARGIN_X, BAULK_Y);
       ctx.stroke();
 
-      // Semicircle "D" (Pointing Downward toward bottom cushion)
+      // Semicircle "D"
       ctx.beginPath();
       ctx.arc(W / 2, BAULK_Y, D_RADIUS, 0, Math.PI, false);
       ctx.stroke();
-      
-      // Ball in hand UI D-Zone highlight
+
+      // Ball in hand Interactive Visual Indicator
       if (ballInHand) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        // Glowing D area
+        const dGrad = ctx.createRadialGradient(W / 2, BAULK_Y, 15, W / 2, BAULK_Y, D_RADIUS);
+        dGrad.addColorStop(0, 'rgba(56, 189, 248, 0.16)');
+        dGrad.addColorStop(0.85, 'rgba(56, 189, 248, 0.05)');
+        dGrad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+        ctx.fillStyle = dGrad;
         ctx.beginPath();
         ctx.arc(W / 2, BAULK_Y, D_RADIUS, 0, Math.PI, false);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
         ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([6, 4]);
         ctx.stroke();
         ctx.setLineDash([]);
-        
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
-        ctx.font = 'bold 11px tahoma';
+
+        // Interactive pulse around White cue ball
+        const whiteBall = stateRef.current.balls.find(b => b.type === 'white');
+        if (whiteBall) {
+          const pulseR = BALL_R + 5 + Math.sin(Date.now() * 0.005) * 3;
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(whiteBall.x, whiteBall.y, pulseR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 10.5px tahoma, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(isRtl ? 'توپ را اینجا تنظیم کنید' : 'Place Cue Ball Here', W / 2, BAULK_Y + 45);
+        ctx.fillText(isRtl ? '📍 توپ سفید را در نیم‌دایره D تنظیم کنید' : '📍 Place Cue Ball inside the D', W / 2, BAULK_Y + 44);
       }
 
-      // Spot Markers (Small crosses on cloth)
+      // Spot Markers (Colours positions)
       Object.keys(SPOTS).forEach(key => {
         const s = SPOTS[key];
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
         ctx.beginPath();
-        ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, 2.2, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // ── Draw 6 Snooker Drop Pockets & Curved Jaws ──
+      // ── 7. 6 Snooker Drop Pockets & Authentic Brass Casting Brackets ──
       POCKETS.forEach(p => {
-        // Brass pocket corner plate
-        ctx.fillStyle = '#b48a30'; // metallic brass
+        // Brass pocket bracket casting over wood
+        const isMiddle = p.id === 'ML' || p.id === 'MR';
+        const bracketR = isMiddle ? p.r + 7 : p.r + 10;
+
+        const brassGrad = ctx.createRadialGradient(p.x - 3, p.y - 3, 2, p.x, p.y, bracketR);
+        brassGrad.addColorStop(0, '#fef08a');
+        brassGrad.addColorStop(0.35, '#eab308');
+        brassGrad.addColorStop(0.8, '#a16207');
+        brassGrad.addColorStop(1, '#713f12');
+        ctx.fillStyle = brassGrad;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r + 9, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#fcd34d'; // bright brass highlight
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        
-        // Leather net dark inner
-        ctx.fillStyle = '#1a1a1a';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r + 3, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, bracketR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Drop Pocket Hole (Pure Deep Depth)
-        ctx.fillStyle = '#000000';
+        // Brass rim highlight
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r - 0.5, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, bracketR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Brass Rivets
+        const rivetAngles = isMiddle ? [-Math.PI / 2, Math.PI / 2] : [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.25, Math.PI * 0.75];
+        rivetAngles.forEach(ang => {
+          const rx = p.x + Math.cos(ang) * (bracketR - 3.5);
+          const ry = p.y + Math.sin(ang) * (bracketR - 3.5);
+          ctx.fillStyle = '#78350f';
+          ctx.beginPath(); ctx.arc(rx, ry, 1.2, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // Pocket Leather Mouth Liner
+        ctx.fillStyle = '#26170d';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r + 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pure Drop Hole with depth gradient
+        const holeGrad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.r);
+        holeGrad.addColorStop(0, '#000000');
+        holeGrad.addColorStop(0.8, '#080808');
+        holeGrad.addColorStop(1, '#1c1917');
+        ctx.fillStyle = holeGrad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // ── Draw Balls with 3D Glossy Specular Shading & Drop Shadows ──
+      // ── 8. Draw Balls with 3D Glossy Specular Shading & Drop Shadows ──
       const balls = stateRef.current.balls;
       balls.forEach(b => {
         if (b.potted) return;
 
-        // Realistic Soft Radial Drop Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        // Ambient contact shadow directly under the ball
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
         ctx.beginPath();
-        ctx.ellipse(b.x + 2.5, b.y + 3.5, BALL_R * 1.05, BALL_R * 0.85, 0, 0, Math.PI * 2);
+        ctx.arc(b.x + 0.8, b.y + 1.2, BALL_R * 0.92, 0, Math.PI * 2);
         ctx.fill();
 
-        // 3D Sphere Radial Gradient with Realistic Light Source (Top-Left)
+        // Soft directional drop shadow (Light source from top-left)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(b.x + 3.2, b.y + 4.2, BALL_R * 1.1, BALL_R * 0.82, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3D Sphere Radial Gradient
         const grad = ctx.createRadialGradient(
-          b.x - BALL_R * 0.35, b.y - BALL_R * 0.35, BALL_R * 0.08,
+          b.x - BALL_R * 0.36, b.y - BALL_R * 0.36, BALL_R * 0.08,
           b.x, b.y, BALL_R
         );
 
@@ -1054,21 +1242,27 @@ export default function Snooker() {
         ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
         ctx.fill();
 
-        // Specular Glint Reflection Arc
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        // Primary Specular Glint Reflection
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
         ctx.beginPath();
-        ctx.arc(b.x - BALL_R * 0.35, b.y - BALL_R * 0.35, BALL_R * 0.26, 0, Math.PI * 2);
+        ctx.arc(b.x - BALL_R * 0.35, b.y - BALL_R * 0.35, BALL_R * 0.28, 0, Math.PI * 2);
         ctx.fill();
 
-        // Subtle Bottom Cloth Reflection
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        // Secondary rim highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.beginPath();
+        ctx.arc(b.x - BALL_R * 0.2, b.y - BALL_R * 0.2, BALL_R * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cloth bounce light at bottom of sphere
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, BALL_R - 0.6, Math.PI * 0.25, Math.PI * 0.75);
+        ctx.arc(b.x, b.y, BALL_R - 0.5, Math.PI * 0.25, Math.PI * 0.75);
         ctx.stroke();
       });
 
-      // ── Aiming Raycaster, Ghost Ball & 3D Cue Stick ──
+      // ── 9. Aiming Raycaster, Ghost Ball & Full-Size 3D Cue Stick ──
       const white = balls.find(b => b.type === 'white');
       const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
 
@@ -1077,8 +1271,8 @@ export default function Snooker() {
         const dirX = Math.cos(rad);
         const dirY = Math.sin(rad);
 
-        // Raycast forward to find first ball collision or wall
-        let minRayDist = 550 * (activeCue.aimLength / 70);
+        // Raycast forward to find first ball collision
+        let minRayDist = 580 * (activeCue.aimLength / 70);
         let hitTargetBall = null;
 
         balls.forEach(b => {
@@ -1102,8 +1296,8 @@ export default function Snooker() {
         const ghostY = white.y + dirY * minRayDist;
 
         if (showAimLaser) {
-          // Primary Aim Laser Line (Dashed neon)
-          ctx.strokeStyle = activeCue.glowColor || 'rgba(255, 255, 255, 0.7)';
+          // Primary Aim Laser Line (Neon glow)
+          ctx.strokeStyle = activeCue.glowColor || 'rgba(255, 255, 255, 0.75)';
           ctx.lineWidth = 1.8;
           ctx.setLineDash([7, 4]);
           ctx.beginPath();
@@ -1112,18 +1306,18 @@ export default function Snooker() {
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Ghost Ball Circle at point of contact
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.lineWidth = 1.6;
+          // Ghost Ball Circle
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.arc(ghostX, ghostY, BALL_R, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Target Ball Deflection Trajectory Line
+          // Target Ball Deflection Path
           if (hitTargetBall) {
             const normX = (hitTargetBall.x - ghostX) / (BALL_R * 2);
             const normY = (hitTargetBall.y - ghostY) / (BALL_R * 2);
-            const targetPathLength = 175 * (activeCue.aimLength / 75);
+            const targetPathLength = 180 * (activeCue.aimLength / 75);
 
             ctx.strokeStyle = '#eab308';
             ctx.lineWidth = 2.2;
@@ -1132,20 +1326,20 @@ export default function Snooker() {
             ctx.lineTo(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength);
             ctx.stroke();
 
-            // Arrow head at target line tip
+            // Arrow tip
             const tipX = hitTargetBall.x + normX * targetPathLength;
             const tipY = hitTargetBall.y + normY * targetPathLength;
             ctx.fillStyle = '#eab308';
             ctx.beginPath();
-            ctx.arc(tipX, tipY, 3.8, 0, Math.PI * 2);
+            ctx.arc(tipX, tipY, 4, 0, Math.PI * 2);
             ctx.fill();
           }
         }
 
-        // ── Draw 3D Cue Stick (Over Everything!) ──
-        const cueLength = 450;
+        // ── Full-Size Professional 3D Snooker Cue (Over Everything!) ──
+        const cueLength = 480;
         const currentPull = isPullingCue ? (powerSliderPos / 100) : (shotPower / 100);
-        const pullBack = currentPull * 65;
+        const pullBack = currentPull * 75;
         const cueTipDist = BALL_R + 8 + pullBack;
 
         const cueStartX = white.x - dirX * cueTipDist;
@@ -1153,51 +1347,88 @@ export default function Snooker() {
         const cueEndX = white.x - dirX * (cueTipDist + cueLength);
         const cueEndY = white.y - dirY * (cueTipDist + cueLength);
 
-        // Draw shadow under the cue stick
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.lineWidth = 10;
+        // 1. Soft Dynamic Cast Shadow on Table
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.lineWidth = 12;
         ctx.beginPath();
         ctx.moveTo(cueStartX + 6, cueStartY + 10);
-        ctx.lineTo(cueEndX + 8, cueEndY + 12);
+        ctx.lineTo(cueEndX + 10, cueEndY + 16);
         ctx.stroke();
 
-        // Cue Tip (Chalk blue)
+        // 2. Cue Tip (Chalk blue dome)
         ctx.strokeStyle = activeCue.tipColor || '#38bdf8';
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 7;
         ctx.beginPath();
         ctx.moveTo(cueStartX, cueStartY);
-        ctx.lineTo(cueStartX - dirX * 16, cueStartY - dirY * 16);
+        ctx.lineTo(cueStartX - dirX * 14, cueStartY - dirY * 14);
         ctx.stroke();
 
-        // White Ferrule
-        ctx.strokeStyle = '#f8fafc';
-        ctx.lineWidth = 6.5;
+        // 3. Genuine Polished Brass Ferrule
+        const ferruleStart = 14;
+        const ferruleEnd = 28;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 7.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 16, cueStartY - dirY * 16);
-        ctx.lineTo(cueStartX - dirX * 26, cueStartY - dirY * 26);
+        ctx.moveTo(cueStartX - dirX * ferruleStart, cueStartY - dirY * ferruleStart);
+        ctx.lineTo(cueStartX - dirX * ferruleEnd, cueStartY - dirY * ferruleEnd);
         ctx.stroke();
 
-        // Cue Shaft (Light Wood)
-        ctx.strokeStyle = '#e5a55d';
-        ctx.lineWidth = 8;
+        // Brass shine highlight
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 26, cueStartY - dirY * 26);
+        ctx.moveTo(cueStartX - dirX * ferruleStart, cueStartY - dirY * ferruleStart);
+        ctx.lineTo(cueStartX - dirX * ferruleEnd, cueStartY - dirY * ferruleEnd);
+        ctx.stroke();
+
+        // 4. North American Ash Shaft (Tapered wood with grain)
+        const shaftEnd = 250;
+        ctx.strokeStyle = '#e2b17a';
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * ferruleEnd, cueStartY - dirY * ferruleEnd);
+        ctx.lineTo(cueStartX - dirX * shaftEnd, cueStartY - dirY * shaftEnd);
+        ctx.stroke();
+
+        // Shaft grain highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * (ferruleEnd + 10), cueStartY - dirY * (ferruleEnd + 10));
+        ctx.lineTo(cueStartX - dirX * (shaftEnd - 10), cueStartY - dirY * (shaftEnd - 10));
+        ctx.stroke();
+
+        // 5. Hand-Spliced Transition (Maple / Exotic wood splice)
+        const spliceEnd = 340;
+        ctx.strokeStyle = '#854d0e';
+        ctx.lineWidth = 11;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * shaftEnd, cueStartY - dirY * shaftEnd);
+        ctx.lineTo(cueStartX - dirX * spliceEnd, cueStartY - dirY * spliceEnd);
+        ctx.stroke();
+
+        // 6. Solid Ebony Heavy Butt
+        ctx.strokeStyle = activeCue.accentGradient ? '#18181b' : '#1c1917';
+        ctx.lineWidth = 13;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * spliceEnd, cueStartY - dirY * spliceEnd);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
-        
-        // Cue Butt (Dark Wood)
-        ctx.strokeStyle = '#703310';
-        ctx.lineWidth = 10.5;
+
+        // 7. Gold Medallion Ring on Butt
+        const badgeDist = 410;
+        ctx.strokeStyle = '#eab308';
+        ctx.lineWidth = 14;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 150, cueStartY - dirY * 150);
-        ctx.lineTo(cueEndX, cueEndY);
+        ctx.moveTo(cueStartX - dirX * badgeDist, cueStartY - dirY * badgeDist);
+        ctx.lineTo(cueStartX - dirX * (badgeDist + 14), cueStartY - dirY * (badgeDist + 14));
         ctx.stroke();
 
-        // Cue Grip Wrap
-        ctx.strokeStyle = activeCue.accentGradient ? '#111' : '#1f130b';
-        ctx.lineWidth = 11.5;
+        // 8. Rubber Bumper Tip at very end
+        ctx.strokeStyle = '#09090b';
+        ctx.lineWidth = 13.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 290, cueStartY - dirY * 290);
+        ctx.moveTo(cueStartX - dirX * (cueLength - 8), cueStartY - dirY * (cueLength - 8));
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
       }
@@ -1226,11 +1457,29 @@ export default function Snooker() {
     if (!white) return;
 
     if (ballInHand) {
-      if (Math.hypot(clickX - white.x, clickY - white.y) < BALL_R * 3.5) {
+      const distFromWhite = Math.hypot(clickX - white.x, clickY - white.y);
+      const inBaulkArea = clickY >= BAULK_Y - BALL_R * 2;
+      const distToCenter = Math.hypot(clickX - W / 2, clickY - BAULK_Y);
+      const isNearOrInD = inBaulkArea && distToCenter <= D_RADIUS + BALL_R * 2.5;
+
+      if (distFromWhite < BALL_R * 4 || isNearOrInD) {
         setDraggingBall(true);
-        e.currentTarget.setPointerCapture(e.pointerId);
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+        
+        let targetX = clickX;
+        let targetY = Math.max(BAULK_Y + BALL_R, clickY);
+        const curDist = Math.hypot(targetX - W / 2, targetY - BAULK_Y);
+        if (curDist > D_RADIUS - BALL_R) {
+          const ang = Math.atan2(targetY - BAULK_Y, targetX - W / 2);
+          targetX = W / 2 + Math.cos(ang) * (D_RADIUS - BALL_R);
+          targetY = BAULK_Y + Math.sin(ang) * (D_RADIUS - BALL_R);
+        }
+        white.x = targetX;
+        white.y = targetY;
         return;
       }
+      // If user tapped far outside D during ballInHand, don't change aim
+      return;
     }
 
     const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
@@ -1592,7 +1841,7 @@ export default function Snooker() {
         </aside>
 
         {/* ── Center: Vertical Snooker Table Canvas Viewport ── */}
-        <div className="relative h-full max-h-[75vh] aspect-[1/2] rounded-[36px] shadow-2xl border-4 border-amber-900/60 bg-black flex items-center justify-center mx-auto overflow-visible z-20">
+        <div className="relative h-full max-h-[75vh] aspect-[1/2] flex items-center justify-center mx-auto overflow-visible z-20">
           <canvas
             ref={canvasRef}
             width={780} /* 480 + 150*2 */
@@ -1658,25 +1907,31 @@ export default function Snooker() {
             </span>
 
             <button
+              onPointerDown={() => startFineAdjust(-0.5)}
+              onPointerUp={stopFineAdjust}
+              onPointerLeave={stopFineAdjust}
               onClick={() => {
                 if (!soundMuted) soundEngine?.playTap?.();
-                setAimAngle(prev => (prev - 0.6 + 360) % 360);
+                setAimAngle(prev => (prev - 0.5 + 360) % 360);
               }}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200 select-none touch-none"
             >
               <ChevronUp size={16} />
             </button>
 
-            <span className="text-[10px] font-mono font-black text-amber-400">
+            <span className="text-[10px] font-mono font-black text-amber-400 select-none">
               {Math.round(aimAngle)}°
             </span>
 
             <button
+              onPointerDown={() => startFineAdjust(0.5)}
+              onPointerUp={stopFineAdjust}
+              onPointerLeave={stopFineAdjust}
               onClick={() => {
                 if (!soundMuted) soundEngine?.playTap?.();
-                setAimAngle(prev => (prev + 0.6) % 360);
+                setAimAngle(prev => (prev + 0.5) % 360);
               }}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200 select-none touch-none"
             >
               <ChevronDown size={16} />
             </button>
@@ -1841,6 +2096,9 @@ export default function Snooker() {
                       setCurrentFrame(prev => prev + 1);
                       setFrameWinner(null);
                       stateRef.current.balls = createInitialSnookerBalls();
+                      stateRef.current.firstHitBall = null;
+                      stateRef.current.pottedInCurrentShot = [];
+                      stateRef.current.isMoving = false;
                       setScoreP1(0);
                       setScoreP2(0);
                       setCurrentBreak(0);
@@ -1848,6 +2106,8 @@ export default function Snooker() {
                       setTargetBallType('red');
                       setActiveSequenceIndex(0);
                       setAimAngle(-90);
+                      setBallInHand(true);
+                      setSpinOffset({ x: 0, y: 0 });
                     }}
                     className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-xs shadow-lg active:scale-95"
                   >
