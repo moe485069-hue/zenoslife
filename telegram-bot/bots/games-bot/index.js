@@ -26,57 +26,219 @@ const {
 
 const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
 
-function getGamesReplyKeyboard() {
+// ----------------------------------------------------
+// MAIN PERSISTENT KEYBOARD (4-SECTION ARCHITECTURE)
+// Row 1 (Top single): Games & Tournaments
+// Row 2 (3 buttons): Wallet, Profile, Settings
+// ----------------------------------------------------
+function getMainReplyKeyboard(lang = 'fa') {
+  const isEn = lang === 'en';
   return {
     keyboard: [
-      // ۱. کارت‌های رسمی بازی تلگرام (HTML5 Game)
-      [{ text: '🪵 بازی تخته نرد شاهانه (Play) 🎲' }],
-      // ۲. بازی‌های فوری و زنده در کادر پیام (بدون مینی‌اپ)
-      [{ text: '🪨 سنگ، کاغذ، قیچی ✂️' }, { text: '🎲 دوئل رولت تاس' }],
-      [{ text: '🧠 مسابقه اطلاعات عمومی (کوئیز)' }, { text: '🎡 گردونه شانس روزانه' }],
-      // ۳. لیدربورد و شارژ
-      [{ text: '🏆 رتبه‌بندی قهرمانان' }, { text: '💎 کیف‌پول و شارژ سکه' }],
-      // ۴. سالن بازی‌ها و آرکید مینی‌اپ چاژا
-      [{
-        text: '🎪 سالن بزرگ بازی‌ها و گپ‌وگفت زنده 💬',
-        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` }
-      }],
-      [{
-        text: '🌟 ورود به آرکید مینی‌اپ (۱۰+ بازی آنلاین) 🎮',
-        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
-      }]
+      // Row 1: Single button on top (تکی در بالا)
+      [{ text: isEn ? '🎮 Games & Tournaments' : '🎮 بازی‌ها و مسابقات آنلاین' }],
+      // Row 2: 3 buttons side-by-side (۳تایی زیر دکمه اول)
+      [
+        { text: isEn ? '💎 Wallet & Coins' : '💎 کیف‌پول و سکه' },
+        { text: isEn ? '👤 My Profile' : '👤 پروفایل من' },
+        { text: isEn ? '⚙️ Settings' : '⚙️ تنظیمات' }
+      ]
     ],
     resize_keyboard: true
   };
 }
 
+// 0. Welcome / Start Dashboard
 async function sendGamesDashboard(chatId, userId) {
   const user = getUser(userId);
+  const isEn = user.lang === 'en';
   const streak = checkDailyStreak(userId);
 
   if (streak && streak.days > 1) {
+    const streakMsg = isEn
+      ? `🔥 <b>Daily Streak Bonus!</b>\nYou logged in ${streak.days} days in a row!\n🎁 Reward: <b>+${streak.coins} Coins & +${streak.xp} XP</b>`
+      : `🔥 <b>استریک روزانه بازی چاژا!</b>\nشما ${streak.days} روز متوالی وارد شدید!\n🎁 پاداش: <b>+${streak.coins} سکه و +${streak.xp} XP</b>`;
     callTgApi(BOT_TOKEN, 'sendMessage', {
       chat_id: chatId,
-      text: `🔥 <b>استریک روزانه بازی چاژا!</b>\nشما ${streak.days} روز متوالی وارد شدید!\n🎁 پاداش: <b>+${streak.coins} سکه و +${streak.xp} XP</b>`,
+      text: streakMsg,
       parse_mode: 'HTML'
     }).catch(() => {});
   }
 
-  const text = `🎮 <b>به چاژا (کنسول بازی و دوئل‌های آنلاین) خوش آمدید!</b>\n\n` +
-               `👤 بازیکن: <b>${user.name || 'کاربر چاژا'}</b> (Level ${user.level || 1})\n` +
-               `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
-               `⚡ تجربه: <b>${user.xp || 0} XP</b>\n\n` +
-               `<b>🗂 دسته‌بندی بازی‌ها:</b>\n` +
-               `• 🪵 <b>کارت‌های بازی تلگرام:</b> تخته نرد شاهانه با کارت رسمی و دکمه Play\n` +
-               `• ⚡ <b>بازی‌های درون پیام:</b> سنگ‌کاغذقیچی، تاس، مسابقه اطلاعات عمومی و گردونه\n` +
-               `• 🌟 <b>آرکید مینی‌اپ:</b> منچ، شطرنج، بیلیارد و ۱۰ بازی آنلاین دیگر\n\n` +
-               `یکی از گزینه‌ها را برای شروع انتخاب کنید:`;
+  const text = isEn
+    ? `🎮 <b>Welcome to Chazha Gaming & Online Arcade!</b>\n\n` +
+      `👤 Player: <b>${user.name || 'Chazha Player'}</b> (Level ${user.level || 1})\n` +
+      `🪙 Coins: <b>${(user.coins || 0).toLocaleString()}</b> | ⚡ XP: <b>${user.xp || 0}</b>\n\n` +
+      `Use the menu buttons below to play games, manage your wallet, view your profile, and configure settings:`
+    : `🎮 <b>به چاژا (کنسول بازی و دوئل‌های آنلاین) خوش آمدید!</b>\n\n` +
+      `👤 بازیکن: <b>${user.name || 'کاربر چاژا'}</b> (Level ${user.level || 1})\n` +
+      `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b> | ⚡ تجربه: <b>${user.xp || 0} XP</b>\n\n` +
+      `از منوی زیر برای دسترسی به بازی‌ها، کیف‌پول، پروفایل و تنظیمات استفاده کنید:`;
 
   return callTgApi(BOT_TOKEN, 'sendMessage', {
     chat_id: chatId,
     text: text,
     parse_mode: 'HTML',
-    reply_markup: getGamesReplyKeyboard()
+    reply_markup: getMainReplyKeyboard(user.lang || 'fa')
+  });
+}
+
+// SECTION 1: Games & Tournaments Hub
+async function sendGamesMenu(chatId, userId) {
+  const user = getUser(userId);
+  const isEn = user.lang === 'en';
+
+  const text = isEn
+    ? `🎮 <b>Chazha Games & Online Tournaments Hub</b>\n\n` +
+      `👤 Player: <b>${user.name || 'Chazha Player'}</b> (Level ${user.level || 1})\n` +
+      `🪙 Coins: <b>${(user.coins || 0).toLocaleString()}</b> | ⚡ XP: <b>${user.xp || 0}</b>\n\n` +
+      `Select a game below to play live or challenge friends:`
+    : `🎮 <b>کنسول بازی‌ها و مسابقات آنلاین چاژا</b>\n\n` +
+      `👤 بازیکن: <b>${user.name || 'کاربر چاژا'}</b> (سطح ${user.level || 1})\n` +
+      `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b> | ⚡ تجربه: <b>${user.xp || 0} XP</b>\n\n` +
+      `یک بازی را برای شروع انتخاب کنید:`;
+
+  const keyboard = [
+    // 1. Royal Backgammon HTML5 Game Card
+    [{ text: isEn ? '🪵 Play Royal Backgammon 🎲' : '🪵 بازی تخته نرد شاهانه (Play) 🎲', callback_data: 'launch_backgammon_card' }],
+    // 2. Fast Duels
+    [
+      { text: isEn ? '🪨 Rock Paper Scissors ✂️' : '🪨 سنگ، کاغذ، قیچی ✂️', callback_data: 'prompt_mode_rps' },
+      { text: isEn ? '🎲 Dice Duel' : '🎲 دوئل رولت تاس', callback_data: 'play_bot_dice' }
+    ],
+    // 3. Quiz & Lucky Wheel
+    [
+      { text: isEn ? '🧠 Trivia Quiz' : '🧠 مسابقه اطلاعات عمومی (کوئیز)', callback_data: 'play_trivia_quiz' },
+      { text: isEn ? '🎡 Daily Lucky Wheel' : '🎡 گردونه شانس روزانه', callback_data: 'spin_wheel_action' }
+    ],
+    // 4. Lounge & Mini-App Arcade
+    [{ text: isEn ? '🎪 Games Lounge & Live Chat 💬' : '🎪 سالن بزرگ بازی‌ها و گپ‌وگفت زنده 💬', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }],
+    [{ text: isEn ? '🌟 Open Arcade Mini-App (10+ Games) 🚀' : '🌟 ورود به آرکید مینی‌اپ (۱۰+ بازی آنلاین) 🎮', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` } }],
+    // 5. Leaderboard
+    [{ text: isEn ? '🏆 Champion Leaderboard' : '🏆 رتبه‌بندی قهرمانان', callback_data: 'view_leaderboard' }]
+  ];
+
+  return callTgApi(BOT_TOKEN, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: keyboard }
+  });
+}
+
+// SECTION 2: Wallet & Coins Hub
+async function sendWalletMenu(chatId, userId) {
+  const user = getUser(userId);
+  const isEn = user.lang === 'en';
+
+  const text = isEn
+    ? `💎 <b>Wallet, Coins & VIP Membership</b>\n\n` +
+      `🪙 Coins Balance: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
+      `👑 VIP Status: <b>${user.is_vip ? 'Active Royal VIP ⭐' : 'Standard Member'}</b>\n` +
+      `⚡ XP: <b>${user.xp || 0}</b> | 🏆 Level: <b>${user.level || 1}</b>\n\n` +
+      `Choose an option below to buy or earn coins:`
+    : `💎 <b>کیف‌پول، موجودی سکه و اشتراک VIP</b>\n\n` +
+      `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
+      `👑 وضعیت اشتراک: <b>${user.is_vip ? 'VIP طلایی فعال ⭐' : 'عادی'}</b>\n` +
+      `⚡ تجربه: <b>${user.xp || 0} XP</b> | 🏆 سطح: <b>${user.level || 1}</b>\n\n` +
+      `برای شارژ سکه یا دریافت پاداش رایگان یکی از گزینه‌ها را انتخاب کنید:`;
+
+  const keyboard = [
+    [{ text: isEn ? '🪙 Buy Coin Packs (Stars ⭐)' : '🪙 خرید بسته‌های سکه (با تلگرام استارز ⭐)', callback_data: 'shop_buy_coins' }],
+    [{ text: isEn ? '👑 Upgrade to VIP Pass' : '👑 ارتقا به VIP (سکه و XP مضاعف)', callback_data: 'shop_buy_vip' }],
+    [
+      { text: isEn ? '🎁 Daily Spin Bonus' : '🎁 گردونه شانس روزانه', callback_data: 'spin_wheel_action' },
+      { text: isEn ? '👥 Invite Friends (+500 Coins)' : '👥 دعوت دوستان (+۵۰۰ سکه)', callback_data: 'show_referral' }
+    ],
+    [{ text: isEn ? '🏆 Leaderboard' : '🏆 جدول قهرمانان', callback_data: 'view_leaderboard' }]
+  ];
+
+  return callTgApi(BOT_TOKEN, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: keyboard }
+  });
+}
+
+// SECTION 3: Player Profile Hub
+async function sendProfileMenu(chatId, userId) {
+  const user = getUser(userId);
+  const isEn = user.lang === 'en';
+
+  const friendsCount = (user.friends || []).length;
+  const refsCount = (user.referrals || []).length;
+
+  const text = isEn
+    ? `👤 <b>Player Profile Card</b>\n\n` +
+      `🏷️ Name: <b>${user.name || 'Chazha Player'}</b>\n` +
+      `🆔 User ID: <code>${userId}</code>\n` +
+      `🏆 Level: <b>Level ${user.level || 1}</b> (${user.xp || 0} XP)\n` +
+      `🪙 Coins: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
+      `👑 VIP: <b>${user.is_vip ? 'Active Royal VIP ⭐' : 'Standard Member'}</b>\n` +
+      `🔥 Daily Streak: <b>${user.streak_days || 1} Days</b>\n` +
+      `🤝 Friends: <b>${friendsCount} Friends</b>\n` +
+      `👥 Referrals: <b>${refsCount} Invited</b>\n\n` +
+      `Choose an action:`
+    : `👤 <b>کارت پروفایل و کارنامه بازیکن</b>\n\n` +
+      `🏷️ نام: <b>${user.name || 'کاربر چاژا'}</b>\n` +
+      `🆔 شناسه کاربری: <code>${userId}</code>\n` +
+      `🏆 سطح: <b>سطح ${user.level || 1}</b> (${user.xp || 0} XP)\n` +
+      `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
+      `👑 اشتراک VIP: <b>${user.is_vip ? 'VIP طلایی فعال ⭐' : 'کاربر عادی'}</b>\n` +
+      `🔥 استریک روزانه: <b>${user.streak_days || 1} روز متوالی</b>\n` +
+      `🤝 دوستان چاژا: <b>${friendsCount} نفر</b>\n` +
+      `👥 زیرمجموعه‌ها: <b>${refsCount} نفر</b>\n\n` +
+      `یک گزینه را انتخاب کنید:`;
+
+  const keyboard = [
+    [{ text: isEn ? `🤝 My Friends List (${friendsCount})` : `🤝 لیست دوستان چاژا (${friendsCount} نفر)`, callback_data: 'profile_view_friends' }],
+    [
+      { text: isEn ? '🚀 Invite Friends Link' : '🚀 لینک اختصاصی دعوت و پاداش', callback_data: 'show_referral' },
+      { text: isEn ? '🎨 Board Themes' : '🎨 تم‌های تخته نرد', callback_data: 'bg_themes_menu' }
+    ]
+  ];
+
+  return callTgApi(BOT_TOKEN, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: keyboard }
+  });
+}
+
+// SECTION 4: Settings Hub
+async function sendSettingsMenu(chatId, userId) {
+  const user = getUser(userId);
+  const isEn = user.lang === 'en';
+
+  const themeNames = { wood: 'چوب گردو کلاسیک', persia: 'تخت جمشید باستان', cosmic: 'کهکشان کیهانی' };
+  const themeNamesEn = { wood: 'Classic Walnut Wood', persia: 'Ancient Persepolis', cosmic: 'Cosmic Galaxy' };
+  const curThemeName = isEn ? (themeNamesEn[user.backgammonTheme] || 'Classic Wood') : (themeNames[user.backgammonTheme] || 'چوب گردو');
+
+  const text = isEn
+    ? `⚙️ <b>Chazha Bot Settings</b>\n\n` +
+      `🌐 Current Language: <b>🇬🇧 English</b>\n` +
+      `🎨 Default Backgammon Theme: <b>${curThemeName}</b>\n` +
+      `🔔 Notifications: <b>${user.notificationsDisabled ? '🔕 Muted' : '🔔 Enabled'}</b>\n\n` +
+      `Tap a button below to configure:`
+    : `⚙️ <b>تنظیمات حساب کاربری چاژا</b>\n\n` +
+      `🌐 زبان فعلی: <b>🇮🇷 فارسی</b>\n` +
+      `🎨 تم فعال تخته نرد: <b>${curThemeName}</b>\n` +
+      `🔔 وضعیت اعلان‌ها: <b>${user.notificationsDisabled ? '🔕 غیرفعال' : '🔔 فعال'}</b>\n\n` +
+      `برای تغییر هر بخش، روی دکمه مربوطه بزنید:`;
+
+  const keyboard = [
+    [{ text: '🌐 تغییر زبان | Change Language', callback_data: 'settings_change_lang' }],
+    [{ text: isEn ? '🎨 Backgammon Theme' : '🎨 انتخاب تم پیش‌فرض تخته نرد', callback_data: 'bg_themes_menu' }],
+    [{ text: user.notificationsDisabled ? (isEn ? '🔔 Enable Notifications' : '🔔 فعال‌سازی اعلان‌ها') : (isEn ? '🔕 Mute Notifications' : '🔕 بی‌صدا کردن اعلان‌ها'), callback_data: 'settings_toggle_notif' }]
+  ];
+
+  return callTgApi(BOT_TOKEN, 'sendMessage', {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: keyboard }
   });
 }
 
@@ -186,25 +348,76 @@ async function onMessage(msg) {
     });
   }
 
-  if (text.startsWith('/start') || text === '🔙 بازگشت به منوی بازی‌ها') {
+  // Handle Referral Links (/start ref_<userId>)
+  if (text.startsWith('/start ref_')) {
+    const referrerId = text.replace('/start ref_', '').trim();
+    if (referrerId && referrerId !== userId) {
+      const referrer = getUser(referrerId);
+      if (!referrer.referrals) referrer.referrals = [];
+      if (!referrer.referrals.includes(userId)) {
+        referrer.referrals.push(userId);
+        referrer.coins = (referrer.coins || 0) + 500;
+        referrer.xp = (referrer.xp || 0) + 100;
+        updateUser(referrerId, { referrals: referrer.referrals, coins: referrer.coins, xp: referrer.xp });
+
+        // Notify referrer
+        callTgApi(BOT_TOKEN, 'sendMessage', {
+          chat_id: referrerId,
+          text: `🎉 <b>کاربر جدید با لینک شما وارد چاژا شد!</b>\nپاداش: <b>+۵۰۰ سکه</b> و <b>+۱۰۰ XP</b> به حسابتان افزوده شد.`,
+          parse_mode: 'HTML'
+        }).catch(() => {});
+
+        // Bonus for the newcomer
+        const user = getUser(userId);
+        user.coins = (user.coins || 0) + 500;
+        updateUser(userId, { coins: user.coins });
+      }
+    }
+  }
+
+  // ----------------------------------------------------
+  // PERSISTENT 4-BUTTON MENU ROUTER
+  // ----------------------------------------------------
+  // 1. Games & Tournaments Hub
+  if (text === '🎮 بازی‌ها و مسابقات آنلاین' || text === '🎮 Games & Tournaments' || text === '/games') {
+    return sendGamesMenu(chatId, userId);
+  }
+
+  // 2. Wallet & Coins Hub
+  if (text === '💎 کیف‌پول و سکه' || text === '💎 Wallet & Coins' || text === '/wallet' || text === '💎 کیف‌پول و شارژ سکه') {
+    return sendWalletMenu(chatId, userId);
+  }
+
+  // 3. Player Profile Hub
+  if (text === '👤 پروفایل من' || text === '👤 My Profile' || text === '/profile' || text === '/me') {
+    return sendProfileMenu(chatId, userId);
+  }
+
+  // 4. Settings Hub
+  if (text === '⚙️ تنظیمات' || text === '⚙️ Settings' || text === '/settings') {
+    return sendSettingsMenu(chatId, userId);
+  }
+
+  // Start & Navigation Back
+  if (text.startsWith('/start') || text === '🔙 بازگشت به منوی بازی‌ها' || text === '🔙 Back') {
     return sendGamesDashboard(chatId, userId);
   }
 
+  // Backgammon Quick Launcher
   if (text.includes('تخته نرد') || text === '/backgammon') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
     return callTgApi(BOT_TOKEN, 'sendGame', {
       chat_id: chatId,
       game_short_name: 'backgammon',
       reply_markup: {
         inline_keyboard: [
-          // Row 1: The official Game Play button (Random Matchmaking queue)
-          [{ text: '🎲 حریف شانسی (مسابقه تصادفی) ⚔️', callback_game: {} }],
-          // Row 2: Change Theme & Play vs Bot (side by side)
+          [{ text: isEn ? '🎲 Random Opponent (Quick Match) ⚔️' : '🎲 حریف شانسی (مسابقه تصادفی) ⚔️', callback_game: {} }],
           [
-            { text: '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
-            { text: '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
+            { text: isEn ? '🎨 Themes' : '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
+            { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
           ],
-          // Row 3: Send Challenge to friends/groups
-          [{ text: '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
         ]
       }
     });
@@ -241,10 +454,6 @@ async function onMessage(msg) {
 
   if (text === '🏆 رتبه‌بندی قهرمانان') {
     return sendGameLeaderboard(BOT_TOKEN, chatId);
-  }
-
-  if (text === '💎 کیف‌پول و شارژ سکه') {
-    return sendFinanceHub(BOT_TOKEN, chatId, userId);
   }
 
   return sendGamesDashboard(chatId, userId);
@@ -508,6 +717,166 @@ async function onCallback(cq) {
       callback_query_id: cq.id,
       text: `✅ شما و ${friendUser.name || 'کاربر چاژا'} اکنون دوست شدید!`,
       show_alert: true
+    });
+  }
+
+  // 7. Launch Backgammon HTML5 Game Card
+  if (data === 'launch_backgammon_card') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    return callTgApi(BOT_TOKEN, 'sendGame', {
+      chat_id: chatId,
+      game_short_name: 'backgammon',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '🎲 Random Opponent (Quick Match) ⚔️' : '🎲 حریف شانسی (مسابقه تصادفی) ⚔️', callback_game: {} }],
+          [
+            { text: isEn ? '🎨 Themes' : '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
+            { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
+          ],
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
+        ]
+      }
+    });
+  }
+
+  // 8. Settings: Language Selector
+  if (data === 'settings_change_lang') {
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '🌐 <b>انتخاب زبان | Language Selection:</b>\nلطفاً زبان مورد نظر خود را انتخاب کنید:\nPlease select your preferred language:',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '🇮🇷 فارسی (Persian)', callback_data: 'set_lang_fa' },
+            { text: '🇬🇧 English', callback_data: 'set_lang_en' }
+          ]
+        ]
+      }
+    });
+  }
+
+  // 9. Set Language -> Persian
+  if (data === 'set_lang_fa') {
+    updateUser(userId, { lang: 'fa' });
+    try {
+      await callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+        callback_query_id: cq.id,
+        text: '✅ زبان با موفقیت به فارسی تغییر یافت.',
+        show_alert: true
+      });
+    } catch (_) {}
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '🇮🇷 <b>زبان چاژا به فارسی تنظیم شد.</b>\nمنوی پایین و پیام‌ها به زبان فارسی نمایش داده خواهند شد.',
+      parse_mode: 'HTML',
+      reply_markup: getMainReplyKeyboard('fa')
+    });
+  }
+
+  // 10. Set Language -> English
+  if (data === 'set_lang_en') {
+    updateUser(userId, { lang: 'en' });
+    try {
+      await callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+        callback_query_id: cq.id,
+        text: '✅ Language changed to English successfully.',
+        show_alert: true
+      });
+    } catch (_) {}
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '🇬🇧 <b>Chazha language switched to English!</b>\nYour menus and notifications are now updated.',
+      parse_mode: 'HTML',
+      reply_markup: getMainReplyKeyboard('en')
+    });
+  }
+
+  // 11. Settings: Toggle Notifications
+  if (data === 'settings_toggle_notif') {
+    const user = getUser(userId);
+    const newStatus = !user.notificationsDisabled;
+    updateUser(userId, { notificationsDisabled: newStatus });
+    const isEn = user.lang === 'en';
+    const alertMsg = newStatus
+      ? (isEn ? '🔕 Notifications muted.' : '🔕 اعلان‌ها غیرفعال شدند.')
+      : (isEn ? '🔔 Notifications enabled.' : '🔔 اعلان‌ها فعال شدند.');
+    try {
+      await callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+        callback_query_id: cq.id,
+        text: alertMsg,
+        show_alert: true
+      });
+    } catch (_) {}
+    return sendSettingsMenu(chatId, userId);
+  }
+
+  // 12. Profile: View Friends
+  if (data === 'profile_view_friends') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    const friends = user.friends || [];
+    if (friends.length === 0) {
+      return callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: chatId,
+        text: isEn
+          ? `🤝 <b>My Friends List</b>\n\nYou have no friends added yet!\nInvite friends with your link or challenge players in games.`
+          : `🤝 <b>لیست دوستان چاژا</b>\n\nهنوز دوستی به لیست شما اضافه نشده است!\nبا ارسال لینک دعوت به دوستانتان یا رقابت در بازی‌ها، دوستان جدید اضافه کنید.`,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: isEn ? '🚀 Invite Friends' : '🚀 ارسال لینک دعوت', callback_data: 'show_referral' }],
+            [{ text: isEn ? '🎪 Go to Games Lounge' : '🎪 ورود به سالن بازی‌ها و گپ', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }]
+          ]
+        }
+      });
+    }
+
+    let listText = isEn ? `🤝 <b>Your Chazha Friends (${friends.length}):</b>\n\n` : `🤝 <b>لیست دوستان شما در چاژا (${friends.length} نفر):</b>\n\n`;
+    const buttons = [];
+    for (const fId of friends.slice(0, 10)) {
+      const fUser = getUser(fId);
+      listText += `👤 <b>${fUser.name || 'کاربر'}</b> (سطح ${fUser.level || 1})\n`;
+      buttons.push([{
+        text: isEn ? `🎲 Challenge ${fUser.name || 'Friend'}` : `🎲 دعوت ${fUser.name || 'دوست'} به بازی`,
+        switch_inline_query: `duel_backgammon_CHZ-${userId}`
+      }]);
+    }
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: listText,
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // 13. Profile / Wallet: Show Referral Link & Rewards
+  if (data === 'show_referral') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    const refLink = `https://t.me/chazha_bot?start=ref_${userId}`;
+    const text = isEn
+      ? `👥 <b>Invite Friends & Earn Rewards!</b>\n\n` +
+        `Share your exclusive link with friends. For every friend who joins:\n` +
+        `🎁 <b>You receive: +500 Coins & +100 XP!</b>\n` +
+        `🎁 <b>Your friend gets: +500 Welcome Coins!</b>\n\n` +
+        `🔗 Your Link:\n<code>${refLink}</code>`
+      : `👥 <b>دعوت دوستان و دریافت پاداش سکه!</b>\n\n` +
+        `لینک اختصاصی خود را برای دوستان و گروه‌ها بفرستید. با ورود هر دوست به چاژا:\n` +
+        `🎁 <b>شما ۵۰۰ سکه و ۱۰۰ XP دریافت می‌کنید!</b>\n` +
+        `🎁 <b>دوست شما هم ۵۰۰ سکه خوش‌آمدگویی هدیه می‌گیرد!</b>\n\n` +
+        `🔗 لینک اختصاصی شما:\n<code>${refLink}</code>`;
+
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '📤 Share Link' : '📤 ارسال لینک برای دوستان', switch_inline_query: `ref_${userId}` }]
+        ]
+      }
     });
   }
 }
