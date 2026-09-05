@@ -27,6 +27,7 @@ const {
 const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
 
 const GAME_BANNER_PHOTOS = {
+  snooker: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&auto=format&fit=crop&q=80',
   backgammon: 'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=800&auto=format&fit=crop&q=80',
   hokm: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80',
   ludo: 'https://images.unsplash.com/photo-1611891487122-207579d67d98?w=800&auto=format&fit=crop&q=80',
@@ -36,6 +37,7 @@ const GAME_BANNER_PHOTOS = {
 function getShareDuelUrl(gameType = 'backgammon', roomCode = '', customText = '') {
   const botUsername = 'chazha_bot';
   const gameNames = {
+    snooker: 'اسنوکر شاهانه',
     backgammon: 'تخته نرد',
     hokm: 'حکم آنلاین',
     ludo: 'منچ آنلاین',
@@ -43,8 +45,8 @@ function getShareDuelUrl(gameType = 'backgammon', roomCode = '', customText = ''
     billiards: 'بیلیارد',
     cosmic_chess: 'شطرنج'
   };
-  const title = gameNames[gameType] || 'تخته نرد';
-  const directLink = `https://t.me/${botUsername}?start=room_${roomCode || 'CHZ-MATCH'}`;
+  const title = gameNames[gameType] || 'اسنوکر شاهانه';
+  const directLink = `https://t.me/${botUsername}?start=room_${roomCode || 'SNOO-MATCH'}`;
   const text = customText || `🎲 دعوت به مسابقه دوئل ${title} در چاژا!\n👑 بیا با من مسابقه بده، روی لینک زیر بزن و مستقیم وارد بازی شو: ⚔️👇`;
   return `https://t.me/share/url?url=${encodeURIComponent(directLink)}&text=${encodeURIComponent(text)}`;
 }
@@ -122,7 +124,8 @@ async function sendGamesMenu(chatId, userId) {
       `یک بازی را برای شروع انتخاب کنید:`;
 
   const keyboard = [
-    // 1. Royal Backgammon HTML5 Game Card
+    // 1. Royal Snooker 3D & Backgammon Cards
+    [{ text: isEn ? '🎱 Play Royal Snooker 3D 🏆' : '🎱 بازی اسنوکر شاهانه سه‌بعدی (Play) 🏆', callback_data: 'launch_snooker_card' }],
     [{ text: isEn ? '🪵 Play Royal Backgammon 🎲' : '🪵 بازی تخته نرد شاهانه (Play) 🎲', callback_data: 'launch_backgammon_card' }],
     // 2. Fast Duels
     [
@@ -308,14 +311,15 @@ async function onMessage(msg) {
       roomCode = text.replace('/start ', '').trim();
     }
 
-    if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameName = 'حکم آنلاین'; }
+    if (roomCode.startsWith('SNOO-')) { gameType = 'snooker'; gameName = 'اسنوکر شاهانه'; }
+    else if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameName = 'حکم آنلاین'; }
     else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameName = 'منچ آنلاین'; }
     else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameName = 'پاسور چهاربرگ'; }
     else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameName = 'بیلیارد'; }
     else if (roomCode.startsWith('CHSS-')) { gameType = 'cosmic_chess'; gameName = 'شطرنج'; }
     else {
-      const names = { backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد', cosmic_chess: 'شطرنج' };
-      gameName = names[gameType] || 'تخته نرد';
+      const names = { snooker: 'اسنوکر', backgammon: 'تخته نرد', hokm: 'حکم', ludo: 'منچ', pasur: 'پاسور', billiards: 'بیلیارد', cosmic_chess: 'شطرنج' };
+      gameName = names[gameType] || 'اسنوکر شاهانه';
     }
 
     const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
@@ -536,6 +540,26 @@ async function onMessage(msg) {
   // Start & Navigation Back
   if (text.startsWith('/start') || text === '🔙 بازگشت به منوی بازی‌ها' || text === '🔙 Back') {
     return sendGamesDashboard(chatId, userId);
+  }
+
+  // Snooker Quick Launcher
+  if (text.includes('اسنوکر') || text === '/snooker') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    return callTgApi(BOT_TOKEN, 'sendGame', {
+      chat_id: chatId,
+      game_short_name: 'snooker',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '🎱 Random Match (Quick Duel) ⚔️' : '🎱 حریف شانسی (مسابقه اسنوکر) ⚔️', callback_game: {} }],
+          [
+            { text: isEn ? '🛍️ Cues Shop' : '🛍️ فروشگاه چوب‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/snooker` } },
+            { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/snooker` } }
+          ],
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', url: getShareDuelUrl('snooker', `SNOO-${userId}`) }]
+        ]
+      }
+    });
   }
 
   // Backgammon Quick Launcher
@@ -855,7 +879,26 @@ async function onCallback(cq) {
     });
   }
 
-  // 7. Launch Backgammon HTML5 Game Card
+  // 7. Launch Snooker & Backgammon HTML5 Game Cards
+  if (data === 'launch_snooker_card') {
+    const user = getUser(userId);
+    const isEn = user.lang === 'en';
+    return callTgApi(BOT_TOKEN, 'sendGame', {
+      chat_id: chatId,
+      game_short_name: 'snooker',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEn ? '🎱 Random Match (Quick Duel) ⚔️' : '🎱 حریف شانسی (مسابقه اسنوکر) ⚔️', callback_game: {} }],
+          [
+            { text: isEn ? '🛍️ Cues Shop' : '🛍️ فروشگاه چوب‌ها', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/snooker` } },
+            { text: isEn ? '🤖 Play vs Bot' : '🤖 بازی با ربات', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/snooker` } }
+          ],
+          [{ text: isEn ? '🚀 Invite Friends to Match ⚔️' : '🚀 ارسال درخواست مسابقه به دوستان ⚔️', url: getShareDuelUrl('snooker', `SNOO-${userId}`) }]
+        ]
+      }
+    });
+  }
+
   if (data === 'launch_backgammon_card') {
     const user = getUser(userId);
     const isEn = user.lang === 'en';
@@ -1115,7 +1158,11 @@ async function onInlineQuery(iq) {
   let gameTitle = 'تخته نرد';
 
   if (query) {
-    if (query.startsWith('BACK-') || query.startsWith('backgammon')) {
+    if (query.startsWith('SNOO-') || query.startsWith('snooker')) {
+      gameType = 'snooker';
+      gameTitle = 'اسنوکر شاهانه';
+      roomCode = query.startsWith('SNOO-') ? query : (query.split(' ')[1] || `SNOO-${senderId}`);
+    } else if (query.startsWith('BACK-') || query.startsWith('backgammon')) {
       gameType = 'backgammon';
       gameTitle = 'تخته نرد';
       roomCode = query.startsWith('BACK-') ? query : (query.split(' ')[1] || `BACK-${senderId}`);
@@ -1129,7 +1176,8 @@ async function onInlineQuery(iq) {
       roomCode = query.startsWith('LUDO-') ? query : (query.split(' ')[1] || `LUDO-${senderId}`);
     } else if (query.startsWith('room_')) {
       roomCode = query.replace('room_', '');
-      if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameTitle = 'حکم'; }
+      if (roomCode.startsWith('SNOO-')) { gameType = 'snooker'; gameTitle = 'اسنوکر شاهانه'; }
+      else if (roomCode.startsWith('HOKM-')) { gameType = 'hokm'; gameTitle = 'حکم'; }
       else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameTitle = 'منچ'; }
       else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameTitle = 'پاسور'; }
       else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameTitle = 'بیلیارد'; }
@@ -1229,6 +1277,7 @@ async function start() {
     },
     commands: [
       { command: 'start', description: '🚀 منوی بازی‌های چاژا' },
+      { command: 'snooker', description: '🎱 بازی اسنوکر حرفه‌ای' },
       { command: 'backgammon', description: '🪵 بازی تخته نرد' },
       { command: 'games', description: '🎮 بازی‌ها و دوئل‌ها' },
       { command: 'wheel', description: '🎡 گردونه شانس روزانه' },

@@ -17,6 +17,7 @@ import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
 // Supported Games in the Lounge
 const LOUNGE_GAMES = [
   { id: 'all', titleFa: 'همه بازی‌ها', icon: '🎯' },
+  { id: 'snooker', titleFa: 'اسنوکر شاهانه', icon: '🎱', path: '/games/snooker' },
   { id: 'backgammon', titleFa: 'تخته نرد', icon: '🎲', path: '/games/backgammon' },
   { id: 'billiards', titleFa: 'بیلیارد', icon: '🎱', path: '/games/billiards' },
   { id: 'cosmic-chess', titleFa: 'شطرنج', icon: '♟️', path: '/games/cosmic-chess' },
@@ -234,7 +235,9 @@ export default function GameRoomsLounge() {
     const cleanCode = searchRoomCode.trim().toUpperCase();
     soundEngine.playTap?.();
     haptics.success?.();
-    if (cleanCode.startsWith('BILL')) {
+    if (cleanCode.startsWith('SNOO')) {
+      navigate(`/games/snooker?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('BILL')) {
       navigate(`/games/billiards?room=${cleanCode}&mode=online`);
     } else if (cleanCode.startsWith('CHES')) {
       navigate(`/games/cosmic-chess?room=${cleanCode}&mode=online`);

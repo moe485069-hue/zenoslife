@@ -79,7 +79,8 @@ export const initTelegramMiniApp = (appStore) => {
       } else if (startParam.startsWith('room_')) {
         const roomId = startParam.replace('room_', '');
         let game = 'backgammon';
-        if (roomId.startsWith('BACK-')) game = 'backgammon';
+        if (roomId.startsWith('SNOO-')) game = 'snooker';
+        else if (roomId.startsWith('BACK-')) game = 'backgammon';
         else if (roomId.startsWith('HOKM-')) game = 'hokm';
         else if (roomId.startsWith('LUDO-')) game = 'ludo';
         else if (roomId.startsWith('PASS-')) game = 'pasur';
@@ -89,12 +90,15 @@ export const initTelegramMiniApp = (appStore) => {
       } else if (startParam.startsWith('duel_backgammon_')) {
         const room = startParam.replace('duel_backgammon_', '');
         window.location.hash = `#/games/backgammon?room=${room}&mode=online&role=black&autostart=1`;
+      } else if (startParam.startsWith('duel_snooker_')) {
+        const room = startParam.replace('duel_snooker_', '');
+        window.location.hash = `#/games/snooker?room=${room}&mode=online&role=p2&autostart=1`;
       } else if (startParam.startsWith('duel_')) {
         const parts = startParam.replace('duel_', '').split('_');
-        const game = parts[0] || 'backgammon';
+        const game = parts[0] || 'snooker';
         const room = parts[1] || 'ROOM1';
-        window.location.hash = `#/games/${game}?room=${room}&mode=online&role=black&autostart=1`;
-      } else if (['hokm', 'backgammon', 'ludo', 'pasur', 'billiards'].includes(startParam)) {
+        window.location.hash = `#/games/${game}?room=${room}&mode=online&role=p2&autostart=1`;
+      } else if (['snooker', 'hokm', 'backgammon', 'ludo', 'pasur', 'billiards'].includes(startParam)) {
         if (typeof window !== 'undefined' && !window.location.pathname.includes(`/games/${startParam}`)) {
           window.location.hash = `#/games/${startParam}`;
         }

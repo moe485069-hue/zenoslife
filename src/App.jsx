@@ -86,6 +86,7 @@ const Backgammon = lazyRetry(() => import('./pages/games/Backgammon'));
 const Ludo = lazyRetry(() => import('./pages/games/Ludo'));
 const Pasur = lazyRetry(() => import('./pages/games/Pasur'));
 const Billiards = lazyRetry(() => import('./pages/games/Billiards'));
+const Snooker = lazyRetry(() => import('./pages/games/Snooker'));
 const Hokm = lazyRetry(() => import('./pages/games/Hokm'));
 const SnakesAndLadders = lazyRetry(() => import('./pages/games/SnakesAndLadders'));
 const FingerSoccer = lazyRetry(() => import('./pages/games/FingerSoccer'));
@@ -403,6 +404,7 @@ export default function App() {
             <Route path="/games/ludo" element={<Ludo />} />
             <Route path="/games/pasur" element={<Pasur />} />
             <Route path="/games/billiards" element={<Billiards />} />
+            <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/games/hokm" element={<Hokm />} />
             <Route path="/games/snakes-and-ladders" element={<SnakesAndLadders />} />
             <Route path="/games/snakes" element={<SnakesAndLadders />} />

@@ -215,6 +215,22 @@ export const GAME_DEFS = [
     path: '/games/mini-golf'
   },
   {
+    id: 'snooker',
+    titleFa: 'اسنوکر شاهانه سه‌بعدی',
+    titleEn: 'Royal Snooker 3D',
+    icon: '🎱',
+    category: 'arcade',
+    maxPlayers: 2,
+    color: 'from-emerald-600/30 via-teal-800/25 to-slate-950/60 border-emerald-500/50',
+    accentColor: 'text-emerald-300',
+    descFa: 'اسنوکر حرفه‌ای با قوانین رسمی (۱۵ قرمز + ۶ رنگی)، فیزیک واقعی، بریک ۱۴۷ و چوب‌های سفارشی.',
+    descEn: 'Official rules snooker with 15 reds + 6 colours, realistic physics, 147 breaks and custom cues.',
+    levelFa: 'حرفه‌ای 🎱',
+    levelEn: 'Championship 🎱',
+    featured: true,
+    path: '/games/snooker'
+  },
+  {
     id: 'billiards',
     titleFa: 'بیلیارد ۸-توپی',
     titleEn: '8-Ball Billiards',
