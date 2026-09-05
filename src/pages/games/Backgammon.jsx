@@ -14,6 +14,7 @@ import BackgammonSetupModal from '../../components/games/BackgammonSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
+import OpponentProfileModal from '../../components/games/OpponentProfileModal';
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram } from '../../utils/telegram';
 
@@ -245,10 +246,12 @@ export default function Backgammon() {
   const paramTheme = searchParams.get('theme');
   const paramRole = searchParams.get('role');
   const paramAutostart = searchParams.get('autostart'); // Skip setup modal when coming from invite link
+  const paramMatchmaking = searchParams.get('matchmaking'); // 'random'
+  const isRandomMatchmaking = paramMatchmaking === 'random';
 
   // Match Configuration & Modal State
-  const initialMode = paramMode || (paramRoom ? 'online' : 'bot');
-  const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode && !paramAutostart);
+  const initialMode = isRandomMatchmaking ? 'online' : (paramMode || (paramRoom ? 'online' : 'bot'));
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode && !paramAutostart && !isRandomMatchmaking);
   const [gameMode, setGameMode] = useState(initialMode); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
   const [botDifficulty, setBotDifficulty] = useState(paramDiff || 'medium');
@@ -307,9 +310,20 @@ export default function Backgammon() {
   const isFlipped = manualFlip !== null ? manualFlip : (myOnlineRole === 'black');
 
   // === NEW: Waiting for Opponent & Rematch System ===
-  const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false);
+  const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(isRandomMatchmaking);
   const [opponentJoined, setOpponentJoined] = useState(!!paramRoom && !!paramRole); // Guest already has an opponent (the host)
   const [rematchState, setRematchState] = useState(null); // null | 'sent' | 'received' | 'accepted' | 'declined'
+  const [opponentData, setOpponentData] = useState(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState(null);
+  const [incomingFriendRequest, setIncomingFriendRequest] = useState(null);
+  const [friendsList, setFriendsList] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('zen_friends') || '[]');
+    } catch (_) {
+      return [];
+    }
+  });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -366,6 +380,72 @@ export default function Backgammon() {
       chatChannelRef.current?.postMessage(packet);
     } catch (_) {}
   };
+
+  // ----------------------------------------------------
+  // RANDOM MATCHMAKING QUEUE (CHAZHA RANDOM DUEL)
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (!isRandomMatchmaking || opponentJoined || gameMode !== 'online') return;
+
+    const mmTopic = 'zenoslife_v3_matchmaking_backgammon';
+
+    const announceQueue = () => {
+      realtimeNetwork.publish({
+        type: 'MATCHMAKING_JOIN',
+        userId: myUserId,
+        userName: myUserName,
+        timestamp: Date.now()
+      }, mmTopic);
+    };
+
+    announceQueue();
+    const mmInterval = setInterval(announceQueue, 3500);
+
+    const handleMatchmakingEvent = (data) => {
+      if (!data) return;
+      if (data.type === 'MATCHMAKING_JOIN' && data.userId !== myUserId) {
+        // Deterministic host election: lower userId initiates the pair room
+        if (myUserId < data.userId) {
+          const matchedRoom = `BACK-RND-${Math.floor(1000 + Math.random() * 9000)}`;
+          realtimeNetwork.publish({
+            type: 'MATCHMAKING_PAIRED',
+            roomCode: matchedRoom,
+            hostId: myUserId,
+            hostName: myUserName,
+            guestId: data.userId,
+            guestName: data.userName
+          }, mmTopic);
+        }
+      } else if (data.type === 'MATCHMAKING_PAIRED') {
+        if (data.hostId === myUserId) {
+          setOnlineRoomCode(data.roomCode);
+          setMyOnlineRole('white');
+          setOpponentData({ id: data.guestId, name: data.guestName, role: 'black' });
+          setIsWaitingForOpponent(false);
+          setOpponentJoined(true);
+          soundEngine.playLevelUp?.();
+          haptics.success?.();
+          setLastMoveMsg(isRtl ? `⚡ حریف آنلاین (${data.guestName}) پیدا شد! بازی شروع شد` : `Matched with ${data.guestName}! Match started.`);
+        } else if (data.guestId === myUserId) {
+          setOnlineRoomCode(data.roomCode);
+          setMyOnlineRole('black');
+          setOpponentData({ id: data.hostId, name: data.hostName, role: 'white' });
+          setIsWaitingForOpponent(false);
+          setOpponentJoined(true);
+          soundEngine.playLevelUp?.();
+          haptics.success?.();
+          setLastMoveMsg(isRtl ? `⚡ به حریف آنلاین (${data.hostName}) متصل شدید! بازی شروع شد` : `Matched with ${data.hostName}! Match started.`);
+        }
+      }
+    };
+
+    const unsubscribe = realtimeNetwork.subscribe(handleMatchmakingEvent);
+
+    return () => {
+      clearInterval(mmInterval);
+      unsubscribe?.();
+    };
+  }, [isRandomMatchmaking, opponentJoined, gameMode, myUserId, myUserName, isRtl]);
 
   // ----------------------------------------------------
   // ONLINE MULTIPLAYER REALTIME SYNC
@@ -431,6 +511,7 @@ export default function Backgammon() {
           soundEngine.playLevelUp?.();
           setIsWaitingForOpponent(false); // Dismiss waiting overlay
           setOpponentJoined(true);
+          setOpponentData({ id: data.senderId, name: data.senderName, role: payload?.role === 'white' ? 'white' : 'black' });
           // Acknowledge presence back so the newcomer also knows host is present
           broadcastPayload('PLAYER_ACK', { role: myOnlineRole });
           // Auto Role Handshake: if newcomer claims same role, host keeps white & assigns black to newcomer
@@ -444,6 +525,7 @@ export default function Backgammon() {
         } else if (actionType === 'PLAYER_ACK') {
           setIsWaitingForOpponent(false);
           setOpponentJoined(true);
+          setOpponentData(prev => prev || { id: data.senderId, name: data.senderName, role: payload?.role === 'white' ? 'white' : 'black' });
         } else if (actionType === 'ROLE_ASSIGN') {
           if (payload?.targetUserId === myUserId && payload.role) {
             setMyOnlineRole(payload.role);
@@ -454,6 +536,29 @@ export default function Backgammon() {
           if (payload.scoreWhite !== undefined) setScoreWhite(payload.scoreWhite);
           if (payload.scoreBlack !== undefined) setScoreBlack(payload.scoreBlack);
           soundEngine.playLevelUp?.();
+        // === FRIEND REQUEST & ACCEPT ===
+        } else if (actionType === 'FRIEND_REQUEST') {
+          if (!payload?.targetId || payload.targetId === myUserId || payload.targetId === 'online_opp') {
+            setIncomingFriendRequest({
+              senderId: data.senderId,
+              senderName: data.senderName,
+              senderRole: payload?.senderRole || 'white'
+            });
+            soundEngine.playLevelUp?.();
+            haptics.success?.();
+          }
+        } else if (actionType === 'FRIEND_ACCEPT') {
+          try {
+            const cur = JSON.parse(localStorage.getItem('zen_friends') || '[]');
+            if (!cur.includes(data.senderId)) {
+              cur.push(data.senderId);
+              localStorage.setItem('zen_friends', JSON.stringify(cur));
+              setFriendsList(cur);
+            }
+          } catch (_) {}
+          setLastMoveMsg(isRtl ? `🤝 شما و ${data.senderName || 'حریف'} اکنون با هم دوست شدید!` : `You and ${data.senderName} are now friends!`);
+          soundEngine.playLevelUp?.();
+          haptics.success?.();
         // === REMATCH PROTOCOL ===
         } else if (actionType === 'REMATCH_REQUEST') {
           setRematchState('received');
@@ -519,6 +624,89 @@ export default function Backgammon() {
         isMe: false
       });
     }
+  };
+
+  // ----------------------------------------------------
+  // PLAYER PROFILE & IN-GAME FRIEND SYSTEM
+  // ----------------------------------------------------
+  const handleOpenPlayerProfile = (target) => {
+    soundEngine.playTap?.();
+    haptics.impact?.('light');
+    const isBot = gameMode === 'bot';
+
+    if (target === 'top') {
+      const oppId = isBot ? 'bot' : (opponentData?.id || 'online_opp');
+      setSelectedProfilePlayer({
+        id: oppId,
+        name: topPlayerName,
+        role: topPlayerRole,
+        avatar: isBot ? '🤖' : (topPlayerRole === 'white' ? '⚪' : '⚫'),
+        isBot: isBot,
+        level: isBot ? 99 : 14,
+        rank: isBot ? (isRtl ? 'هوش مصنوعی چاژا 🤖' : 'Chazha AI 🤖') : (isRtl ? 'استاد تخته نرد 🎲' : 'Backgammon Master 🎲'),
+        winRate: isBot ? '50%' : '68%',
+        matchesCount: isBot ? 100 : 34
+      });
+      setIsProfileModalOpen(true);
+    } else {
+      setSelectedProfilePlayer({
+        id: myUserId,
+        name: myUserName,
+        role: bottomPlayerRole,
+        avatar: bottomPlayerRole === 'white' ? '⚪' : '⚫',
+        isBot: false,
+        level: 16,
+        rank: isRtl ? 'قهرمان مسابقات چاژا 👑' : 'Chazha Champion 👑',
+        winRate: '72%',
+        matchesCount: 45
+      });
+      setIsProfileModalOpen(true);
+    }
+  };
+
+  const handleSendFriendRequest = (targetPlayer) => {
+    if (!targetPlayer || targetPlayer.isBot) return;
+    soundEngine.playCheckmark?.();
+    haptics.success?.();
+    broadcastPayload('FRIEND_REQUEST', {
+      senderRole: myOnlineRole,
+      targetId: targetPlayer.id
+    });
+    try {
+      const cur = JSON.parse(localStorage.getItem('zen_friends') || '[]');
+      if (!cur.includes(targetPlayer.id)) {
+        cur.push(targetPlayer.id);
+        localStorage.setItem('zen_friends', JSON.stringify(cur));
+        setFriendsList(cur);
+      }
+    } catch (_) {}
+    setLastMoveMsg(isRtl ? `✨ درخواست دوستی به ${targetPlayer.name} ارسال شد` : `Friend request sent to ${targetPlayer.name}`);
+  };
+
+  const handleAcceptFriendRequest = () => {
+    if (!incomingFriendRequest) return;
+    soundEngine.playLevelUp?.();
+    haptics.success?.();
+    broadcastPayload('FRIEND_ACCEPT', {
+      targetId: incomingFriendRequest.senderId,
+      senderName: myUserName
+    });
+    try {
+      const cur = JSON.parse(localStorage.getItem('zen_friends') || '[]');
+      if (!cur.includes(incomingFriendRequest.senderId)) {
+        cur.push(incomingFriendRequest.senderId);
+        localStorage.setItem('zen_friends', JSON.stringify(cur));
+        setFriendsList(cur);
+      }
+    } catch (_) {}
+    setLastMoveMsg(isRtl ? `🤝 شما و ${incomingFriendRequest.senderName} اکنون دوست شدید!` : `You and ${incomingFriendRequest.senderName} are now friends!`);
+    setIncomingFriendRequest(null);
+  };
+
+  const handleRequestChat = (targetPlayer) => {
+    setIsProfileModalOpen(false);
+    setIsChatOpen(true);
+    soundEngine.playTap?.();
   };
 
   const rollIntervalRef = useRef(null);
@@ -1367,10 +1555,10 @@ export default function Backgammon() {
 
   const topPlayerName = gameMode === 'bot' 
     ? (isFlipped ? (myUserName || 'شما') : '🤖 ربات') 
-    : (isFlipped ? (myUserName || 'شما') : (searchParams.get('duel') || 'حریف آنلاین'));
+    : (isFlipped ? (myUserName || 'شما') : (opponentData?.name || searchParams.get('duel') || 'حریف آنلاین'));
   const bottomPlayerName = gameMode === 'bot' 
     ? (isFlipped ? '🤖 ربات' : (myUserName || 'شما')) 
-    : (isFlipped ? (searchParams.get('duel') || 'حریف آنلاین') : (myUserName || 'شما'));
+    : (isFlipped ? (opponentData?.name || searchParams.get('duel') || 'حریف آنلاین') : (myUserName || 'شما'));
 
   const topAway = Math.max(1, matchSets - topScore);
   const bottomAway = Math.max(1, matchSets - bottomScore);
@@ -1391,32 +1579,40 @@ export default function Backgammon() {
 
         {/* Centered Players Bar */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center max-w-xs">
-          {/* Top Player (Opponent) */}
-          <div className="flex flex-col items-center">
+          {/* Top Player (Opponent) - Clickable to open Profile & Friend Request */}
+          <button
+            onClick={() => handleOpenPlayerProfile('top')}
+            className="flex flex-col items-center hover:scale-105 active:scale-95 transition-transform cursor-pointer px-2 py-0.5 rounded-xl hover:bg-white/5 group"
+            title={isRtl ? 'مشاهده پروفایل حریف و ارسال درخواست دوستی' : 'View profile & send friend request'}
+          >
             <div className="flex items-center gap-1.5">
               <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{topAway}-away</span>
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border border-amber-600/40 flex items-center justify-center text-xs shadow-inner">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border border-amber-600/40 flex items-center justify-center text-xs shadow-inner group-hover:border-amber-400">
                 {topPlayerRole === 'white' ? '⚪' : '⚫'}
               </div>
             </div>
             <div className="flex items-center gap-1 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-              <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px]">{topPlayerName}</span>
+              <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px] group-hover:text-amber-300">{topPlayerName}</span>
             </div>
             <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
               {turn === topPlayerRole ? formatTimer(turnTimerSeconds) : '01:05'}
             </span>
-          </div>
+          </button>
 
           {/* Centered "vs" */}
           <div className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-1">
             vs
           </div>
 
-          {/* Bottom Player (You) */}
-          <div className="flex flex-col items-center">
+          {/* Bottom Player (You) - Clickable to view own profile */}
+          <button
+            onClick={() => handleOpenPlayerProfile('bottom')}
+            className="flex flex-col items-center hover:scale-105 active:scale-95 transition-transform cursor-pointer px-2 py-0.5 rounded-xl hover:bg-white/5 group"
+            title={isRtl ? 'پروفایل و آمار شما' : 'Your profile & stats'}
+          >
             <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border-2 border-sky-400 flex items-center justify-center text-xs shadow-[0_0_8px_rgba(56,189,248,0.5)]">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a1d15] border-2 border-sky-400 flex items-center justify-center text-xs shadow-[0_0_8px_rgba(56,189,248,0.5)] group-hover:border-sky-300">
                 {bottomPlayerRole === 'white' ? '⚪' : '⚫'}
               </div>
               <span className="text-xs sm:text-sm font-bold text-slate-200 font-mono">{bottomAway}-away</span>
@@ -1427,13 +1623,13 @@ export default function Backgammon() {
                   Your Turn
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px]">{bottomPlayerName}</span>
+                <span className="text-[10px] text-slate-300 font-bold truncate max-w-[70px] sm:max-w-[85px] group-hover:text-sky-300">{bottomPlayerName}</span>
               )}
             </div>
             <span className="text-[11px] font-mono font-black text-sky-400 mt-0.5">
               {isMyTurn ? formatTimer(turnTimerSeconds) : '00:58'}
             </span>
-          </div>
+          </button>
         </div>
 
         {/* Right: Circular 3-Dot Menu Button */}
@@ -1448,6 +1644,45 @@ export default function Backgammon() {
           <MoreVertical size={18} />
         </button>
       </div>
+
+      {/* Incoming Friend Request Notification Banner */}
+      <AnimatePresence>
+        {incomingFriendRequest && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-16 left-3 right-3 z-40 p-3 rounded-2xl bg-[#1e1713]/95 border-2 border-amber-500/50 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 text-xs"
+            dir={isRtl ? 'rtl' : 'ltr'}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🤝</span>
+              <div>
+                <p className="font-bold text-white text-xs sm:text-sm">
+                  {incomingFriendRequest.senderName} {isRtl ? 'به شما درخواست دوستی داد!' : 'sent you a friend request!'}
+                </p>
+                <p className="text-[10px] text-slate-400">
+                  {isRtl ? 'برای افزودن به لیست دوستان چاژا و تلگرام:' : 'To become friends in Chazha & Telegram:'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={handleAcceptFriendRequest}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs shadow-md transition-all"
+              >
+                {isRtl ? 'قبول ✅' : 'Accept ✅'}
+              </button>
+              <button
+                onClick={() => setIncomingFriendRequest(null)}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-slate-400 hover:text-white transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 1.5. Three-Dot More Options Dropdown */}
       <AnimatePresence>
@@ -2034,6 +2269,13 @@ export default function Backgammon() {
         roomCode={onlineRoomCode}
         gameTitle={isRtl ? 'تخته نرد' : 'Backgammon'}
         gameIcon="🎲"
+        isMatchmaking={isRandomMatchmaking}
+        onPlayBot={() => {
+          setIsWaitingForOpponent(false);
+          setGameMode('bot');
+          setLastMoveMsg(isRtl ? '🤖 بازی با ربات هوشمند آغاز شد' : 'Playing vs Smart AI Bot');
+          soundEngine.playLevelUp?.();
+        }}
         onCancel={() => {
           setIsWaitingForOpponent(false);
           navigate('/games');
@@ -2046,6 +2288,18 @@ export default function Backgammon() {
           shareToTelegram({ roomCode: onlineRoomCode, gameType: 'backgammon', gameTitleFa: 'تخته نرد' });
         }}
         shareLink={`https://t.me/chazha_bot?start=room_${onlineRoomCode}`}
+        isRtl={isRtl}
+        colorMode={colorMode}
+      />
+
+      {/* Opponent & Player Profile Modal */}
+      <OpponentProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        player={selectedProfilePlayer}
+        isFriend={selectedProfilePlayer && friendsList.includes(selectedProfilePlayer.id)}
+        onSendFriendRequest={handleSendFriendRequest}
+        onRequestChat={handleRequestChat}
         isRtl={isRtl}
         colorMode={colorMode}
       />

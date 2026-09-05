@@ -143,6 +143,49 @@ async function onMessage(msg) {
     });
   }
 
+  // Handle Friend Request link from In-Game Profile (/start friend_<senderId>)
+  if (text.startsWith('/start friend_')) {
+    const targetFriendId = text.replace('/start friend_', '').trim();
+    const friendUser = getUser(targetFriendId);
+    const currentUser = getUser(userId, msg.from.first_name);
+
+    if (!currentUser.friends) currentUser.friends = [];
+    if (!currentUser.friends.includes(targetFriendId)) {
+      currentUser.friends.push(targetFriendId);
+      updateUser(userId, { friends: currentUser.friends });
+    }
+
+    if (!friendUser.friends) friendUser.friends = [];
+    if (!friendUser.friends.includes(userId)) {
+      friendUser.friends.push(userId);
+      updateUser(targetFriendId, { friends: friendUser.friends });
+    }
+
+    // Notify the other user on Telegram if possible
+    callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: targetFriendId,
+      text: `🎉 <b>تبریک! ${currentUser.name || 'کاربر چاژا'} درخواست دوستی شما را قبول کرد!</b>\nاکنون در لیست دوستان یکدیگر هستید.`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+        ]
+      }
+    }).catch(() => {});
+
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: `🤝 <b>تبریک! شما و ${friendUser.name || 'کاربر چاژا'} اکنون با هم دوست شدید!</b>\n\nمی‌توانید مستقیماً با یکدیگر تخته نرد بازی کنید یا چت کنید:`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${targetFriendId}` }],
+          [{ text: '🎪 ورود به سالن بازی‌ها و چت 💬', web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` } }]
+        ]
+      }
+    });
+  }
+
   if (text.startsWith('/start') || text === '🔙 بازگشت به منوی بازی‌ها') {
     return sendGamesDashboard(chatId, userId);
   }
@@ -153,15 +196,15 @@ async function onMessage(msg) {
       game_short_name: 'backgammon',
       reply_markup: {
         inline_keyboard: [
-          // Row 1: The official Game Play button (must be first)
-          [{ text: '🪵 شروع بازی تخته نرد (Play) 🎲', callback_game: {} }],
-          // Row 2: Send Challenge to friends/groups
-          [{ text: '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }],
-          // Row 3: Solo vs Bot & Choose Theme
+          // Row 1: The official Game Play button (Random Matchmaking queue)
+          [{ text: '🎲 حریف شانسی (مسابقه تصادفی) ⚔️', callback_game: {} }],
+          // Row 2: Change Theme & Play vs Bot (side by side)
           [
-            { text: '🤖 بازی تک‌نفره با ربات', callback_data: 'bg_play_bot' },
-            { text: '🎨 تغییر تم تخته نرد', callback_data: 'bg_themes_menu' }
-          ]
+            { text: '🎨 تغییر تم', callback_data: 'bg_themes_menu' },
+            { text: '🤖 بازی با ربات', callback_data: 'bg_play_bot' }
+          ],
+          // Row 3: Send Challenge to friends/groups
+          [{ text: '🚀 ارسال درخواست مسابقه به دوستان ⚔️', switch_inline_query: 'duel' }]
         ]
       }
     });
@@ -219,7 +262,9 @@ async function onCallback(cq) {
   if (cq.game_short_name) {
     let targetUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${cq.game_short_name}`;
     if (cq.inline_message_id) {
-      targetUrl += `?room=tg_${cq.inline_message_id}&mode=online`;
+      targetUrl += `?room=tg_${cq.inline_message_id}&mode=online&autostart=1`;
+    } else if (cq.game_short_name === 'backgammon') {
+      targetUrl += `?mode=online&matchmaking=random&autostart=1`;
     }
     return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
       callback_query_id: cq.id,
@@ -428,6 +473,42 @@ async function onCallback(cq) {
 
     return callTgApi(BOT_TOKEN, 'editMessageText', editPayload)
       .catch(err => console.warn('[Chazha] Edit decline msg error:', err.message));
+  }
+
+  // 6. Accept Friend Request Callback
+  if (data.startsWith('friend_accept_')) {
+    const friendId = data.replace('friend_accept_', '').trim();
+    const friendUser = getUser(friendId);
+    const currentUser = getUser(userId, cq.from.first_name);
+
+    if (!currentUser.friends) currentUser.friends = [];
+    if (!currentUser.friends.includes(friendId)) {
+      currentUser.friends.push(friendId);
+      updateUser(userId, { friends: currentUser.friends });
+    }
+
+    if (!friendUser.friends) friendUser.friends = [];
+    if (!friendUser.friends.includes(userId)) {
+      friendUser.friends.push(userId);
+      updateUser(friendId, { friends: friendUser.friends });
+    }
+
+    callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: friendId,
+      text: `🎉 <b>تبریک! ${currentUser.name || 'کاربر چاژا'} درخواست دوستی شما را تایید کرد!</b>\nاکنون در لیست دوستان یکدیگر هستید.`,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎲 دعوت به مسابقه تخته نرد ⚔️', switch_inline_query: `duel_backgammon_CHZ-${userId}` }]
+        ]
+      }
+    }).catch(() => {});
+
+    return callTgApi(BOT_TOKEN, 'answerCallbackQuery', {
+      callback_query_id: cq.id,
+      text: `✅ شما و ${friendUser.name || 'کاربر چاژا'} اکنون دوست شدید!`,
+      show_alert: true
+    });
   }
 }
 

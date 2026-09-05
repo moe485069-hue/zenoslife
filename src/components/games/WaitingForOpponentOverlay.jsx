@@ -31,7 +31,9 @@ const WaitingForOpponentOverlay = ({
   onCancel,
   onShareTelegram,
   onOpenLounge,
+  onPlayBot,
   shareLink,
+  isMatchmaking = false,
   isRtl = true,
   colorMode = 'dark'
 }) => {
@@ -163,51 +165,80 @@ const WaitingForOpponentOverlay = ({
 
               {/* Title & Game Name */}
               <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {gameTitle}
+                {isMatchmaking ? (isRtl ? '🎲 مسابقه تصادفی تخته نرد ⚔️' : '🎲 Random Backgammon Duel ⚔️') : gameTitle}
               </h2>
               
               <div className="flex items-center justify-center space-x-2 space-x-reverse mb-6">
                 <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
                 <p className={`text-lg font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  {t.waiting}<span className="inline-block w-4 text-left">{dots}</span>
+                  {isMatchmaking 
+                    ? (isRtl ? 'در حال جستجوی حریف آنلاین...' : 'Searching for random opponent...') 
+                    : t.waiting}<span className="inline-block w-4 text-left">{dots}</span>
                 </p>
               </div>
 
-              {/* Room Code Badge */}
-              <div className={`mb-8 px-6 py-3 rounded-2xl border ${
-                isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-100 border-slate-200'
-              }`}>
-                <p className={`text-sm mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {t.roomCode}
-                </p>
-                <p className="text-2xl font-mono font-bold tracking-widest text-amber-500">
-                  {roomCode}
-                </p>
-              </div>
+              {/* Room Code Badge or Matchmaking Radar */}
+              {isMatchmaking ? (
+                <div className={`mb-6 p-4 rounded-2xl border text-center ${
+                  isDark ? 'bg-slate-800/60 border-amber-500/30' : 'bg-slate-100 border-amber-500/20'
+                }`}>
+                  <p className="text-xs text-amber-400 font-bold mb-1">
+                    {isRtl ? '⚡ صف مسابقات آنلاین چاژا فعال است' : '⚡ Chazha Live Matchmaking Active'}
+                  </p>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {isRtl ? 'به محض اتصال حریف، تخته بازی خودکار آغاز می‌شود' : 'Game will auto-start once an opponent connects'}
+                  </p>
+                </div>
+              ) : (
+                <div className={`mb-8 px-6 py-3 rounded-2xl border ${
+                  isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-100 border-slate-200'
+                }`}>
+                  <p className={`text-sm mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {t.roomCode}
+                  </p>
+                  <p className="text-2xl font-mono font-bold tracking-widest text-amber-500">
+                    {roomCode}
+                  </p>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="w-full space-y-3">
-                <button
-                  onClick={handleShare}
-                  className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold text-lg hover:from-sky-400 hover:to-blue-500 transition-all shadow-lg shadow-sky-500/25 active:scale-[0.98]"
-                >
-                  <Share2 className="w-5 h-5" />
-                  {t.shareTelegram}
-                </button>
+                {isMatchmaking && onPlayBot && (
+                  <button
+                    onClick={() => {
+                      soundEngine?.playTap?.();
+                      onPlayBot();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-base hover:from-emerald-400 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
+                  >
+                    <span>🤖 {isRtl ? 'شروع بازی فوری با ربات هوشمند' : 'Play Now vs Smart AI Bot'}</span>
+                  </button>
+                )}
 
                 <button
-                  onClick={handleCopy}
-                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 font-bold text-lg transition-all active:scale-[0.98] ${
-                    copied
-                      ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10'
-                      : isDark
-                        ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
-                        : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                  }`}
+                  onClick={handleShare}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold text-base hover:from-sky-400 hover:to-blue-500 transition-all shadow-lg shadow-sky-500/25 active:scale-[0.98]"
                 >
-                  {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                  {copied ? t.copied : t.copyLink}
+                  <Share2 className="w-5 h-5" />
+                  {isMatchmaking ? (isRtl ? '🚀 دعوت دوستان به مسابقه در تلگرام' : 'Invite Telegram Friends') : t.shareTelegram}
                 </button>
+
+                {!isMatchmaking && (
+                  <button
+                    onClick={handleCopy}
+                    className={`w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl border-2 font-bold text-base transition-all active:scale-[0.98] ${
+                      copied
+                        ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10'
+                        : isDark
+                          ? 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white'
+                          : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                    {copied ? t.copied : t.copyLink}
+                  </button>
+                )}
 
                 <button
                   onClick={handleLounge}
