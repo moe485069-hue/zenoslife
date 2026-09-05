@@ -295,6 +295,25 @@ export default function OpponentProfileModal({
                   <div className="p-2.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-center text-xs text-sky-300 font-medium">
                     🤖 ربات هوشمند چاژا یار همیشگی شما در تمرین و رقابت آنلاین است!
                   </div>
+                ) : isSelf ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        const tg = window.Telegram?.WebApp;
+                        if (tg?.openTelegramLink) {
+                          tg.openTelegramLink('https://t.me/chazha_bot');
+                        } else {
+                          window.open('https://t.me/chazha_bot', '_blank');
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white hover:brightness-110 transition-all shadow-md active:scale-[0.98]"
+                    >
+                      <span>✏️ ویرایش بیو و اطلاعات در ربات تلگرام</span>
+                    </button>
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] text-center font-bold">
+                      👑 این کارت شناسنامه شما در میان تمام بازیکنان آنلاین چاژا است.
+                    </div>
+                  </>
                 ) : (
                   <>
                     {/* Friend Request Button */}

@@ -14,6 +14,8 @@ import haptics from '../utils/haptics';
 import gameRoomsService from '../services/gameRoomsService';
 import { shareToTelegram, shareViaInlineQuery } from '../utils/telegram';
 import CoinShopModal from '../components/shop/CoinShopModal';
+import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
+import OpponentProfileModal from '../components/games/OpponentProfileModal';
 import TournamentHubModal from '../components/games/TournamentHubModal';
 import ReferralHubModal from '../components/referral/ReferralHubModal';
 import GameHistoryPanel from '../components/games/GameHistoryPanel';
@@ -938,9 +940,9 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl }) {
 
 export default function Games() {
   const navigate = useNavigate();
-  const { coins, isVip, language, spendCoins } = useAppStore();
+  const { coins, isVip, language, spendCoins, userProfile } = useAppStore();
   const isRtl = language === 'fa';
-  const { userName, userAvatar } = useMultiplayerStore();
+  const { userName, userAvatar, setProfile } = useMultiplayerStore();
 
   const [theme, setTheme] = useState('dark');
   const [activeTab, setActiveTab] = useState('live');
@@ -948,10 +950,29 @@ export default function Games() {
   const [liveRooms, setLiveRooms] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showShopModal, setShowShopModal] = useState(false);
+  const [showSelfProfileModal, setShowSelfProfileModal] = useState(false);
   const [selectedGameForMode, setSelectedGameForMode] = useState(null);
   const [showModeModal, setShowModeModal] = useState(false);
   const [showTournamentsModal, setShowTournamentsModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+
+  // Synchronize Telegram user profile on mount
+  useEffect(() => {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (tgUser) {
+      const tgFullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username;
+      const tgAvatar = tgUser.photo_url || userAvatar;
+      if (tgFullName && tgFullName !== userName) {
+        if (typeof setProfile === 'function') {
+          setProfile({ userName: tgFullName, userAvatar: tgAvatar || '🌟' });
+        }
+        localStorage.setItem('life_os_user_name', tgFullName);
+      }
+      if (tgUser.photo_url) {
+        localStorage.setItem('life_os_user_avatar', tgUser.photo_url);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = gameRoomsService.subscribe(rooms => {
@@ -996,12 +1017,17 @@ export default function Games() {
     ? GAME_DEFS
     : GAME_DEFS.filter(g => g.category === activeCategory);
 
-  const cleanUserName = (userName && userName.length < 25 && !userName.startsWith('data:image/'))
-    ? userName
-    : (isRtl ? 'کاربر زنوسلایف' : 'ZenOsLife Player');
+  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  const currentDisplayName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(' ')
+    || tgUser?.username
+    || userProfile?.fullName
+    || (userName && !userName.startsWith('کاربر ') ? userName : '')
+    || (isRtl ? 'کاربر چاژا' : 'Chazha Player');
+  const currentAvatar = tgUser?.photo_url || userProfile?.avatar || userAvatar || '🎮';
+  const currentBio = userProfile?.bio || (isRtl ? '✨ کاربر رسمی بازی‌های آنلاین چاژا در تلگرام' : 'Official Chazha Player');
 
   return (
-    <div className={`w-full min-h-screen pb-32 select-none relative overflow-x-hidden font-sans ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#050711] text-white'}`} dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`w-full min-h-screen pb-32 select-none relative overflow-x-hidden font-sans pt-[max(env(safe-area-inset-top),10px)] ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#050711] text-white'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Dynamic Cosmic Glow Background */}
       <div className="fixed inset-0 pointer-events-none opacity-20 z-0">
@@ -1010,27 +1036,33 @@ export default function Games() {
         <div className="absolute bottom-20 left-1/3 w-[300px] h-[300px] rounded-full bg-amber-600 blur-[110px]" />
       </div>
 
-      <div className="relative z-10 px-3 sm:px-4 pt-4 max-w-2xl mx-auto space-y-4">
+      <div className="relative z-10 px-3 sm:px-4 pt-2 max-w-2xl mx-auto space-y-3.5">
         
         {/* Top Control Bar */}
         <div className={`flex items-center justify-between p-3 rounded-3xl border shadow-xl transition-colors ${theme === 'light' ? 'bg-white/90 border-slate-200' : 'bg-slate-900/80 border-white/10 backdrop-blur-xl'}`}>
-          {/* User Profile Pill */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <SafeAvatar avatar={userAvatar} size="w-10 h-10 text-lg" ringColor="border-amber-400/60" />
+          {/* User Profile Pill - Click to open 5-banner Profile Modal */}
+          <div 
+            onClick={() => { setShowSelfProfileModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
+            className="flex items-center gap-2.5 min-w-0 cursor-pointer hover:opacity-90 active:scale-95 transition-all p-1 -m-1 rounded-2xl"
+            title={isRtl ? 'مشاهده شناسنامه، بنرها و پروفایل' : 'View Profile & Banners'}
+          >
+            <SafeAvatar avatar={currentAvatar} size="w-10 h-10 text-lg" ringColor="border-amber-400/60" />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className={`text-xs font-black truncate ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>{cleanUserName}</h3>
+                <h3 className={`text-xs font-black truncate max-w-[120px] sm:max-w-[160px] ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                  {currentDisplayName}
+                </h3>
                 {isVip && <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/40">VIP 👑</span>}
               </div>
               <div className="flex items-center gap-1 mt-0.5 text-[10px] text-emerald-500 dark:text-emerald-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                <span>{isRtl ? 'آنلاین در آرکید' : 'Online in Arcade'}</span>
+                <span>{isRtl ? 'پروفایل چاژا 👤' : 'Online Profile 👤'}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Action Badges */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Theme Toggle */}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -1049,11 +1081,11 @@ export default function Games() {
               <span className="hidden xs:inline">{isRtl ? 'تورنمنت' : 'Tourneys'}</span>
             </button>
 
-            {/* Coin Shop Balance */}
+            {/* Coin Shop Balance (Direct Store Trigger) */}
             <button
               onClick={() => { setShowShopModal(true); soundEngine.playTap?.(); }}
-              className="p-2 px-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-xs font-black flex items-center gap-1 shadow-lg shadow-yellow-500/25 hover:brightness-110 active:scale-95 transition-all"
-              title={isRtl ? 'خرید سکه و ستاره تلگرام' : 'Coin Shop'}
+              className="p-2 px-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-xs font-black flex items-center gap-1 shadow-lg shadow-yellow-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              title={isRtl ? 'فروشگاه سکه، بنرها و آیتم‌ها' : 'Coins & Items Shop'}
             >
               <Coins size={14} />
               <span>{(coins || 0).toLocaleString()}</span>
@@ -1061,15 +1093,62 @@ export default function Games() {
           </div>
         </div>
 
-        {/* Platô-style Telegram Banner */}
-        <div className="p-4 rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none mix-blend-overlay"></div>
-          <div className="relative z-10 flex flex-col gap-1 text-center sm:text-start">
-            <div className="text-xl font-black flex items-center justify-center sm:justify-start gap-2">
-              <span className="text-2xl">🎮</span> {isRtl ? 'بازی در تلگرام' : 'Play on Telegram'}
+        {/* Platô Quick Action Cards (Zero Overlap & Touch Optimized) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Quick Match Action Card */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => {
+              const quickGames = ['backgammon', 'ludo', 'hokm', 'snakes', 'connect_four'];
+              const chosen = quickGames[Math.floor(Math.random() * quickGames.length)];
+              soundEngine.playDiceRoll?.();
+              haptics.impact?.('heavy');
+              navigate(`/games/${chosen}?mode=bot`);
+            }}
+            className="p-3 sm:p-4 rounded-3xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-95 transition-all border border-amber-300 group cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 min-w-0 text-start">
+              <div className="w-10 h-10 rounded-2xl bg-black/15 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+                <Zap size={20} className="text-slate-950 fill-slate-950" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs sm:text-sm font-black block truncate">{isRtl ? 'بازی سریع ⚡' : 'Quick Match ⚡'}</span>
+                <span className="text-[10px] text-slate-900/80 font-bold block truncate">{isRtl ? 'فوری با هوش مصنوعی' : 'Instant AI Match'}</span>
+              </div>
             </div>
-            <p className="text-xs text-white/90 font-medium">
-              {isRtl ? 'مثل پلاتو، مستقیم در تلگرام بازی کن و با دوستانت رقابت کن!' : 'Like Platô, play directly in Telegram with friends!'}
+            <ChevronLeft size={16} className={`shrink-0 text-slate-900 ${isRtl ? '' : 'rotate-180'}`} />
+          </motion.button>
+
+          {/* Create Online Match Action Card */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => { setShowCreateModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
+            className="p-3 sm:p-4 rounded-3xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black flex items-center justify-between shadow-xl shadow-purple-500/25 active:scale-95 transition-all border border-purple-400/40 group cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 min-w-0 text-start">
+              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+                <Plus size={20} className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs sm:text-sm font-black block truncate">{isRtl ? '+ ساخت بازی آنلاین' : '+ Create Match'}</span>
+                <span className="text-[10px] text-purple-200 font-bold block truncate">{isRtl ? 'لابی مسابقه با دوستان' : 'Invite Friends & Play'}</span>
+              </div>
+            </div>
+            <ChevronLeft size={16} className={`shrink-0 text-white/80 ${isRtl ? '' : 'rotate-180'}`} />
+          </motion.button>
+        </div>
+
+        {/* Platô-style Telegram Banner */}
+        <div className="p-3.5 sm:p-4 rounded-3xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 pointer-events-none mix-blend-overlay"></div>
+          <div className="relative z-10 flex flex-col gap-0.5 text-center sm:text-start">
+            <div className="text-base sm:text-lg font-black flex items-center justify-center sm:justify-start gap-2">
+              <span className="text-xl sm:text-2xl">🎮</span> {isRtl ? 'کنسول بازی در تلگرام چاژا' : 'Play on Telegram'}
+            </div>
+            <p className="text-[11px] sm:text-xs text-white/90 font-medium">
+              {isRtl ? 'مشابه پلاتو، مستقیم در چت‌های تلگرام بازی کنید و با دوستان به رقابت بپردازید!' : 'Like Platô, play directly in Telegram with friends!'}
             </p>
           </div>
           <button 
@@ -1081,14 +1160,14 @@ export default function Games() {
                 window.open('https://t.me/chazha_bot', '_blank');
               }
             }}
-            className="relative z-10 px-5 py-2.5 bg-white text-purple-700 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2 whitespace-nowrap mx-auto sm:mx-0 cursor-pointer"
+            className="relative z-10 px-4 py-2 bg-white text-purple-700 font-black text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-1.5 whitespace-nowrap mx-auto sm:mx-0 cursor-pointer"
           >
-            {isRtl ? 'باز کردن ربات چاژا' : 'Open Chazha Bot'} <ChevronLeft size={16} className={isRtl ? '' : 'rotate-180'} />
+            {isRtl ? 'باز کردن ربات چاژا' : 'Open Chazha Bot'} <ChevronLeft size={14} className={isRtl ? '' : 'rotate-180'} />
           </button>
         </div>
 
         {/* Hero Featured Banner (Hokm & Tournaments) */}
-        <div className="relative p-5 rounded-3xl bg-gradient-to-r from-amber-900/40 via-purple-950/60 to-slate-900 border border-amber-500/40 overflow-hidden shadow-2xl">
+        <div className="relative p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-900/40 via-purple-950/60 to-slate-900 border border-amber-500/40 overflow-hidden shadow-2xl">
           <div className="relative z-10 space-y-2">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-black flex items-center gap-1">
@@ -1096,7 +1175,7 @@ export default function Games() {
               </span>
               <span className="text-[10px] text-slate-300 font-bold">{isRtl ? 'جوایز میلیونی سکه 🪙' : 'Big Coin Prizes 🪙'}</span>
             </div>
-            <h2 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-pink-300">
+            <h2 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-200 to-pink-300">
               {isRtl ? 'جام مسابقات حکم ۴ نفره و تخته‌نرد' : 'Royal Hokm & Backgammon Tournaments'}
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
@@ -1104,17 +1183,18 @@ export default function Games() {
                 ? 'با دوستان و حریفان آنلاین در سراسر ایران رقابت کنید، شرط ببندید و پاداش‌های شگفت‌انگیز ببرید!' 
                 : 'Compete with online players, challenge friends, place bets, and win glorious coin rewards!'}
             </p>
-            <div className="flex gap-2 pt-1">
+            <div className="flex flex-wrap gap-2 pt-1">
               <button
                 onClick={() => navigate('/games/hokm')}
-                className="px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-md flex items-center gap-1"
+                className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer"
               >
                 <Crown size={13} /> {isRtl ? 'بازی حکم ۴ نفره' : 'Play 4-Player Hokm'}
               </button>
               <button
                 onClick={() => setShowTournamentsModal(true)}
-                className="px-4 py-2 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 active:scale-95"
+                className="px-4 py-2.5 rounded-2xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 active:scale-95 border border-white/10 flex items-center gap-1.5 cursor-pointer"
               >
+                <Trophy size={13} className="text-amber-400" />
                 {isRtl ? 'مشاهده تورنمنت‌ها 🏆' : 'View Tournaments 🏆'}
               </button>
             </div>
@@ -1348,40 +1428,6 @@ export default function Games() {
 
       </div>
 
-      {/* Floating Action Buttons: Quick Match & Create Online Match */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 max-w-[95vw]">
-        {/* Quick Match Randomizer */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.94 }}
-          onClick={() => {
-            const quickGames = ['backgammon', 'ludo', 'hokm', 'snakes', 'connect-four'];
-            const chosen = quickGames[Math.floor(Math.random() * quickGames.length)];
-            soundEngine.playDiceRoll?.();
-            haptics.impact?.('heavy');
-            navigate(`/games/${chosen}?mode=bot`);
-          }}
-          className="flex items-center gap-1.5 px-4 py-3.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-2xl active:scale-95 transition-all border border-amber-300 cursor-pointer whitespace-nowrap"
-          style={{ boxShadow: '0 0 25px rgba(245, 158, 11, 0.4)' }}
-          title={isRtl ? 'ورود تصادفی و سریع به یک بازی' : 'Instant random game'}
-        >
-          <Zap size={16} className="shrink-0 animate-bounce" />
-          <span>{isRtl ? 'بازی سریع ⚡' : 'Quick Match ⚡'}</span>
-        </motion.button>
-
-        {/* Create Online Game */}
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.94 }}
-          onClick={() => { setShowCreateModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
-          className="flex items-center gap-2 px-5 py-3.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white font-black text-xs shadow-2xl shadow-purple-500/50 active:scale-95 transition-all border border-purple-400/50 cursor-pointer whitespace-nowrap"
-          style={{ boxShadow: '0 0 35px rgba(217, 70, 239, 0.45)' }}
-        >
-          <Plus size={16} />
-          <span>{isRtl ? 'ساخت بازی آنلاین' : 'Create Match'}</span>
-        </motion.button>
-      </div>
-
       {/* Game Mode Selector Modal */}
       <GameModeModal
         isOpen={showModeModal}
@@ -1396,14 +1442,42 @@ export default function Games() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={handleRoomCreated}
-        userName={cleanUserName}
-        userAvatar={userAvatar}
+        userName={currentDisplayName}
+        userAvatar={currentAvatar}
         isRtl={isRtl}
       />
 
-      <CoinShopModal
+      {/* Self Profile Modal with 5-Banner Carousel (Plato Style) */}
+      <OpponentProfileModal
+        isOpen={showSelfProfileModal}
+        onClose={() => setShowSelfProfileModal(false)}
+        player={{
+          id: localStorage.getItem('life_os_user_id') || 'self',
+          name: currentDisplayName,
+          avatar: currentAvatar,
+          avatarImg: (typeof currentAvatar === 'string' && (currentAvatar.startsWith('http') || currentAvatar.startsWith('data:'))) ? currentAvatar : null,
+          bio: currentBio,
+          isSelf: true,
+          level: 14,
+          rank: isRtl ? 'استاد چاژا 👑' : 'Chazha Master 👑',
+          winRate: '75%',
+          matchesCount: 58
+        }}
+        isFriend={true}
+        onOpenStore={() => {
+          setShowSelfProfileModal(false);
+          setShowShopModal(true);
+        }}
+        isRtl={isRtl}
+        colorMode={theme}
+      />
+
+      {/* Full Chazha Cosmetics & Currency Store */}
+      <ChazhaStoreModal
         isOpen={showShopModal}
         onClose={() => setShowShopModal(false)}
+        isRtl={isRtl}
+        colorMode={theme}
       />
 
       <TournamentHubModal

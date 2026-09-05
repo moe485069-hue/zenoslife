@@ -4,19 +4,18 @@ import { VitePWA } from 'vite-plugin-pwa';
 import fs from 'fs';
 import path from 'path';
 
-// Vite plugin to write version.json on every build
+// Vite plugin to emit version.json in dist without modifying git-tracked source files
 const versionGeneratorPlugin = () => ({
   name: 'version-generator',
-  buildStart() {
-    const publicDir = path.resolve(__dirname, 'public');
-    if (!fs.existsSync(publicDir)) {
-      fs.mkdirSync(publicDir, { recursive: true });
-    }
-    const versionData = {
-      version: Date.now().toString(),
-      buildTime: new Date().toISOString()
-    };
-    fs.writeFileSync(path.join(publicDir, 'version.json'), JSON.stringify(versionData, null, 2));
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'version.json',
+      source: JSON.stringify({
+        version: Date.now().toString(),
+        buildTime: new Date().toISOString()
+      }, null, 2)
+    });
   }
 });
 
