@@ -143,13 +143,9 @@ export const shareToTelegram = ({ roomCode, gameType = 'backgammon', gameTitleFa
   }
 };
 
-export const shareViaInlineQuery = ({ roomCode }) => {
-  const tg = getTelegramWebApp();
-  if (tg?.switchInlineQuery) {
-    tg.switchInlineQuery(roomCode, ['users', 'groups']);
-  } else {
-    shareToTelegram({ roomCode });
-  }
+export const shareViaInlineQuery = ({ roomCode, gameType = 'backgammon', gameTitleFa = 'تخته نرد' }) => {
+  // Use shareToTelegram so user immediately gets a full invite card with button upon picking a chat
+  shareToTelegram({ roomCode, gameType, gameTitleFa });
 };
 
 export const triggerTelegramHaptic = (style = 'medium') => {

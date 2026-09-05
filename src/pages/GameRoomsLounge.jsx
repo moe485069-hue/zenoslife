@@ -7,6 +7,8 @@ import {
   Check, Flame, Shield, ArrowRight, Gamepad2, Coins
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
+import useMultiplayerStore from '../store/multiplayerStore';
+import realtimeNetwork from '../services/realtimeNetwork';
 import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
 
@@ -109,6 +111,14 @@ const QUICK_PHRASES = [
 export default function GameRoomsLounge() {
   const navigate = useNavigate();
   const { language, coins } = useAppStore();
+  const { 
+    onlineUsers = [], 
+    globalChat = [], 
+    sendGlobalMessage, 
+    userName, 
+    userAvatar, 
+    userId 
+  } = useMultiplayerStore();
   const isRtl = language === 'fa';
 
   // Active Tab: 'rooms' | 'players' | 'chat' | 'tournaments'
@@ -126,8 +136,38 @@ export default function GameRoomsLounge() {
     }
   });
 
-  // Online Players State
-  const [onlinePlayers] = useState(INITIAL_PLAYERS);
+  // Listen to realtime network for live room announcements across devices
+  useEffect(() => {
+    const unsubscribe = realtimeNetwork.subscribe((data) => {
+      if (data?.type === 'GAME_ROOM_ANNOUNCE' && data.room) {
+        setRooms(prev => {
+          if (prev.some(r => r.id === data.room.id)) return prev;
+          return [data.room, ...prev];
+        });
+      }
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  // Online Players State: Real active players from presence network + community mentors
+  const realOnlinePlayers = (onlineUsers || []).map(u => ({
+    id: u.id,
+    name: u.name || 'کاربر آنلاین چاژا',
+    avatar: u.avatar || '🌟',
+    level: u.level || 15,
+    rank: u.role || 'عضو آنلاین چاژا ⚡',
+    status: 'online',
+    isReal: true,
+    isPlaying: false
+  }));
+
+  const onlinePlayers = [
+    ...realOnlinePlayers,
+    ...INITIAL_PLAYERS.filter(p => !realOnlinePlayers.some(u => u.name === p.name || u.id === p.id))
+  ];
+
   const [friendRequestsSent, setFriendRequestsSent] = useState(() => {
     try {
       const saved = localStorage.getItem('zen_friends');
@@ -138,11 +178,23 @@ export default function GameRoomsLounge() {
   });
 
   // Lounge Chat State
-  const [chatMessages, setChatMessages] = useState([
-    { id: 1, sender: 'سیستم سالن 📢', text: 'به سالن بزرگ بازی‌ها و گپ‌وگفت چاژا خوش آمدید! 🎪', time: 'هم‌اکنون', isSystem: true },
-    { id: 2, sender: 'طاها_سلطان 🦁', text: 'تخته نرد ۳ سته ۲۰۰ سکه، کی میاد؟ 🎲', time: '۱ دقیقه پیش' },
-    { id: 3, sender: 'سامان_شب‌گرد 🐺', text: 'شطرنج سریع آماده‌ام، روم ساختم بیاید ♟️', time: 'چند لحظه پیش' },
+  const [localAnnouncements, setLocalAnnouncements] = useState([
+    { id: 'init_sys', sender: 'سیستم سالن 📢', text: 'به سالن بزرگ بازی‌ها و گپ‌وگفت چاژا خوش آمدید! 🎪', time: 'هم‌اکنون', isSystem: true }
   ]);
+
+  // Combined live chat messages
+  const chatMessages = [
+    ...localAnnouncements,
+    ...globalChat.map(g => ({
+      id: g.id,
+      sender: `${g.userName || 'کاربر'} ${g.userAvatar || '👤'}`,
+      text: g.text,
+      time: g.timestamp ? new Date(g.timestamp).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) : 'هم‌اکنون',
+      isMe: g.userId === userId || g.senderId === 'me',
+      isSystem: g.isSystem
+    }))
+  ];
+
   const [inputMessage, setInputMessage] = useState('');
   const chatBottomRef = useRef(null);
 
@@ -199,8 +251,8 @@ export default function GameRoomsLounge() {
       gameId: newRoomGame,
       gameTitle: selectedGame?.titleFa || 'بازی چاژا',
       gameIcon: selectedGame?.icon || '🎮',
-      hostName: 'شما (میزبان)',
-      hostAvatar: '👑',
+      hostName: userName || 'شما (میزبان)',
+      hostAvatar: userAvatar || '👑',
       level: 1,
       bet: newRoomBet,
       sets: newRoomSets,
@@ -210,19 +262,18 @@ export default function GameRoomsLounge() {
       createdAt: Date.now(),
     };
 
-    setRooms(prev => [newRoomObj, ...prev]);
+    setRooms(prev => [newRoomObj, ...prev.filter(r => r.id !== roomCode)]);
 
-    // Send announcement to chat
-    setChatMessages(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        sender: 'سیستم سالن 📢',
-        text: `اتاق جدید ${selectedGame?.icon} ${selectedGame?.titleFa} با کد ${roomCode} ایجاد شد! 🚀`,
-        time: 'هم‌اکنون',
-        isSystem: true
-      }
-    ]);
+    // Broadcast room to all devices and active players
+    try {
+      realtimeNetwork.publish({
+        type: 'GAME_ROOM_ANNOUNCE',
+        room: newRoomObj,
+        senderId: userId,
+        senderName: userName || 'میزبان'
+      });
+      sendGlobalMessage?.(`🎪 اتاق جدید ${selectedGame?.icon} ${selectedGame?.titleFa} با کد ${roomCode} ایجاد شد! 🚀`, true);
+    } catch (_) {}
 
     setIsCreateModalOpen(false);
     soundEngine.playLevelUp?.();
@@ -244,15 +295,11 @@ export default function GameRoomsLounge() {
     soundEngine.playTap?.();
     haptics.tap?.();
 
-    const newMsg = {
-      id: Date.now(),
-      sender: 'شما 👑',
-      text: textToSend.trim(),
-      time: 'هم‌اکنون',
-      isMe: true
-    };
+    const cleanText = textToSend.trim();
+    try {
+      sendGlobalMessage?.(cleanText);
+    } catch (_) {}
 
-    setChatMessages(prev => [...prev, newMsg]);
     setInputMessage('');
 
     setTimeout(() => {
@@ -281,7 +328,7 @@ export default function GameRoomsLounge() {
   });
 
   return (
-    <div className="min-h-screen bg-[#14100d] text-white flex flex-col font-sans select-none" dir="rtl">
+    <div data-dark-surface="true" className="min-h-screen bg-[#14100d] text-white flex flex-col font-sans select-none" dir="rtl">
       
       {/* 1. Header Bar */}
       <div className="sticky top-0 z-30 px-4 py-3 bg-[#1e1713]/95 backdrop-blur-xl border-b border-white/10 flex items-center justify-between shadow-md">
@@ -300,8 +347,8 @@ export default function GameRoomsLounge() {
               </h1>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
             </div>
-            <p className="text-[10px] text-amber-100/60 font-medium">
-              اتاق‌های فعال پلاتو، چالش آنلاین و کل‌کل
+            <p className="text-[10px] text-amber-100/70 font-medium">
+              اتاق‌های فعال بازی و چالش آنلاین با دوستان
             </p>
           </div>
         </div>
@@ -531,8 +578,15 @@ export default function GameRoomsLounge() {
                       </div>
                     </div>
 
-                    {/* Actions: Duel & Friend Request */}
+                      {/* Actions: Duel & Friend Request */}
                     <div className="flex items-center gap-1.5">
+                      {player.isReal && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-black border border-emerald-500/30 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>زنده</span>
+                        </span>
+                      )}
+
                       <button
                         onClick={() => {
                           handleFriendRequest(player);
@@ -550,7 +604,11 @@ export default function GameRoomsLounge() {
                       <button
                         onClick={() => {
                           soundEngine.playTap?.();
-                          navigate(`/games/backgammon?duel=${player.name}`);
+                          const duelRoomCode = `BACK-${Math.floor(1000 + Math.random() * 9000)}`;
+                          try {
+                            sendGlobalMessage?.(`⚔️ ${userName || 'شما'} کاربر ${player.name} را به دوئل تخته نرد دعوت کرد! کد اتاق: ${duelRoomCode}`, true);
+                          } catch (_) {}
+                          navigate(`/games/backgammon?room=${duelRoomCode}&mode=online&role=white&duel=${encodeURIComponent(player.name)}&host=1`);
                         }}
                         className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 text-xs font-black flex items-center gap-1 active:scale-95 shadow-sm"
                       >
@@ -574,7 +632,8 @@ export default function GameRoomsLounge() {
                 <button
                   key={i}
                   onClick={() => handleSendChatMessage(phrase)}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-[11px] font-bold text-amber-200 border border-amber-500/20 whitespace-nowrap active:scale-95 transition-all shrink-0"
+                  style={{ color: '#fef08a' }}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-[11px] font-black border border-amber-500/30 whitespace-nowrap active:scale-95 transition-all shrink-0"
                 >
                   {phrase}
                 </button>
@@ -582,25 +641,46 @@ export default function GameRoomsLounge() {
             </div>
 
             {/* Chat Messages Feed */}
-            <div className="flex-1 overflow-y-auto space-y-2 p-2 rounded-2xl bg-[#1c1612] border border-white/5">
+            <div data-dark-surface="true" className="flex-1 overflow-y-auto space-y-2 p-3 rounded-2xl bg-[#1c1612] border border-white/10">
               {chatMessages.map(msg => (
                 <div
                   key={msg.id}
-                  className={`p-2.5 rounded-2xl text-xs max-w-[85%] ${
+                  style={
                     msg.isSystem
-                      ? 'w-full max-w-full bg-amber-500/10 border border-amber-400/20 text-amber-300 text-center font-bold text-[11px]'
+                      ? {
+                          color: '#fde68a',
+                          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                          borderColor: 'rgba(245, 158, 11, 0.3)'
+                        }
                       : msg.isMe
-                        ? 'mr-auto bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-br-none shadow-md'
-                        : 'ml-auto bg-[#291f19] text-slate-200 rounded-bl-none border border-white/10'
+                        ? {
+                            color: '#ffffff',
+                            backgroundColor: '#d97706',
+                            borderColor: 'rgba(251, 191, 36, 0.4)'
+                          }
+                        : {
+                            color: '#f8fafc',
+                            backgroundColor: '#2a1f18',
+                            borderColor: 'rgba(255, 255, 255, 0.12)'
+                          }
+                  }
+                  className={`p-2.5 rounded-2xl text-xs max-w-[85%] border transition-all ${
+                    msg.isSystem
+                      ? 'w-full max-w-full text-center font-bold text-[11px]'
+                      : msg.isMe
+                        ? 'mr-auto rounded-br-none shadow-md'
+                        : 'ml-auto rounded-bl-none shadow-sm'
                   }`}
                 >
                   {!msg.isSystem && (
-                    <div className="flex items-center justify-between text-[10px] opacity-75 font-bold mb-1">
-                      <span>{msg.sender}</span>
-                      <span className="text-[9px]">{msg.time}</span>
+                    <div className="flex items-center justify-between text-[10px] font-black mb-1">
+                      <span style={{ color: msg.isMe ? '#fef3c7' : '#fbbf24' }}>{msg.sender}</span>
+                      <span style={{ color: msg.isMe ? '#fde68a' : '#94a3b8' }} className="text-[9px] font-mono">{msg.time}</span>
                     </div>
                   )}
-                  <p className="leading-relaxed">{msg.text}</p>
+                  <p className="leading-relaxed font-bold" style={{ color: msg.isSystem ? '#fde68a' : '#ffffff' }}>
+                    {msg.text}
+                  </p>
                 </div>
               ))}
               <div ref={chatBottomRef} />
@@ -619,7 +699,8 @@ export default function GameRoomsLounge() {
                 value={inputMessage}
                 onChange={e => setInputMessage(e.target.value)}
                 placeholder="پیامی برای بازیکنان بنویسید..."
-                className="flex-1 py-2.5 px-4 rounded-2xl bg-[#221a15] border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/60"
+                style={{ color: '#ffffff', backgroundColor: '#221a15' }}
+                className="flex-1 py-2.5 px-4 rounded-2xl border border-white/15 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400/80"
               />
               <button
                 type="submit"

@@ -743,18 +743,18 @@ input[type='range']:focus { outline: none; }
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -2px rgba(0, 0, 0, 0.03) !important;
 }
 
-/* Ensure text legibility in light mode */
-[data-theme='light'] .text-slate-300,
-[data-theme='light'] .text-slate-400 {
-  color: #334155 !important;
+/* Ensure text legibility in light mode (scoped outside dark game containers) */
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-slate-300,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-slate-400 {
+  color: #334155;
 }
-[data-theme='light'] .text-slate-500 {
-  color: #475569 !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-slate-500 {
+  color: #475569;
 }
-[data-theme='light'] .text-amber-200,
-[data-theme='light'] .text-amber-200\/90,
-[data-theme='light'] .text-amber-300 {
-  color: #b45309 !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-amber-200,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-amber-200\/90,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-amber-300 {
+  color: #b45309;
 }
 
 /* ==========================================
@@ -866,26 +866,26 @@ input[type='range']:focus { outline: none; }
   border-color: #bae6fd !important;
   box-shadow: 0 8px 24px rgba(2, 132, 199, 0.08) !important;
 }
-[data-theme='light'] .text-purple-300 {
-  color: #6d28d9 !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-purple-300 {
+  color: #6d28d9;
 }
-[data-theme='light'] .text-emerald-300 {
-  color: #047857 !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-emerald-300 {
+  color: #047857;
 }
-[data-theme='light'] .text-cyan-300 {
-  color: #0369a1 !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-cyan-300 {
+  color: #0369a1;
 }
-[data-theme='light'] .text-pink-300 {
-  color: #be185d !important;
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).text-pink-300 {
+  color: #be185d;
 }
 
-/* Light mode background fixes for cards that had dark backdrops */
-[data-theme='light'] .bg-black\/40,
-[data-theme='light'] .bg-black\/50,
-[data-theme='light'] .bg-black\/60,
-[data-theme='light'] .bg-black\/20 {
-  background-color: rgba(241, 245, 249, 0.9) !important;
-  border-color: #cbd5e1 !important;
+/* Light mode background fixes for cards that had dark backdrops (scoped outside dark game containers) */
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).bg-black\/40,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).bg-black\/50,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).bg-black\/60,
+[data-theme='light']:not([data-dark-surface]):not(.dark) :not([data-dark-surface] *):not(.dark *).bg-black\/20 {
+  background-color: rgba(241, 245, 249, 0.9);
+  border-color: #cbd5e1;
 }
 
 /* Pastel Card Presets */

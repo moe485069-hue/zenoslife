@@ -450,7 +450,14 @@ async function onInlineQuery(iq) {
       else if (roomCode.startsWith('LUDO-')) { gameType = 'ludo'; gameTitle = 'منچ'; }
       else if (roomCode.startsWith('PASS-')) { gameType = 'pasur'; gameTitle = 'پاسور'; }
       else if (roomCode.startsWith('BILL-')) { gameType = 'billiards'; gameTitle = 'بیلیارد'; }
-    } else if (query.length >= 4 && query !== 'duel') {
+    } else if (query.startsWith('duel')) {
+      const parts = query.split('_');
+      if (parts.length >= 2 && parts[1]) {
+        roomCode = parts.slice(1).join('_');
+      } else {
+        roomCode = `BACK-${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+    } else if (query.length >= 4) {
       roomCode = query;
     }
   }
@@ -458,15 +465,15 @@ async function onInlineQuery(iq) {
   const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
 
   const results = [
-    // 1. Interactive Duel Challenge Card (with Accept & Decline buttons)
+    // Interactive Duel Challenge Card (with Accept & Decline buttons)
     {
       type: 'article',
       id: `duel_${gameType}_${senderId}_${Date.now() % 10000}`,
-      title: `⚔️ ارسال چالش مسابقه ${gameTitle} (با ${senderName})`,
-      description: `کد اتاق: ${roomCode} • کلیک کنید تا کارت ارسال شود`,
+      title: `⚔️ ارسال کارت مسابقه ${gameTitle} (با ${senderName})`,
+      description: `کد اتاق: ${roomCode} • برای ارسال مستقیم به چت کلیک کنید`,
       thumb_url: 'https://zen.moeid.net/icons/icon-192.svg',
       input_message_content: {
-        message_text: `🎲 <b>چالش ${gameTitle} چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه ${gameTitle} دعوت کرده!\nکد اتاق: <code>${roomCode}</code>\n\n⚔️ برای قبول چالش و شروع بازی، دکمه زیر را بزنید:`,
+        message_text: `🎲 <b>چالش مسابقه ${gameTitle} در چاژا!</b>\n\n👤 <b>${senderName}</b> شما را به مسابقه دوئل آنلاین دعوت کرده است!\nکد اتاق: <code>${roomCode}</code>\n\n⚔️ برای قبول چالش و ورود مستقیم به بازی، روی دکمه زیر بزنید:`,
         parse_mode: 'HTML'
       },
       reply_markup: {
@@ -479,25 +486,20 @@ async function onInlineQuery(iq) {
           ],
           [
             {
-              text: '❌ رد درخواست',
+              text: '❌ رد درخواست مسابقه',
               callback_data: `bg_decline_duel_${senderId}`
             }
           ]
         ]
       }
-    },
-    // 2. Direct Game Result
-    {
-      type: 'game',
-      id: 'game_backgammon',
-      game_short_name: 'backgammon'
     }
   ];
 
   return callTgApi(BOT_TOKEN, 'answerInlineQuery', {
     inline_query_id: iq.id,
     results: results,
-    cache_time: 1
+    cache_time: 0,
+    is_personal: true
   }).catch(err => console.warn('[Chazha] Inline query notice:', err.message));
 }
 

@@ -57,13 +57,7 @@ export default function BackgammonSetupModal({
   const handleInlineChallenge = () => {
     soundEngine.playTap?.();
     haptics.tap?.();
-    const tg = window.Telegram?.WebApp;
-    if (tg?.switchInlineQuery) {
-      tg.switchInlineQuery(roomCode, ['users', 'groups']);
-    } else {
-      handleShareToTelegram();
-    }
-    handleStart('telegram');
+    handleShareToTelegram();
   };
 
   const handleSendToUser = (e) => {

@@ -12,7 +12,6 @@ import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
 import BackgammonSetupModal from '../../components/games/BackgammonSetupModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
-import InGameReactions from '../../components/games/InGameReactions';
 import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
 import realtimeNetwork from '../../services/realtimeNetwork';
@@ -432,6 +431,8 @@ export default function Backgammon() {
           soundEngine.playLevelUp?.();
           setIsWaitingForOpponent(false); // Dismiss waiting overlay
           setOpponentJoined(true);
+          // Acknowledge presence back so the newcomer also knows host is present
+          broadcastPayload('PLAYER_ACK', { role: myOnlineRole });
           // Auto Role Handshake: if newcomer claims same role, host keeps white & assigns black to newcomer
           if (payload?.role === myOnlineRole) {
             if (myOnlineRole === 'white') {
@@ -440,6 +441,9 @@ export default function Backgammon() {
               setMyOnlineRole('white');
             }
           }
+        } else if (actionType === 'PLAYER_ACK') {
+          setIsWaitingForOpponent(false);
+          setOpponentJoined(true);
         } else if (actionType === 'ROLE_ASSIGN') {
           if (payload?.targetUserId === myUserId && payload.role) {
             setMyOnlineRole(payload.role);
@@ -1372,7 +1376,7 @@ export default function Backgammon() {
   const bottomAway = Math.max(1, matchSets - bottomScore);
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between bg-[#191512] text-white select-none font-sans relative" dir="ltr">
+    <div data-dark-surface="true" className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between bg-[#191512] text-white select-none font-sans relative" dir="ltr">
       
       {/* 1. Header (Plato Exact Replica) */}
       <div className="shrink-0 h-14 px-3 flex items-center justify-between z-30 bg-[#14100d]/95 backdrop-blur-xl border-b border-white/10 shadow-sm relative">
@@ -1452,26 +1456,35 @@ export default function Backgammon() {
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: -10 }}
-            className="absolute top-14 right-3 z-50 w-56 rounded-2xl bg-[#1c1612]/95 backdrop-blur-xl border border-amber-500/30 shadow-2xl p-2.5 space-y-1.5 text-xs text-white"
+            data-dark-surface="true"
+            className="absolute top-14 right-3 z-50 w-60 rounded-2xl bg-[#1c1612] backdrop-blur-2xl border-2 border-amber-500/40 shadow-2xl p-3 space-y-2 text-xs"
             dir={isRtl ? 'rtl' : 'ltr'}
           >
-            <div className="px-2 py-1 text-[10px] text-amber-400 font-bold">قالب و ظاهر تخته:</div>
-            <div className="grid grid-cols-2 gap-1 pb-1 border-b border-white/10">
-              {Object.keys(THEMES).map(tKey => (
-                <button
-                  key={tKey}
-                  onClick={() => {
-                    setBoardTheme(tKey);
-                    soundEngine.playTap?.();
-                  }}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 ${
-                    boardTheme === tKey ? 'bg-amber-400 text-slate-950 font-black' : 'hover:bg-white/10 text-slate-300'
-                  }`}
-                >
-                  <span>{THEMES[tKey].icon}</span>
-                  <span>{THEMES[tKey].nameFa.split(' ')[0]}</span>
-                </button>
-              ))}
+            <div className="px-2 py-0.5 text-[11px] font-black" style={{ color: '#fbbf24' }}>
+              قالب و ظاهر تخته نرد:
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 pb-2 border-b border-white/15">
+              {Object.keys(THEMES).map(tKey => {
+                const isSelected = boardTheme === tKey;
+                return (
+                  <button
+                    key={tKey}
+                    onClick={() => {
+                      setBoardTheme(tKey);
+                      soundEngine.playTap?.();
+                    }}
+                    style={{
+                      color: isSelected ? '#020617' : '#ffffff',
+                      backgroundColor: isSelected ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)',
+                      borderColor: isSelected ? '#fbbf24' : 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all active:scale-95"
+                  >
+                    <span>{THEMES[tKey].icon}</span>
+                    <span>{THEMES[tKey].nameFa.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <button
@@ -1480,10 +1493,11 @@ export default function Backgammon() {
                 soundEngine.playTap?.();
                 setIsMoreMenuOpen(false);
               }}
-              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+              style={{ color: '#ffffff' }}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 hover:bg-white/15 font-black flex items-center justify-between transition-all active:scale-95"
             >
               <span>چرخش ۱۸۰ درجه تخته</span>
-              <RotateCw size={14} />
+              <RotateCw size={14} className="text-amber-400" />
             </button>
 
             <button
@@ -1491,10 +1505,11 @@ export default function Backgammon() {
                 setSoundEnabled(!soundEnabled);
                 soundEngine.playTap?.();
               }}
-              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+              style={{ color: '#ffffff' }}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 hover:bg-white/15 font-black flex items-center justify-between transition-all active:scale-95"
             >
-              <span>صدا و افکت‌ها</span>
-              {soundEnabled ? <Volume2 size={14} className="text-emerald-400" /> : <VolumeX size={14} className="text-rose-400" />}
+              <span>صدا و جلوه‌های صوتی</span>
+              {soundEnabled ? <Volume2 size={15} className="text-emerald-400" /> : <VolumeX size={15} className="text-rose-400" />}
             </button>
 
             <button
@@ -1502,10 +1517,11 @@ export default function Backgammon() {
                 setIsSetupModalOpen(true);
                 setIsMoreMenuOpen(false);
               }}
-              className="w-full px-2.5 py-1.5 rounded-xl hover:bg-white/10 text-slate-200 font-bold flex items-center justify-between"
+              style={{ color: '#ffffff' }}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 hover:bg-white/15 font-black flex items-center justify-between transition-all active:scale-95"
             >
-              <span>تنظیمات بازی و تم</span>
-              <Settings size={14} />
+              <span>تنظیمات بازی و رقبا</span>
+              <Settings size={14} className="text-amber-400" />
             </button>
 
             <button
@@ -1513,10 +1529,11 @@ export default function Backgammon() {
                 setIsMoreMenuOpen(false);
                 navigate('/games/lounge');
               }}
-              className="w-full px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-500/25 to-amber-600/25 hover:bg-amber-500/35 text-amber-300 font-bold flex items-center justify-between border border-amber-400/40"
+              style={{ color: '#fef08a' }}
+              className="w-full px-3 py-2 rounded-xl bg-gradient-to-r from-amber-600/30 via-yellow-600/30 to-amber-700/30 hover:bg-amber-500/40 font-black flex items-center justify-between border border-amber-400/50 shadow-md transition-all active:scale-95"
             >
               <span>ورود به سالن بازی‌ها 🎪</span>
-              <ChevronLeft size={14} />
+              <ChevronLeft size={14} className="text-amber-300" />
             </button>
 
             <button
@@ -1524,7 +1541,8 @@ export default function Backgammon() {
                 setIsMoreMenuOpen(false);
                 navigate('/games');
               }}
-              className="w-full px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold flex items-center justify-between border border-rose-500/30"
+              style={{ color: '#fca5a5' }}
+              className="w-full px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 font-black flex items-center justify-between border border-rose-500/40 transition-all active:scale-95"
             >
               <span>تسلیم شدن و خروج</span>
               <span>🏳️</span>
@@ -1865,9 +1883,6 @@ export default function Backgammon() {
         isRtl={isRtl}
         hideCapsule={true}
       />
-
-      {/* Trash Talk In-Game Reactions */}
-      <InGameReactions />
 
       {/* Set / Match Winner Modal with Rematch */}
       <AnimatePresence>
