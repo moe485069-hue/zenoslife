@@ -102,6 +102,8 @@ export const initTelegramMiniApp = (appStore) => {
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
           window.location.hash = '#/chat';
         }
+      } else if (startParam === 'lounge' || startParam === 'game-rooms' || startParam === 'gamerooms') {
+        window.location.hash = '#/games/lounge';
       }
     } else {
       // Check query parameter fallback for direct web visitors

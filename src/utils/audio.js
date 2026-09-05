@@ -32,6 +32,28 @@ class SoundEngine {
     }
   }
 
+  // Universal sound player dispatcher (prevents runtime TypeError: soundEngine.play is not a function)
+  play(name = 'tap') {
+    if (this.isMuted) return;
+    try {
+      if (name === 'tap' || name === 'click') {
+        this.playTap();
+      } else if (name === 'dice' || name === 'diceRoll') {
+        this.playDiceRoll();
+      } else if (name === 'checkmark' || name === 'success') {
+        this.playCheckmark();
+      } else if (name === 'levelUp') {
+        this.playLevelUp();
+      } else if (name === 'checker' || name === 'move') {
+        this.playCheckerMove();
+      } else if (name === 'trash') {
+        this.playTrash();
+      } else {
+        this.playTap();
+      }
+    } catch (_) {}
+  }
+
   // Play tap / checkmark
   playTap() {
     if (this.isMuted) return;
@@ -506,37 +528,38 @@ class SoundEngine {
       const t = this.ctx.currentTime;
 
       // 1. Initial rattle noise burst (dice colliding inside cup/hand)
-      const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.14), this.ctx.sampleRate);
+      const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.16), this.ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
       for (let i = 0; i < noiseBuffer.length; i++) {
-        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.04));
+        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.045));
       }
       const whiteNoise = this.ctx.createBufferSource();
       whiteNoise.buffer = noiseBuffer;
 
       const noiseFilter = this.ctx.createBiquadFilter();
       noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.setValueAtTime(2200, t);
-      noiseFilter.Q.setValueAtTime(2.2, t);
+      noiseFilter.frequency.setValueAtTime(2600, t);
+      noiseFilter.Q.setValueAtTime(2.8, t);
 
       const noiseGain = this.ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.2, t);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      noiseGain.gain.setValueAtTime(0.22, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
 
       whiteNoise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(this.ctx.destination);
       whiteNoise.start(t);
 
-      // 2. Successive uneven wooden bounces & tumbling taps on backgammon board
+      // 2. Successive uneven wooden bounces & tumbling taps on backgammon board (two distinct dice)
       const bounces = [
-        { offset: 0.02, freq: 190, clickFreq: 1800, gain: 0.28, decay: 0.05 },
-        { offset: 0.07, freq: 230, clickFreq: 2200, gain: 0.24, decay: 0.045 },
-        { offset: 0.13, freq: 210, clickFreq: 1600, gain: 0.20, decay: 0.04 },
-        { offset: 0.20, freq: 250, clickFreq: 2400, gain: 0.16, decay: 0.035 },
-        { offset: 0.27, freq: 220, clickFreq: 1900, gain: 0.12, decay: 0.03 },
-        { offset: 0.35, freq: 260, clickFreq: 2100, gain: 0.09, decay: 0.025 },
-        { offset: 0.42, freq: 180, clickFreq: 1400, gain: 0.06, decay: 0.04 }
+        { offset: 0.015, freq: 160, clickFreq: 2600, gain: 0.32, decay: 0.055 },
+        { offset: 0.045, freq: 240, clickFreq: 3100, gain: 0.28, decay: 0.045 },
+        { offset: 0.090, freq: 190, clickFreq: 2100, gain: 0.24, decay: 0.042 },
+        { offset: 0.145, freq: 270, clickFreq: 2800, gain: 0.20, decay: 0.038 },
+        { offset: 0.210, freq: 175, clickFreq: 1900, gain: 0.16, decay: 0.035 },
+        { offset: 0.275, freq: 230, clickFreq: 2500, gain: 0.12, decay: 0.030 },
+        { offset: 0.340, freq: 280, clickFreq: 2900, gain: 0.09, decay: 0.025 },
+        { offset: 0.410, freq: 165, clickFreq: 1700, gain: 0.06, decay: 0.040 }
       ];
 
       bounces.forEach(({ offset, freq, clickFreq, gain, decay }) => {
@@ -547,7 +570,7 @@ class SoundEngine {
         const oscGain = this.ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, bounceTime);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, bounceTime + decay);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.65, bounceTime + decay);
         oscGain.gain.setValueAtTime(gain, bounceTime);
         oscGain.gain.exponentialRampToValueAtTime(0.001, bounceTime + decay);
         osc.connect(oscGain);
@@ -560,13 +583,13 @@ class SoundEngine {
         const clickGain = this.ctx.createGain();
         click.type = 'sine';
         click.frequency.setValueAtTime(clickFreq, bounceTime);
-        click.frequency.exponentialRampToValueAtTime(clickFreq * 0.5, bounceTime + 0.015);
-        clickGain.gain.setValueAtTime(gain * 0.7, bounceTime);
-        clickGain.gain.exponentialRampToValueAtTime(0.001, bounceTime + 0.02);
+        click.frequency.exponentialRampToValueAtTime(clickFreq * 0.45, bounceTime + 0.018);
+        clickGain.gain.setValueAtTime(gain * 0.85, bounceTime);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, bounceTime + 0.022);
         click.connect(clickGain);
         clickGain.connect(this.ctx.destination);
         click.start(bounceTime);
-        click.stop(bounceTime + 0.025);
+        click.stop(bounceTime + 0.028);
       });
     } catch (_) {}
   }

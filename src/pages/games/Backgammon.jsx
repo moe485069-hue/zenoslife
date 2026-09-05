@@ -95,30 +95,24 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
             : { type: 'spring', damping: 12, stiffness: 220, mass: 0.8 }
         }
         style={{ perspective: '800px', transformStyle: 'preserve-3d' }}
-        className={`${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#fffbeb] to-[#fef3c7] border-2 ${
+        className={`${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#fdfbf7] to-[#f5eedc] border-2 ${
           isSelected
-            ? 'border-amber-400 ring-4 ring-amber-400/80 shadow-[0_8px_25px_rgba(251,191,36,0.7)]'
-            : 'border-[#b45309]/80 shadow-[0_6px_16px_rgba(0,0,0,0.5),inset_0_2px_1px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(180,83,9,0.2)]'
+            ? 'border-amber-400 ring-4 ring-cyan-400/90 shadow-[0_8px_25px_rgba(34,211,238,0.7)]'
+            : 'border-[#a85a1a]/70 shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_2px_1px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(168,90,26,0.25)]'
         } p-1.5 flex flex-col justify-between items-center relative select-none shrink-0 overflow-hidden`}
       >
         {/* Specular Highlight Sheen */}
-        <div className="absolute inset-x-1 top-0.5 h-1/3 bg-gradient-to-b from-white/70 to-transparent rounded-t-xl pointer-events-none" />
+        <div className="absolute inset-x-1 top-0.5 h-1/3 bg-gradient-to-b from-white/80 to-transparent rounded-t-xl pointer-events-none" />
 
         <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center relative z-10">
           {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
             <div key={idx} className="w-full h-full flex items-center justify-center">
               {pips.includes(idx) && (
-                <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#291305] via-[#451a03] to-[#78350f] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.7),0_1px_0_rgba(255,255,255,0.3)]`} />
+                <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#1c0d02] via-[#3d1a04] to-[#78350f] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.35)]`} />
               )}
             </div>
           ))}
         </div>
-
-        {value && !isRolling && (
-          <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded-md bg-amber-900/90 text-amber-100 text-[8px] font-black leading-tight border border-amber-600/50 shadow font-mono z-20">
-            {value}
-          </span>
-        )}
       </motion.div>
     </div>
   );
@@ -824,7 +818,7 @@ export default function Backgammon() {
           endY: eRect.top + eRect.height / 2 - cRect.top,
           player: turn
         });
-        setTimeout(() => setFlyingChecker(null), 320);
+        setTimeout(() => setFlyingChecker(null), 520);
       }
     } catch (_) {}
 
@@ -1168,7 +1162,7 @@ export default function Backgammon() {
     ? getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn).map(m => m.target)
     : [];
 
-  // Checkers Stack — 3D Tactile Lathe-Turned Pieces
+  // Checkers Stack — 3D Tactile Lathe-Turned Pieces (Plato Clean Geometry)
   const renderCheckersStack = (pt, isTop, pIdx, isSelected, isFriendlyAndMovable) => {
     if (pt.count === 0) return null;
     const maxVisible = Math.min(pt.count, 5);
@@ -1176,7 +1170,7 @@ export default function Backgammon() {
     const checkerStyle = isWhite ? themeConfig.checkerWhite : themeConfig.checkerBlack;
 
     return (
-      <div className={`absolute ${isTop ? 'top-5' : 'bottom-5'} flex flex-col items-center z-10 select-none pointer-events-none`}>
+      <div className={`absolute ${isTop ? 'top-1 flex-col' : 'bottom-1 flex-col-reverse'} flex items-center z-10 select-none pointer-events-none w-full`}>
         {Array.from({ length: maxVisible }).map((_, idx) => {
           const isTopChecker = idx === maxVisible - 1;
           return (
@@ -1185,20 +1179,21 @@ export default function Backgammon() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               style={{
-                marginTop: idx > 0 ? '-13px' : '0',
-                zIndex: idx + 1
+                marginTop: isTop && idx > 0 ? '-14px' : '0',
+                marginBottom: !isTop && idx > 0 ? '-14px' : '0',
+                zIndex: isTopChecker ? 30 : idx + 1
               }}
-              className={`w-5 h-5 xs:w-7 xs:h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
+              className={`w-6 h-6 xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px] rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
                 isSelected && isTopChecker 
-                  ? 'ring-4 ring-cyan-300 scale-115 shadow-[0_0_18px_rgba(34,211,238,1)] z-30' 
+                  ? 'ring-4 ring-cyan-300 scale-110 shadow-[0_0_18px_rgba(34,211,238,1)]' 
                   : isFriendlyAndMovable && isTopChecker 
                     ? 'ring-2 ring-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse' 
-                    : 'shadow-[0_4px_6px_rgba(0,0,0,0.5),inset_0_1.5px_1px_rgba(255,255,255,0.4)]'
+                    : 'shadow-[0_3px_5px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)]'
               }`}
             >
               {/* Concentric Engraved Ring for authentic 3D lathe-turned backgammon checker look */}
               <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
-                {idx === maxVisible - 1 && pt.count > 5 ? (
+                {isTopChecker && pt.count > 5 ? (
                   <span className="text-[10px] font-black opacity-100">{pt.count}</span>
                 ) : null}
               </div>
@@ -1209,7 +1204,7 @@ export default function Backgammon() {
     );
   };
 
-  // Render Triangle Point
+  // Render Triangle Point (Plato Authentic Clean Look — No Numbers)
   const renderPoint = (pIdx, isTop) => {
     const pt = points[pIdx];
     const isSelected = selectedPoint === pIdx;
@@ -1239,24 +1234,14 @@ export default function Backgammon() {
           } ${isTop ? 'border-t-[100px] sm:border-t-[130px]' : 'border-b-[100px] sm:border-b-[130px]'} opacity-95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]`}
         />
 
-        {/* Valid Destination Indicator (clean at tip of triangle without obscuring checkers) */}
+        {/* Valid Destination Indicator (clean pulsing emerald target at tip of triangle) */}
         {isValidTarget && (
           <div className={`absolute ${isTop ? 'bottom-2' : 'top-2'} pointer-events-none z-20`}>
-            <div className="px-1.5 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce flex items-center gap-0.5">
-              <span>🎯</span>
-              <span>{pIdx}</span>
+            <div className="w-4 h-4 rounded-full bg-emerald-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce flex items-center justify-center">
+              <span>●</span>
             </div>
           </div>
         )}
-
-        {/* High Legibility Point Label Number */}
-        <span className={`absolute ${isTop ? 'top-1' : 'bottom-1'} px-1 py-0.2 rounded font-mono font-black text-[9px] z-10 select-none shadow-sm ${
-          colorMode === 'light' 
-            ? 'bg-white/90 text-slate-900 border border-slate-300' 
-            : 'bg-black/80 text-amber-300 border border-amber-500/30'
-        }`}>
-          {pIdx}
-        </span>
 
         {/* Checkers Stack */}
         {renderCheckersStack(pt, isTop, pIdx, isSelected, isFriendlyAndMovable)}
@@ -1526,6 +1511,17 @@ export default function Backgammon() {
             <button
               onClick={() => {
                 setIsMoreMenuOpen(false);
+                navigate('/games/lounge');
+              }}
+              className="w-full px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-500/25 to-amber-600/25 hover:bg-amber-500/35 text-amber-300 font-bold flex items-center justify-between border border-amber-400/40"
+            >
+              <span>ورود به سالن بازی‌ها 🎪</span>
+              <ChevronLeft size={14} />
+            </button>
+
+            <button
+              onClick={() => {
+                setIsMoreMenuOpen(false);
                 navigate('/games');
               }}
               className="w-full px-2.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold flex items-center justify-between border border-rose-500/30"
@@ -1537,12 +1533,12 @@ export default function Backgammon() {
         )}
       </AnimatePresence>
 
-      {/* 2. Board Area (Plato Proportional Vertical Wood Board) */}
+      {/* 2. Board Area (Plato Proportional Vertical Wood Board — Edge-to-Edge) */}
       <div 
         ref={boardContainerRef}
-        className="flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-3 relative overflow-hidden"
+        className="flex-1 min-h-0 w-full flex items-center justify-center px-0 py-1 sm:px-1 relative overflow-hidden"
       >
-        {/* Parabolic Flying Checker Animation */}
+        {/* Parabolic Flying Checker Animation (Smoother & Slower) */}
         {flyingChecker && (
           <motion.div
             key={flyingChecker.id}
@@ -1561,8 +1557,8 @@ export default function Backgammon() {
               x: '-50%',
               y: ['-50%', '-100%', '-50%']
             }}
-            transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1.0] }}
-            className={`absolute w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
+            transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
+            className={`absolute w-6 h-6 xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px] rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
               flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
             }`}
           >
@@ -1570,8 +1566,8 @@ export default function Backgammon() {
           </motion.div>
         )}
 
-        {/* The Wooden Board Case */}
-        <div className="w-full max-w-[420px] aspect-[9/14] max-h-full bg-[#382315] border-[6px] border-[#26150b] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.15)] flex flex-col p-1.5 relative select-none">
+        {/* The Wooden Board Case — Zero Margin for Maximum Width */}
+        <div className="w-full max-w-md sm:max-w-lg aspect-[9/14] max-h-full bg-[#382315] border-[3px] xs:border-[4px] sm:border-[6px] border-[#26150b] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.15)] flex flex-col p-1 sm:p-1.5 relative select-none">
           
           {/* Top Frame Strip: Pip Capsule on Left, Bearing-Off Tray on Right */}
           <div className="w-full h-7 px-2 flex items-center justify-between shrink-0 mb-1 z-20">
@@ -1629,7 +1625,7 @@ export default function Backgammon() {
                     }}
                     className={`cursor-pointer transition-all ${
                       selectedDie === dice[0] && remainingMoves.includes(dice[0])
-                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl'
+                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl shadow-cyan-500/50'
                         : hasRolled && remainingMoves.includes(dice[0])
                           ? 'ring-1 ring-cyan-300/60 rounded-2xl'
                           : 'opacity-50 grayscale'
@@ -1638,11 +1634,6 @@ export default function Backgammon() {
                     title={remainingMoves.includes(dice[0]) ? `انتخاب اولویت با تاس ${dice[0]}` : ''}
                   >
                     <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0]} />
-                    {selectedDie === dice[0] && remainingMoves.includes(dice[0]) && (
-                      <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-cyan-500 text-slate-950 text-[8px] font-black shadow-sm">
-                        اول
-                      </span>
-                    )}
                   </div>
 
                   {/* Die 2 */}
@@ -1656,7 +1647,7 @@ export default function Backgammon() {
                     }}
                     className={`cursor-pointer transition-all ${
                       selectedDie === dice[1] && remainingMoves.includes(dice[1])
-                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl'
+                        ? 'scale-110 ring-4 ring-cyan-400 rounded-2xl shadow-xl shadow-cyan-500/50'
                         : hasRolled && remainingMoves.includes(dice[1])
                           ? 'ring-1 ring-cyan-300/60 rounded-2xl'
                           : 'opacity-50 grayscale'
@@ -1665,11 +1656,6 @@ export default function Backgammon() {
                     title={remainingMoves.includes(dice[1]) ? `انتخاب اولویت با تاس ${dice[1]}` : ''}
                   >
                     <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1]} />
-                    {selectedDie === dice[1] && remainingMoves.includes(dice[1]) && (
-                      <span className="absolute -top-1.5 -left-1 px-1 py-0.2 rounded-full bg-cyan-500 text-slate-950 text-[8px] font-black shadow-sm">
-                        اول
-                      </span>
-                    )}
                   </div>
                 </div>
               )}
@@ -1877,6 +1863,7 @@ export default function Backgammon() {
         onSendMessage={handleSendMessage}
         myRoleName={myOnlineRole === 'white' ? (isRtl ? 'سفید (شما)' : 'White') : (isRtl ? 'سیاه (شما)' : 'Black')}
         isRtl={isRtl}
+        hideCapsule={true}
       />
 
       {/* Trash Talk In-Game Reactions */}
@@ -2035,6 +2022,10 @@ export default function Backgammon() {
         onCancel={() => {
           setIsWaitingForOpponent(false);
           navigate('/games');
+        }}
+        onOpenLounge={() => {
+          setIsWaitingForOpponent(false);
+          navigate('/games/lounge');
         }}
         onShareTelegram={() => {
           shareToTelegram({ roomCode: onlineRoomCode, gameType: 'backgammon', gameTitleFa: 'تخته نرد' });

@@ -58,6 +58,31 @@ class Haptics {
   warning() {
     this.vibrate([50, 40, 50]);
   }
+
+  // 8. Telegram WebApp & Mobile Haptic Impact (light, medium, heavy, rigid, soft)
+  impact(style = 'light') {
+    try {
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
+        return;
+      }
+    } catch (_) {}
+    if (style === 'heavy') this.vibrate([30]);
+    else if (style === 'medium') this.vibrate([20]);
+    else this.tap();
+  }
+
+  // 9. Telegram WebApp & Mobile Notification (success, warning, error)
+  notification(type = 'success') {
+    try {
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred(type);
+        return;
+      }
+    } catch (_) {}
+    if (type === 'error') this.warning();
+    else this.success();
+  }
 }
 
 export const haptics = new Haptics();

@@ -23,7 +23,8 @@ export default function InGameChatDrawer({
   messages = [],
   onSendMessage,
   myRoleName = 'شما',
-  isRtl = true
+  isRtl = true,
+  hideCapsule = false
 }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
@@ -108,43 +109,45 @@ export default function InGameChatDrawer({
         )}
       </AnimatePresence>
 
-      {/* 2. Integrated Plato Chat Capsule Strip */}
-      <div className="mt-2.5 p-1.5 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
-        {/* Chat Input / View Trigger */}
-        <button
-          onClick={onToggle}
-          type="button"
-          className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-98 border border-white/10 text-start flex items-center justify-between text-slate-300 transition-all cursor-pointer min-w-0"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <MessageSquare size={14} className="text-amber-400 shrink-0" />
-            <span className="text-[11px] font-bold text-slate-300 truncate">
-              {messages.length > 0
-                ? (messages[messages.length - 1]?.text?.slice(0, 24) || (isRtl ? 'پیامی بنویسید...' : 'Type a message...'))
-                : (isRtl ? 'پیامی بنویسید...' : 'Type a message...')}
-            </span>
-          </div>
-          {messages.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[9px] font-black font-mono shrink-0">
-              {messages.length}
-            </span>
-          )}
-        </button>
+      {/* 2. Integrated Plato Chat Capsule Strip (only if not hidden by parent game bar) */}
+      {!hideCapsule && (
+        <div className="mt-2.5 p-1.5 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+          {/* Chat Input / View Trigger */}
+          <button
+            onClick={onToggle}
+            type="button"
+            className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 active:scale-98 border border-white/10 text-start flex items-center justify-between text-slate-300 transition-all cursor-pointer min-w-0"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageSquare size={14} className="text-amber-400 shrink-0" />
+              <span className="text-[11px] font-bold text-slate-300 truncate">
+                {messages.length > 0
+                  ? (messages[messages.length - 1]?.text?.slice(0, 24) || (isRtl ? 'پیامی بنویسید...' : 'Type a message...'))
+                  : (isRtl ? 'پیامی بنویسید...' : 'Type a message...')}
+              </span>
+            </div>
+            {messages.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[9px] font-black font-mono shrink-0">
+                {messages.length}
+              </span>
+            )}
+          </button>
 
-        {/* Quick Reaction Emojis (Instant 1-Tap Send) */}
-        <div className="flex items-center gap-1 shrink-0">
-          {QUICK_EMOJIS.map(emoji => (
-            <button
-              key={emoji}
-              onClick={() => handleSendQuick(emoji)}
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 hover:bg-white/15 active:scale-85 text-sm sm:text-base flex items-center justify-center transition-transform cursor-pointer"
-              title={emoji}
-            >
-              {emoji}
-            </button>
-          ))}
+          {/* Quick Reaction Emojis (Instant 1-Tap Send) */}
+          <div className="flex items-center gap-1 shrink-0">
+            {QUICK_EMOJIS.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => handleSendQuick(emoji)}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white/5 hover:bg-white/15 active:scale-85 text-sm sm:text-base flex items-center justify-center transition-transform cursor-pointer"
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 3. Plato-Style Slide-Up Chat History & Composer Panel */}
       <AnimatePresence>

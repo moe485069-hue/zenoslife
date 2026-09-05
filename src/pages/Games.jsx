@@ -1121,6 +1121,50 @@ export default function Games() {
           </div>
         </div>
 
+        {/* Plato Gaming Lounge Hero Banner */}
+        <motion.div
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            soundEngine.playTap?.();
+            haptics.impact?.('medium');
+            navigate('/games/lounge');
+          }}
+          className="relative overflow-hidden rounded-3xl p-4 sm:p-5 cursor-pointer border-2 border-amber-500/50 bg-gradient-to-r from-[#1f1006] via-[#2d1b0d] to-[#120803] shadow-2xl shadow-amber-950/60 transition-all group"
+        >
+          {/* Animated golden aura */}
+          <div className="absolute -top-20 -left-20 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none group-hover:bg-amber-500/30 transition-all" />
+          <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/30 shrink-0 border border-amber-300">
+                🎪
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h3 className="text-base sm:text-lg font-black text-amber-300 truncate">
+                    {isRtl ? 'سالن بزرگ بازی‌ها و گپ‌وگفت چاژا' : 'Chazha Games Lounge'}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10px] font-black shrink-0 animate-pulse">
+                    {isRtl ? 'آنلاین مشابه پلاتو ⚡' : 'Plato Live ⚡'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 line-clamp-1">
+                  {isRtl 
+                    ? 'مشاهده بازیکنان آنلاین، اتاق‌های باز، چت همگانی، دوئل مستقیم و تورنمنت‌ها' 
+                    : 'Browse open rooms, online players, global chat, direct duels and weekly cups'}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs sm:text-sm shadow-md flex items-center gap-1.5 shrink-0 group-hover:from-amber-400 group-hover:to-yellow-300 transition-all">
+              <span>{isRtl ? 'ورود به سالن' : 'Enter Lounge'}</span>
+              <ChevronLeft size={16} className={isRtl ? '' : 'rotate-180'} />
+            </div>
+          </div>
+        </motion.div>
+
         {/* Main Segmented Tabs */}
         <div className="flex p-1.5 rounded-3xl bg-slate-900/90 border border-white/10 backdrop-blur-md gap-1.5 shadow-lg">
           <button

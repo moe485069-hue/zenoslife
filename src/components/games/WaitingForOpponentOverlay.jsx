@@ -1,8 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, Copy, Check, X, Loader2 } from 'lucide-react';
-import { soundEngine } from '../../utils/audio';
-import { haptics } from '../../utils/haptics';
+import soundEngine from '../../utils/audio';
+import haptics from '../../utils/haptics';
+
+const fallbackCopyText = (text) => {
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return true;
+  } catch (e) {
+    console.error('fallbackCopyText error', e);
+    return false;
+  }
+};
 
 const WaitingForOpponentOverlay = ({
   isVisible,
@@ -11,6 +30,7 @@ const WaitingForOpponentOverlay = ({
   gameIcon,
   onCancel,
   onShareTelegram,
+  onOpenLounge,
   shareLink,
   isRtl = true,
   colorMode = 'dark'
@@ -30,29 +50,56 @@ const WaitingForOpponentOverlay = ({
   }, [isVisible]);
 
   const handleCopy = async () => {
-    soundEngine?.play('click');
-    haptics?.impact('light');
     try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      soundEngine?.playTap?.() || soundEngine?.play?.('click');
+      haptics?.impact?.('light') || haptics?.tap?.();
+    } catch (_) {}
+
+    let success = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+        success = true;
+      } else {
+        success = fallbackCopyText(shareLink);
+      }
     } catch (err) {
-      console.error('Failed to copy!', err);
+      console.warn('navigator.clipboard failed, using fallback', err);
+      success = fallbackCopyText(shareLink);
     }
+
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleShare = () => {
-    soundEngine?.play('click');
-    haptics?.impact('light');
+    try {
+      soundEngine?.playTap?.() || soundEngine?.play?.('click');
+      haptics?.impact?.('light') || haptics?.tap?.();
+    } catch (_) {}
     if (onShareTelegram) {
       onShareTelegram();
     }
   };
 
   const handleCancel = () => {
-    soundEngine?.play('click');
-    haptics?.impact('medium');
+    try {
+      soundEngine?.playTap?.() || soundEngine?.play?.('click');
+      haptics?.impact?.('medium') || haptics?.tap?.();
+    } catch (_) {}
     if (onCancel) {
+      onCancel();
+    }
+  };
+
+  const handleLounge = () => {
+    try {
+      soundEngine?.playTap?.() || soundEngine?.play?.('click');
+      haptics?.impact?.('medium') || haptics?.tap?.();
+    } catch (_) {}
+    if (onOpenLounge) {
+      onOpenLounge();
+    } else if (onCancel) {
       onCancel();
     }
   };
@@ -163,8 +210,19 @@ const WaitingForOpponentOverlay = ({
                 </button>
 
                 <button
+                  onClick={handleLounge}
+                  className={`w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl border font-bold text-sm transition-all active:scale-[0.98] ${
+                    isDark 
+                      ? 'border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-300 hover:bg-amber-500/30' 
+                      : 'border-amber-500/40 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  }`}
+                >
+                  <span>{isRtl ? 'ورود به سالن بازی‌ها و مسابقه با دیگران 🎪' : 'Join Games Lounge 🎪'}</span>
+                </button>
+
+                <button
                   onClick={handleCancel}
-                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl font-bold text-lg transition-all active:scale-[0.98] ${
+                  className={`w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl font-bold text-base transition-all active:scale-[0.98] ${
                     isDark 
                       ? 'text-rose-400 hover:bg-rose-500/10' 
                       : 'text-rose-500 hover:bg-rose-50'
