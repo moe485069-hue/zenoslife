@@ -179,6 +179,7 @@ export default function Snooker() {
   const [announcementMsg, setAnnouncementMsg] = useState(null);
   const [isShooting, setIsShooting] = useState(false);
   const [ballInHand, setBallInHand] = useState(false);
+  const [draggingBall, setDraggingBall] = useState(false);
   const [frameWinner, setFrameWinner] = useState(null);
   const [matchWinner, setMatchWinner] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -264,7 +265,7 @@ export default function Snooker() {
     setFrameWinner(null);
     setMatchWinner(null);
     setFoulMessage(null);
-    setBallInHand(false);
+    setBallInHand(true);
     setSetupModalOpen(false);
     setAimAngle(-90);
 
@@ -652,6 +653,7 @@ export default function Snooker() {
     state.firstHitBall = null;
     state.pottedInCurrentShot = [];
     setIsShooting(false);
+    setSpinOffset({ x: 0, y: 0 });
   };
 
   const handleFrameWin = () => {
@@ -714,6 +716,7 @@ export default function Snooker() {
     stateRef.current.firstHitBall = null;
     stateRef.current.pottedInCurrentShot = [];
     setPowerSliderPos(0);
+    setBallInHand(false);
   };
 
   // ── 7. Left Power Bar Touch Drag Handler (Plato Style) ──────────────
@@ -838,7 +841,10 @@ export default function Snooker() {
       stepPhysics();
 
       // Clear Canvas
-      ctx.clearRect(0, 0, W, H);
+      ctx.clearRect(0, 0, 780, 1260);
+
+      ctx.save();
+      ctx.translate(150, 150);
 
       // ── Outer Wood Cushion Rail (Luxury Mahogany) ──
       const woodGrad = ctx.createLinearGradient(0, 0, W, H);
@@ -854,10 +860,46 @@ export default function Snooker() {
       ctx.lineWidth = 2.5;
       ctx.roundRect(2, 2, W - 4, H - 4, 34);
       ctx.stroke();
+      
+      // Diamonds (Sights) on the rails
+      ctx.fillStyle = '#fde047';
+      const drawDiamond = (dx, dy) => {
+        ctx.beginPath();
+        ctx.arc(dx, dy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.beginPath();
+        ctx.arc(dx - 0.5, dy - 0.5, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fde047';
+      };
+      
+      const partsY = 4; // 3 diamonds between pockets
+      const spacingY = (H - MARGIN_Y * 2) / partsY;
+      for (let i = 1; i < partsY; i++) {
+         drawDiamond(MARGIN_X / 2, MARGIN_Y + i * spacingY);
+         drawDiamond(W - MARGIN_X / 2, MARGIN_Y + i * spacingY);
+      }
+      const partsX = 2; // 1 diamond on short rails
+      const spacingX = (W - MARGIN_X * 2) / partsX;
+      for (let i = 1; i < partsX; i++) {
+         drawDiamond(MARGIN_X + i * spacingX, MARGIN_Y / 2);
+         drawDiamond(MARGIN_X + i * spacingX, H - MARGIN_Y / 2);
+      }
 
       // ── Snooker Cloth Playing Bed ──
       ctx.fillStyle = selectedTheme.clothColor || '#0b532c';
       ctx.fillRect(MARGIN_X, MARGIN_Y, PLAY_W, PLAY_H);
+      
+      // Cloth subtle texture lines (Zambulozimbo)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+      ctx.lineWidth = 1;
+      for(let i=0; i<PLAY_W; i+=20) {
+        ctx.beginPath(); ctx.moveTo(MARGIN_X + i, MARGIN_Y); ctx.lineTo(MARGIN_X + i, H - MARGIN_Y); ctx.stroke();
+      }
+      for(let j=0; j<PLAY_H; j+=20) {
+        ctx.beginPath(); ctx.moveTo(MARGIN_X, MARGIN_Y + j); ctx.lineTo(W - MARGIN_X, MARGIN_Y + j); ctx.stroke();
+      }
 
       // Cushion Nose Lines (Rich green cushion rubber face)
       ctx.fillStyle = selectedTheme.cushionColor || '#073d1f';
@@ -867,7 +909,7 @@ export default function Snooker() {
       ctx.fillRect(W - MARGIN_X, MARGIN_Y, 8, PLAY_H); // Right
 
       // Baulk Line & "D" Markings (Official Snooker Baulk at Bottom)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.moveTo(MARGIN_X, BAULK_Y);
@@ -878,11 +920,29 @@ export default function Snooker() {
       ctx.beginPath();
       ctx.arc(W / 2, BAULK_Y, D_RADIUS, 0, Math.PI, false);
       ctx.stroke();
+      
+      // Ball in hand UI D-Zone highlight
+      if (ballInHand) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.arc(W / 2, BAULK_Y, D_RADIUS, 0, Math.PI, false);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
+        ctx.font = '10px tahoma';
+        ctx.textAlign = 'center';
+        ctx.fillText(isRtl ? 'توپ را اینجا تنظیم کنید' : 'Place Cue Ball Here', W / 2, BAULK_Y + 40);
+      }
 
       // Spot Markers (Small crosses on cloth)
       Object.keys(SPOTS).forEach(key => {
         const s = SPOTS[key];
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.beginPath();
         ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
@@ -917,7 +977,7 @@ export default function Snooker() {
         if (b.potted) return;
 
         // Realistic Soft Radial Drop Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.beginPath();
         ctx.ellipse(b.x + 2.5, b.y + 3.5, BALL_R * 1.05, BALL_R * 0.85, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -993,7 +1053,7 @@ export default function Snooker() {
       const white = balls.find(b => b.type === 'white');
       const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
 
-      if (white && !white.potted && !stateRef.current.isMoving && (!isShooting || isPullingCue)) {
+      if (white && !white.potted && !stateRef.current.isMoving && (!isShooting || isPullingCue) && !ballInHand) {
         const rad = (aimAngle * Math.PI) / 180;
         const dirX = Math.cos(rad);
         const dirY = Math.sin(rad);
@@ -1063,11 +1123,10 @@ export default function Snooker() {
           }
         }
 
-        // ── Draw 3D Cue Stick ──
-        const cueLength = 280;
-        // Synchronize cue pullback with powerSliderPos or shotPower
+        // ── Draw 3D Cue Stick (Over Everything!) ──
+        const cueLength = 320;
         const currentPull = isPullingCue ? (powerSliderPos / 100) : (shotPower / 100);
-        const pullBack = currentPull * 45;
+        const pullBack = currentPull * 55;
         const cueTipDist = BALL_R + 10 + pullBack;
 
         const cueStartX = white.x - dirX * cueTipDist;
@@ -1075,31 +1134,47 @@ export default function Snooker() {
         const cueEndX = white.x - dirX * (cueTipDist + cueLength);
         const cueEndY = white.y - dirY * (cueTipDist + cueLength);
 
+        // Draw shadow under the cue stick
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX + 5, cueStartY + 8);
+        ctx.lineTo(cueEndX + 5, cueEndY + 8);
+        ctx.stroke();
+
         // Cue Tip
         ctx.strokeStyle = activeCue.tipColor || '#f59e0b';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 5.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX, cueStartY);
         ctx.lineTo(cueStartX - dirX * 22, cueStartY - dirY * 22);
         ctx.stroke();
 
         // Cue Shaft & Wood Body
-        ctx.strokeStyle = '#78350f';
-        ctx.lineWidth = 6.8;
+        ctx.strokeStyle = '#e5a55d';
+        ctx.lineWidth = 7.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 22, cueStartY - dirY * 22);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
+        
+        ctx.strokeStyle = '#8b4513';
+        ctx.lineWidth = 7.5;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * 100, cueStartY - dirY * 100);
+        ctx.lineTo(cueEndX, cueEndY);
+        ctx.stroke();
 
         // Cue Grip Wrap
-        ctx.strokeStyle = activeCue.accentGradient ? '#f59e0b' : '#3b2011';
-        ctx.lineWidth = 7.6;
+        ctx.strokeStyle = activeCue.accentGradient ? '#111' : '#3b2011';
+        ctx.lineWidth = 8.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 180, cueStartY - dirY * 180);
+        ctx.moveTo(cueStartX - dirX * 200, cueStartY - dirY * 200);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
       }
 
+      ctx.restore();
       animId = requestAnimationFrame(render);
     };
 
@@ -1107,27 +1182,79 @@ export default function Snooker() {
     return () => cancelAnimationFrame(animId);
   }, [aimAngle, shotPower, powerSliderPos, selectedCueId, selectedTheme, isPullingCue, isShooting, showAimLaser, soundMuted]);
 
-  // Touch & Drag to Aim on Canvas
+  // Touch & Drag to Aim or Move Ball in Hand
   const handleCanvasPointerDown = (e) => {
     if (stateRef.current.isMoving || isShooting || (gameMode === 'bot' && turn === 'p2')) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = W / rect.width;
-    const scaleY = H / rect.height;
-    const clickX = (e.clientX - rect.left) * scaleX;
-    const clickY = (e.clientY - rect.top) * scaleY;
+    const scaleX = 780 / rect.width;
+    const scaleY = 1260 / rect.height;
+    // Canvas internal drawing uses W=480, H=960, but it is translated by 150px
+    const clickX = (e.clientX - rect.left) * scaleX - 150;
+    const clickY = (e.clientY - rect.top) * scaleY - 150;
 
     const white = stateRef.current.balls.find(b => b.type === 'white');
     if (!white) return;
+
+    if (ballInHand) {
+      if (Math.hypot(clickX - white.x, clickY - white.y) < BALL_R * 3.5) {
+        setDraggingBall(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
 
     const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
     setAimAngle((angleRad * 180) / Math.PI);
   };
 
   const handleCanvasPointerMove = (e) => {
-    if (e.buttons !== 1 || stateRef.current.isMoving || isShooting) return;
-    handleCanvasPointerDown(e);
+    if (stateRef.current.isMoving || isShooting) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = 780 / rect.width;
+    const scaleY = 1260 / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX - 150;
+    const clickY = (e.clientY - rect.top) * scaleY - 150;
+
+    if (draggingBall && ballInHand) {
+      let newX = clickX;
+      let newY = clickY;
+      
+      // Constrain within the 'D' zone
+      // The D zone is: y >= BAULK_Y, and dist(x, W/2) <= D_RADIUS
+      if (newY < BAULK_Y + BALL_R) newY = BAULK_Y + BALL_R;
+      
+      const distToCenter = Math.hypot(newX - W / 2, newY - BAULK_Y);
+      if (distToCenter > D_RADIUS - BALL_R) {
+        const angle = Math.atan2(newY - BAULK_Y, newX - W / 2);
+        newX = W / 2 + Math.cos(angle) * (D_RADIUS - BALL_R);
+        newY = BAULK_Y + Math.sin(angle) * (D_RADIUS - BALL_R);
+      }
+
+      const white = stateRef.current.balls.find(b => b.type === 'white');
+      if (white) {
+        white.x = newX;
+        white.y = newY;
+      }
+      return;
+    }
+
+    if (e.buttons !== 1) return;
+    
+    const white = stateRef.current.balls.find(b => b.type === 'white');
+    if (!white) return;
+    const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
+    setAimAngle((angleRad * 180) / Math.PI);
+  };
+
+  const handleCanvasPointerUp = (e) => {
+    if (draggingBall) {
+      setDraggingBall(false);
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
   };
 
   const remainingReds = stateRef.current.balls.filter(b => b.type === 'red' && !b.potted).length;
@@ -1135,7 +1262,7 @@ export default function Snooker() {
 
   return (
     <div 
-      className="min-h-screen w-full text-white flex flex-col items-center justify-between select-none overflow-hidden font-sans relative"
+      className="fixed inset-0 w-full h-full text-white flex flex-col items-center justify-between select-none overflow-hidden font-sans touch-none"
       dir={isRtl ? 'rtl' : 'ltr'}
       style={{
         backgroundColor: '#15121b',
@@ -1315,6 +1442,7 @@ export default function Snooker() {
                     setTargetBallType('red');
                     setActiveSequenceIndex(0);
                     setAimAngle(-90);
+                    setBallInHand(true);
                   }}
                   className="w-full px-3 py-2 rounded-xl text-right text-xs font-bold text-slate-200 hover:bg-white/10 flex items-center gap-2 transition-colors"
                 >
@@ -1436,14 +1564,22 @@ export default function Snooker() {
         </aside>
 
         {/* ── Center: Vertical Snooker Table Canvas Viewport ── */}
-        <div className="relative h-full max-h-[75vh] aspect-[1/2] rounded-3xl overflow-hidden shadow-2xl border-2 border-amber-500/20 bg-black flex items-center justify-center mx-auto">
+        <div className="relative h-full max-h-[75vh] aspect-[1/2] rounded-[36px] shadow-2xl border-4 border-amber-900/60 bg-black flex items-center justify-center mx-auto overflow-visible z-20">
           <canvas
             ref={canvasRef}
-            width={W}
-            height={H}
+            width={780} /* 480 + 150*2 */
+            height={1260} /* 960 + 150*2 */
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
-            className="w-full h-full object-contain cursor-crosshair touch-none"
+            onPointerUp={handleCanvasPointerUp}
+            className="absolute touch-none cursor-crosshair"
+            style={{ 
+              width: '162.5%', 
+              height: '131.25%', 
+              left: '-31.25%', 
+              top: '-15.625%',
+              maxWidth: 'none'
+            }}
           />
         </div>
 
@@ -1520,36 +1656,7 @@ export default function Snooker() {
         </aside>
       </main>
 
-      {/* ── 4. Bottom Tactical Strike Action Bar ── */}
-      <footer className="w-full max-w-md px-3 pb-3 pt-1 z-30 flex items-center justify-between gap-2">
-        {/* Equipped Cue Badge & Store Shortcut */}
-        <button
-          onClick={() => {
-            if (!soundMuted) soundEngine?.playTap?.();
-            setCueStoreOpen(true);
-          }}
-          className="py-2 px-3 rounded-2xl bg-slate-900/90 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95"
-        >
-          <ShoppingBag size={14} />
-          <span className="text-[11px] truncate max-w-[100px]">
-            {SNOOKER_CUES.find(c => c.id === selectedCueId)?.nameFa || 'چوب اسنوکر'}
-          </span>
-        </button>
 
-        {/* Primary Shoot / Strike Button */}
-        <button
-          onClick={() => handleExecuteShot()}
-          disabled={stateRef.current.isMoving || (gameMode === 'bot' && turn === 'p2')}
-          className={`flex-1 py-3 px-5 rounded-2xl font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            stateRef.current.isMoving || (gameMode === 'bot' && turn === 'p2')
-              ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed border border-white/5'
-              : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-slate-950 hover:brightness-110 shadow-amber-500/25'
-          }`}
-        >
-          <span>🎱</span>
-          <span>{isRtl ? 'شلیک ضربه (Strike)' : 'Strike Shot'}</span>
-        </button>
-      </footer>
 
       {/* ── 5. All Modals & Overlays ── */}
       {/* Game Setup Modal */}
