@@ -135,6 +135,8 @@ const THEMES = {
     triDark: 'border-b-[#5c3317]',
     triLightTop: 'border-t-[#c49a6c]',
     triDarkTop: 'border-t-[#5c3317]',
+    triLightHex: '#c49a6c',
+    triDarkHex: '#5c3317',
     checkerWhite: 'bg-gradient-to-b from-[#fff7ed] to-[#fed7aa] border-[#d97706] text-[#78350f] shadow-amber-900/50',
     checkerBlack: 'bg-gradient-to-b from-[#451a03] to-[#1c0a00] border-[#78350f] text-[#fbbf24] shadow-black/80',
     accentColor: '#d97706',
@@ -154,6 +156,8 @@ const THEMES = {
     triDark: 'border-b-[#b45309]',
     triLightTop: 'border-t-[#fed7aa]',
     triDarkTop: 'border-t-[#b45309]',
+    triLightHex: '#fed7aa',
+    triDarkHex: '#b45309',
     checkerWhite: 'bg-gradient-to-b from-[#ffffff] via-[#fffbeb] to-[#fef08a] border-[#d97706] text-[#78350f] shadow-md',
     checkerBlack: 'bg-gradient-to-b from-[#334155] via-[#1e293b] to-[#0f172a] border-[#020617] text-[#f8fafc] shadow-md',
     accentColor: '#b45309',
@@ -172,6 +176,8 @@ const THEMES = {
     triDark: 'border-b-[#0f766e]',
     triLightTop: 'border-t-[#0284c7]',
     triDarkTop: 'border-t-[#0f766e]',
+    triLightHex: '#0284c7',
+    triDarkHex: '#0f766e',
     checkerWhite: 'bg-gradient-to-b from-[#fef08a] via-[#eab308] to-[#ca8a04] border-[#fde047] text-[#713f12] shadow-yellow-500/40',
     checkerBlack: 'bg-gradient-to-b from-[#134e4a] via-[#042f2e] to-[#021e1d] border-[#2dd4bf] text-[#2dd4bf] shadow-teal-500/30',
     accentColor: '#06b6d4',
@@ -190,6 +196,8 @@ const THEMES = {
     triDark: 'border-b-[#1e1b4b]',
     triLightTop: 'border-t-[#d97706]',
     triDarkTop: 'border-t-[#1e1b4b]',
+    triLightHex: '#d97706',
+    triDarkHex: '#1e1b4b',
     checkerWhite: 'bg-gradient-to-b from-[#fef08a] via-[#f59e0b] to-[#b45309] border-[#fef08a] text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.5)]',
     checkerBlack: 'bg-gradient-to-b from-[#27272a] via-[#18181b] to-[#09090b] border-[#f59e0b]/60 text-[#fef08a] shadow-black',
     accentColor: '#f59e0b',
@@ -208,6 +216,8 @@ const THEMES = {
     triDark: 'border-b-[#06b6d4]',
     triLightTop: 'border-t-[#8b5cf6]',
     triDarkTop: 'border-t-[#06b6d4]',
+    triLightHex: '#8b5cf6',
+    triDarkHex: '#06b6d4',
     checkerWhite: 'bg-gradient-to-b from-[#f0abfc] via-[#c084fc] to-[#7e22ce] border-[#e879f9] text-white shadow-purple-500/50',
     checkerBlack: 'bg-gradient-to-b from-[#0e7490] via-[#155e75] to-[#083344] border-[#22d3ee] text-[#a5f3fc] shadow-cyan-500/50',
     accentColor: '#a855f7',
@@ -1431,7 +1441,7 @@ export default function Backgammon() {
     const checkerStyle = isWhite ? themeConfig.checkerWhite : themeConfig.checkerBlack;
 
     return (
-      <div className={`absolute ${isTop ? 'top-1 flex-col' : 'bottom-1 flex-col-reverse'} flex items-center z-10 select-none pointer-events-none w-full`}>
+      <div className={`absolute ${isTop ? 'top-0.5 flex-col' : 'bottom-0.5 flex-col-reverse'} flex items-center z-10 select-none pointer-events-none w-full`}>
         {Array.from({ length: maxVisible }).map((_, idx) => {
           const isTopChecker = idx === maxVisible - 1;
           return (
@@ -1440,11 +1450,11 @@ export default function Backgammon() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               style={{
-                marginTop: isTop && idx > 0 ? '-14px' : '0',
-                marginBottom: !isTop && idx > 0 ? '-14px' : '0',
+                marginTop: isTop && idx > 0 ? '-13px' : '0',
+                marginBottom: !isTop && idx > 0 ? '-13px' : '0',
                 zIndex: isTopChecker ? 30 : idx + 1
               }}
-              className={`w-6 h-6 xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px] rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
+              className={`w-6 h-6 xs:w-[26px] xs:h-[26px] sm:w-[30px] sm:h-[30px] rounded-full border-2 flex items-center justify-center font-black text-xs transition-all relative ${checkerStyle} ${
                 isSelected && isTopChecker 
                   ? 'ring-4 ring-cyan-300 scale-110 shadow-[0_0_18px_rgba(34,211,238,1)]' 
                   : isFriendlyAndMovable && isTopChecker 
@@ -1484,7 +1494,7 @@ export default function Backgammon() {
     );
   };
 
-  // Render Triangle Point (Plato Authentic Clean Look — No Numbers)
+  // Render Triangle Point (Plato Authentic Clean Look — Seamless Inlay)
   const renderPoint = (pIdx, isTop) => {
     const pt = points[pIdx];
     const isSelected = selectedPoint === pIdx;
@@ -1505,19 +1515,24 @@ export default function Backgammon() {
               : 'hover:bg-white/5'
         }`}
       >
-        {/* Triangle Background */}
-        <div
-          className={`w-0 h-0 border-x-[8px] xs:border-x-[11px] sm:border-x-[16px] border-x-transparent ${
-            isTop
-              ? isDark ? themeConfig.triDarkTop : themeConfig.triLightTop
-              : isDark ? themeConfig.triDark : themeConfig.triLight
-          } ${isTop ? 'border-t-[100px] sm:border-t-[130px]' : 'border-b-[100px] sm:border-b-[130px]'} opacity-95 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]`}
-        />
+        {/* Triangle Background (Seamless Responsive SVG Inlay) */}
+        <div className={`w-full h-full max-h-[96px] sm:max-h-[118px] absolute ${isTop ? 'top-0' : 'bottom-0'} pointer-events-none flex ${isTop ? 'items-start' : 'items-end'}`}>
+          <svg
+            viewBox="0 0 100 240"
+            preserveAspectRatio="none"
+            className="w-full h-full drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)] opacity-95"
+          >
+            <polygon
+              points={isTop ? "0,0 100,0 50,240" : "0,240 100,240 50,0"}
+              fill={isDark ? (themeConfig.triDarkHex || '#5c3317') : (themeConfig.triLightHex || '#c49a6c')}
+            />
+          </svg>
+        </div>
 
         {/* Valid Destination Indicator (clean pulsing emerald target at tip of triangle) */}
         {isValidTarget && (
-          <div className={`absolute ${isTop ? 'bottom-2' : 'top-2'} pointer-events-none z-20`}>
-            <div className="w-4 h-4 rounded-full bg-emerald-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce flex items-center justify-center">
+          <div className={`absolute ${isTop ? 'bottom-1 sm:bottom-2' : 'top-1 sm:top-2'} pointer-events-none z-20`}>
+            <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-400 text-slate-950 font-black text-[9px] shadow-lg animate-bounce flex items-center justify-center">
               <span>●</span>
             </div>
           </div>
@@ -1912,10 +1927,10 @@ export default function Backgammon() {
         )}
       </AnimatePresence>
 
-      {/* 2. Board Area (Plato Proportional Vertical Wood Board — Edge-to-Edge) */}
+      {/* 2. Board Area (Centered Square Tournament Backgammon Board) */}
       <div 
         ref={boardContainerRef}
-        className="flex-1 min-h-0 w-full flex items-center justify-center px-0 py-1 sm:px-1 relative overflow-hidden"
+        className="flex-1 min-h-0 w-full flex items-center justify-center p-1.5 sm:p-3 relative overflow-hidden"
       >
         {/* Parabolic Flying Checker Animation (Smoother & Slower) */}
         {flyingChecker && (
@@ -1937,7 +1952,7 @@ export default function Backgammon() {
               y: ['-50%', '-100%', '-50%']
             }}
             transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
-            className={`absolute w-6 h-6 xs:w-[28px] xs:h-[28px] sm:w-[32px] sm:h-[32px] rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
+            className={`absolute w-6 h-6 xs:w-[26px] xs:h-[26px] sm:w-[30px] sm:h-[30px] rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
               flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
             }`}
           >
@@ -1945,8 +1960,8 @@ export default function Backgammon() {
           </motion.div>
         )}
 
-        {/* The Wooden Board Case — Zero Margin for Maximum Width */}
-        <div className="w-full max-w-md sm:max-w-lg aspect-[9/14] max-h-full bg-[#382315] border-[3px] xs:border-[4px] sm:border-[6px] border-[#26150b] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.15)] flex flex-col p-1 sm:p-1.5 relative select-none">
+        {/* The Wooden Board Case — Square & Centered */}
+        <div className="w-full aspect-square max-w-[min(100%,calc(100dvh-130px),540px)] max-h-[calc(100dvh-130px)] bg-[#382315] border-[3px] xs:border-[4px] sm:border-[5px] border-[#26150b] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.15)] flex flex-col p-1 sm:p-1.5 relative select-none">
           
           {/* Top Frame Strip: Pip Capsule on Left, Bearing-Off Tray on Right */}
           <div className="w-full h-7 px-2 flex items-center justify-between shrink-0 mb-1 z-20">
@@ -1986,13 +2001,13 @@ export default function Backgammon() {
             {/* Left Board Quadrant */}
             <div className="flex-1 h-full rounded-l-xl p-0.5 sm:p-1 flex flex-col justify-between bg-gradient-to-b from-[#e5bf88] via-[#dfb57b] to-[#d6a76b] border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.4)] relative overflow-hidden">
               {/* Top Points (6) */}
-              <div className="flex h-[45%] w-full">
+              <div className="flex h-[43%] w-full">
                 {(isFlipped ? [1, 2, 3, 4, 5, 6] : [13, 14, 15, 16, 17, 18]).map(p => renderPoint(p, true))}
               </div>
 
               {/* Rolled Dice resting on the wooden board surface */}
               {hasRolled && dice[0] && (
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 z-20 pointer-events-auto">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 z-20 pointer-events-auto">
                   {/* Die 1 */}
                   <div
                     onClick={() => {
@@ -2040,13 +2055,13 @@ export default function Backgammon() {
               )}
 
               {/* Bottom Points (6) */}
-              <div className="flex h-[45%] w-full">
+              <div className="flex h-[43%] w-full">
                 {(isFlipped ? [24, 23, 22, 21, 20, 19] : [12, 11, 10, 9, 8, 7]).map(p => renderPoint(p, false))}
               </div>
             </div>
 
             {/* Center Bar (Walnut Wood Bar with Brass Hinges & Doubling Cube 64) */}
-            <div className="w-8 sm:w-9 rounded-md py-2 flex flex-col items-center justify-between bg-[#2a190d] border-x border-[#1a0f07] shadow-[inset_0_0_12px_rgba(0,0,0,0.85)] shrink-0 z-10">
+            <div className="w-7 xs:w-8 sm:w-9 rounded-md py-1.5 flex flex-col items-center justify-between bg-[#2a190d] border-x border-[#1a0f07] shadow-[inset_0_0_12px_rgba(0,0,0,0.85)] shrink-0 z-10">
               {/* Top Brass Hinge */}
               <div className="w-5 h-2 rounded-sm bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-700 shadow-sm border border-amber-950" />
 
@@ -2059,17 +2074,17 @@ export default function Backgammon() {
                   className={`cursor-pointer flex flex-col items-center ${turn === topPlayerRole ? 'animate-pulse' : ''}`}
                   title={`${bar[topPlayerRole]} مهره خورده`}
                 >
-                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${topPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${topPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
                     {bar[topPlayerRole]}
                   </div>
                 </div>
               ) : (
-                <div className="w-6 h-6 rounded-full border border-dashed border-white/10 opacity-30" />
+                <div className="w-5 h-5 xs:w-6 xs:h-6 rounded-full border border-dashed border-white/10 opacity-30" />
               )}
 
               {/* Doubling Cube (Centered 64, exactly as in Plato) */}
               <div 
-                className="w-7 h-7 rounded-lg bg-[#141414] border border-white/20 text-white font-mono font-black text-[11px] flex items-center justify-center shadow-lg select-none"
+                className="w-6 h-6 xs:w-7 xs:h-7 rounded-lg bg-[#141414] border border-white/20 text-white font-mono font-black text-[10px] xs:text-[11px] flex items-center justify-center shadow-lg select-none"
                 title="تاس دوبل (۶۴)"
               >
                 64
@@ -2084,12 +2099,12 @@ export default function Backgammon() {
                   className={`cursor-pointer flex flex-col items-center ${isMyTurn ? 'ring-2 ring-cyan-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.8)]' : ''}`}
                   title={`${bar[bottomPlayerRole]} مهره خورده - کلیک برای ورود`}
                 >
-                  <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${bottomPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${bottomPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
                     {bar[bottomPlayerRole]}
                   </div>
                 </div>
               ) : (
-                <div className="w-6 h-6 rounded-full border border-dashed border-white/10 opacity-30" />
+                <div className="w-5 h-5 xs:w-6 xs:h-6 rounded-full border border-dashed border-white/10 opacity-30" />
               )}
 
               {/* Bottom Brass Hinge */}
@@ -2099,7 +2114,7 @@ export default function Backgammon() {
             {/* Right Board Quadrant */}
             <div className="flex-1 h-full rounded-r-xl p-0.5 sm:p-1 flex flex-col justify-between bg-gradient-to-b from-[#e5bf88] via-[#dfb57b] to-[#d6a76b] border-2 border-white/10 shadow-[inset_0_4px_16px_rgba(0,0,0,0.4)] relative overflow-hidden">
               {/* Top Points (6) */}
-              <div className="flex h-[45%] w-full">
+              <div className="flex h-[43%] w-full">
                 {(isFlipped ? [7, 8, 9, 10, 11, 12] : [19, 20, 21, 22, 23, 24]).map(p => renderPoint(p, true))}
               </div>
 
@@ -2111,10 +2126,10 @@ export default function Backgammon() {
                     whileTap={{ scale: 0.92 }}
                     onClick={handleRollDice}
                     disabled={isRolling}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#4a2e1b]/70 hover:bg-[#5a3821]/80 border-2 border-amber-500/40 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer shadow-2xl active:scale-95 transition-all"
+                    className="w-11 h-11 xs:w-12 xs:h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#4a2e1b]/75 hover:bg-[#5a3821]/85 border-2 border-amber-500/50 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer shadow-2xl active:scale-95 transition-all"
                     title="پرتاب تاس 🎲"
                   >
-                    <span className="text-3xl sm:text-4xl animate-bounce filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
+                    <span className="text-2xl sm:text-3xl animate-bounce filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
                       🎲
                     </span>
                   </motion.button>
@@ -2123,28 +2138,28 @@ export default function Backgammon() {
 
               {/* Remaining moves & undo/pass turn overlay on right quadrant when active */}
               {isMyTurn && hasRolled && remainingMoves.length > 0 && (
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1.5">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-1">
                   <div className="flex items-center gap-1">
                     {moveHistory.length > 0 && (
                       <button
                         onClick={handleUndoMove}
-                        className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-amber-300 text-[10px] font-bold border border-amber-400/40 flex items-center gap-0.5 active:scale-95 shadow"
+                        className="px-1.5 py-0.5 rounded-lg bg-black/80 hover:bg-black text-amber-300 text-[9px] font-bold border border-amber-400/40 flex items-center gap-0.5 active:scale-95 shadow"
                         title="بازگردانی حرکت"
                       >
-                        <RotateCcw size={10} />
+                        <RotateCcw size={9} />
                         <span>بازگردانی</span>
                       </button>
                     )}
                     <button
                       onClick={() => endTurn(points, bar, borneOff, turn)}
-                      className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-slate-300 text-[10px] font-bold border border-white/20 active:scale-95 shadow"
+                      className="px-1.5 py-0.5 rounded-lg bg-black/80 hover:bg-black text-slate-300 text-[9px] font-bold border border-white/20 active:scale-95 shadow"
                       title="رد نوبت"
                     >
                       رد نوبت ⏭️
                     </button>
                     <button
                       onClick={() => rollDiceAction()}
-                      className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-cyan-300 text-[10px] font-bold border border-cyan-400/40 active:scale-95 shadow"
+                      className="px-1.5 py-0.5 rounded-lg bg-black/80 hover:bg-black text-cyan-300 text-[9px] font-bold border border-cyan-400/40 active:scale-95 shadow"
                       title="پرتاب مجدد تاس"
                     >
                       🔄 تاس مجدد
@@ -2154,7 +2169,7 @@ export default function Backgammon() {
               )}
 
               {/* Bottom Points (6) */}
-              <div className="flex h-[45%] w-full">
+              <div className="flex h-[43%] w-full">
                 {(isFlipped ? [18, 17, 16, 15, 14, 13] : [6, 5, 4, 3, 2, 1]).map(p => renderPoint(p, false))}
               </div>
             </div>
