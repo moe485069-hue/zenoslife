@@ -334,6 +334,37 @@ export default function Backgammon() {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [turnTimerSeconds, setTurnTimerSeconds] = useState(60);
 
+  // Auto-pass & Turn Collision Safety Refs
+  const autoPassTimerRef = useRef(null);
+  const turnRef = useRef(turn);
+  useEffect(() => {
+    turnRef.current = turn;
+  }, [turn]);
+
+  const clearAutoPassTimer = () => {
+    if (autoPassTimerRef.current) {
+      clearTimeout(autoPassTimerRef.current);
+      autoPassTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearAutoPassTimer();
+      if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
+    };
+  }, []);
+
+  // Safety Watchdog: If player has rolled but remainingMoves is 0, auto-transition turn so board never hangs
+  useEffect(() => {
+    if (hasRolled && remainingMoves.length === 0 && !isRolling && !setWinner && !matchWinner) {
+      const fallbackTimer = setTimeout(() => {
+        endTurn(points, bar, borneOff, turn);
+      }, 350);
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, [hasRolled, remainingMoves.length, isRolling, setWinner, matchWinner]);
+
   // Plato-Style Active Turn Countdown
   useEffect(() => {
     if (setWinner || matchWinner) return;
@@ -508,6 +539,7 @@ export default function Backgammon() {
           setTurn(payload.turn);
           setRemainingMoves(payload.remainingMoves || []);
           setHasRolled(payload.hasRolled || false);
+          if (payload.dice) setDice(payload.dice);
           setSelectedPoint(null);
           if (payload.lastMsg) setLastMoveMsg(payload.lastMsg);
           soundEngine.playCheckmark?.();
@@ -659,7 +691,10 @@ export default function Backgammon() {
         name: myUserName,
         role: bottomPlayerRole,
         avatar: bottomPlayerRole === 'white' ? '⚪' : '⚫',
+        avatarImg: userProfile?.avatar || null,
+        bio: userProfile?.bio || localStorage.getItem('life_os_user_bio') || '',
         isBot: false,
+        isSelf: true,
         level: 16,
         rank: isRtl ? 'قهرمان مسابقات چاژا 👑' : 'Chazha Champion 👑',
         winRate: '72%',
@@ -721,6 +756,7 @@ export default function Backgammon() {
   // ----------------------------------------------------
   const rollDiceAction = () => {
     if (isRolling) return;
+    clearAutoPassTimer();
     setIsRolling(true);
     setMoveHistory([]);
     setSelectedDie(null);
@@ -729,6 +765,16 @@ export default function Backgammon() {
 
     if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
     let rollCount = 0;
+
+    // Safety watchdog: Guarantee isRolling is never stuck true under any condition
+    const watchdogTimer = setTimeout(() => {
+      setIsRolling(false);
+      if (rollIntervalRef.current) {
+        clearInterval(rollIntervalRef.current);
+        rollIntervalRef.current = null;
+      }
+    }, 1200);
+
     rollIntervalRef.current = setInterval(() => {
       rollCount++;
       const tempD1 = Math.floor(Math.random() * 6) + 1;
@@ -738,6 +784,8 @@ export default function Backgammon() {
       if (rollCount >= 5) {
         clearInterval(rollIntervalRef.current);
         rollIntervalRef.current = null;
+        clearTimeout(watchdogTimer);
+
         const d1 = Math.floor(Math.random() * 6) + 1;
         const d2 = Math.floor(Math.random() * 6) + 1;
         const rolledDice = [d1, d2];
@@ -779,6 +827,7 @@ export default function Backgammon() {
 
   const handleRollDice = () => {
     if (isRolling) return;
+    clearAutoPassTimer();
     if (hasRolled && remainingMoves.length > 0) {
       setLastMoveMsg(isRtl ? '👈 لطفاً یکی از مهره‌های درخشان را برای حرکت لمس کنید' : 'Tap a glowing checker to move');
       return;
@@ -841,10 +890,10 @@ export default function Backgammon() {
     return false;
   };
 
-  const getValidMovesForPoint = (fromPoint, currentPoints, currentBar, currentMoves, player) => {
+  const getValidMovesForPoint = (fromPoint, currentPoints, currentBar, currentMoves, player, ignoreSelectedDie = false) => {
     const validDestinations = [];
     // If a die is explicitly clicked/selected by user, prioritize ONLY that die if present in available moves
-    const uniqueMoves = (selectedDie !== null && currentMoves.includes(selectedDie))
+    const uniqueMoves = (!ignoreSelectedDie && selectedDie !== null && currentMoves.includes(selectedDie))
       ? [selectedDie]
       : Array.from(new Set(currentMoves));
 
@@ -880,14 +929,15 @@ export default function Backgammon() {
   };
 
   const checkAutoTurnPass = (currentDice, currentMoves, curPoints, curBar, curTurn) => {
+    clearAutoPassTimer();
     let hasAnyMove = false;
     if (curBar[curTurn] > 0) {
-      const barMoves = getValidMovesForPoint('bar', curPoints, curBar, currentMoves, curTurn);
+      const barMoves = getValidMovesForPoint('bar', curPoints, curBar, currentMoves, curTurn, true);
       if (barMoves.length > 0) hasAnyMove = true;
     } else {
       for (let i = 1; i <= 24; i++) {
         if (curPoints[i].player === curTurn && curPoints[i].count > 0) {
-          const ptMoves = getValidMovesForPoint(i, curPoints, curBar, currentMoves, curTurn);
+          const ptMoves = getValidMovesForPoint(i, curPoints, curBar, currentMoves, curTurn, true);
           if (ptMoves.length > 0) {
             hasAnyMove = true;
             break;
@@ -898,9 +948,12 @@ export default function Backgammon() {
 
     if (!hasAnyMove && currentMoves.length > 0) {
       setLastMoveMsg(isRtl ? '⛔ هیچ حرکت مجازی با این تاس‌ها وجود ندارد؛ نوبت منتقل شد.' : 'No valid moves. Turn passed.');
-      setTimeout(() => {
-        endTurn(curPoints, curBar, borneOff, curTurn);
-      }, 1500);
+      autoPassTimerRef.current = setTimeout(() => {
+        if (turnRef.current === curTurn) {
+          endTurn(curPoints, curBar, borneOff, curTurn);
+        }
+        autoPassTimerRef.current = null;
+      }, 1400);
     }
   };
 
@@ -1077,7 +1130,8 @@ export default function Backgammon() {
         borneOff: newBorneOff,
         turn,
         remainingMoves: newMoves,
-        hasRolled: true,
+        hasRolled: newMoves.length > 0,
+        dice,
         from,
         to,
         lastMsg: isRtl ? `حریف یک مهره حرکت داد` : `Opponent moved a checker`
@@ -1098,6 +1152,7 @@ export default function Backgammon() {
 
   const handleUndoMove = () => {
     if (moveHistory.length === 0) return;
+    clearAutoPassTimer();
     const lastSnapshot = moveHistory[moveHistory.length - 1];
     setMoveHistory(prev => prev.slice(0, -1));
     setPoints(lastSnapshot.points);
@@ -1118,12 +1173,14 @@ export default function Backgammon() {
         turn,
         remainingMoves: lastSnapshot.remainingMoves,
         hasRolled: true,
+        dice,
         lastMsg: isRtl ? 'حریف حرکت خود را بازگرداند' : 'Opponent undid move'
       });
     }
   };
 
   const endTurn = (pts = points, curBar = bar, curOff = borneOff, currentActiveTurn = turn) => {
+    clearAutoPassTimer();
     const nextTurn = currentActiveTurn === 'white' ? 'black' : 'white';
     setTurn(nextTurn);
     setRemainingMoves([]);
@@ -1151,6 +1208,7 @@ export default function Backgammon() {
         turn: nextTurn,
         remainingMoves: [],
         hasRolled: false,
+        dice: [null, null],
         lastMsg: isRtl ? `نوبت ${nextTurn === 'white' ? 'سفید' : 'سیاه'} است` : `Turn passed`
       });
     }
@@ -1262,7 +1320,7 @@ export default function Backgammon() {
 
     if (!hasRolled && !isRolling) {
       const timer = setTimeout(() => {
-        if (!hasRolled && !isRolling && turn === 'black') {
+        if (!hasRolled && !isRolling && turnRef.current === 'black') {
           rollDiceAction();
         }
       }, 700);
@@ -1271,7 +1329,7 @@ export default function Backgammon() {
 
     if (hasRolled && remainingMoves.length > 0 && !isRolling) {
       const botMoveTimer = setTimeout(() => {
-        if (hasRolled && remainingMoves.length > 0 && turn === 'black') {
+        if (hasRolled && remainingMoves.length > 0 && turnRef.current === 'black') {
           makeBotMove();
         }
       }, 600);
@@ -1280,63 +1338,69 @@ export default function Backgammon() {
   }, [gameMode, turn, hasRolled, remainingMoves, isRolling, setWinner, matchWinner]);
 
   const makeBotMove = () => {
-    let allPossibleMoves = [];
-    if (bar.black > 0) {
-      const barMoves = getValidMovesForPoint('bar', points, bar, remainingMoves, 'black');
-      barMoves.forEach(m => allPossibleMoves.push({ from: 'bar', to: m.target, dieUsed: m.dieUsed }));
-    } else {
-      for (let i = 1; i <= 24; i++) {
-        if (points[i].player === 'black' && points[i].count > 0) {
-          const ptMoves = getValidMovesForPoint(i, points, bar, remainingMoves, 'black');
-          ptMoves.forEach(m => allPossibleMoves.push({ from: i, to: m.target, dieUsed: m.dieUsed }));
+    clearAutoPassTimer();
+    try {
+      let allPossibleMoves = [];
+      if (bar.black > 0) {
+        const barMoves = getValidMovesForPoint('bar', points, bar, remainingMoves, 'black', true);
+        barMoves.forEach(m => allPossibleMoves.push({ from: 'bar', to: m.target, dieUsed: m.dieUsed }));
+      } else {
+        for (let i = 1; i <= 24; i++) {
+          if (points[i].player === 'black' && points[i].count > 0) {
+            const ptMoves = getValidMovesForPoint(i, points, bar, remainingMoves, 'black', true);
+            ptMoves.forEach(m => allPossibleMoves.push({ from: i, to: m.target, dieUsed: m.dieUsed }));
+          }
         }
       }
-    }
 
-    if (allPossibleMoves.length === 0) {
-      endTurn(points, bar, borneOff, 'black');
-      return;
-    }
-
-    // AI Difficulty Heuristics
-    if (botDifficulty === 'easy' && Math.random() < 0.35) {
-      const randomIdx = Math.floor(Math.random() * allPossibleMoves.length);
-      const chosen = allPossibleMoves[randomIdx];
-      return executeMove(chosen.from, chosen.to, chosen.dieUsed);
-    }
-
-    allPossibleMoves.sort((a, b) => {
-      let scoreA = 0;
-      let scoreB = 0;
-
-      // 1. Bearing off is prioritized (+160)
-      if (a.to === 'off') scoreA += 160;
-      if (b.to === 'off') scoreB += 160;
-
-      // 2. Hitting opponent's blot (+130)
-      if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 130;
-      if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 130;
-
-      // 3. Making an anchor/prime by landing on friendly single checker (+90)
-      if (typeof a.to === 'number' && points[a.to].player === 'black' && points[a.to].count === 1) scoreA += 90;
-      if (typeof b.to === 'number' && points[b.to].player === 'black' && points[b.to].count === 1) scoreB += 90;
-
-      // 4. Master AI tactical positioning
-      if (botDifficulty === 'master') {
-        // Run back checkers out of white home board (+40)
-        if (typeof a.from === 'number' && a.from <= 6) scoreA += 40;
-        if (typeof b.from === 'number' && b.from <= 6) scoreB += 40;
-
-        // Penalize exposing single blot if it leaves it open to direct attack
-        if (typeof a.to === 'number' && points[a.to].count === 0 && a.to < 18) scoreA -= 25;
-        if (typeof b.to === 'number' && points[b.to].count === 0 && b.to < 18) scoreB -= 25;
+      if (allPossibleMoves.length === 0) {
+        endTurn(points, bar, borneOff, 'black');
+        return;
       }
 
-      return scoreB - scoreA;
-    });
+      // AI Difficulty Heuristics
+      if (botDifficulty === 'easy' && Math.random() < 0.35) {
+        const randomIdx = Math.floor(Math.random() * allPossibleMoves.length);
+        const chosen = allPossibleMoves[randomIdx];
+        return executeMove(chosen.from, chosen.to, chosen.dieUsed);
+      }
 
-    const chosen = allPossibleMoves[0];
-    executeMove(chosen.from, chosen.to, chosen.dieUsed);
+      allPossibleMoves.sort((a, b) => {
+        let scoreA = 0;
+        let scoreB = 0;
+
+        // 1. Bearing off is prioritized (+160)
+        if (a.to === 'off') scoreA += 160;
+        if (b.to === 'off') scoreB += 160;
+
+        // 2. Hitting opponent's blot (+130)
+        if (typeof a.to === 'number' && points[a.to].player === 'white' && points[a.to].count === 1) scoreA += 130;
+        if (typeof b.to === 'number' && points[b.to].player === 'white' && points[b.to].count === 1) scoreB += 130;
+
+        // 3. Making an anchor/prime by landing on friendly single checker (+90)
+        if (typeof a.to === 'number' && points[a.to].player === 'black' && points[a.to].count === 1) scoreA += 90;
+        if (typeof b.to === 'number' && points[b.to].player === 'black' && points[b.to].count === 1) scoreB += 90;
+
+        // 4. Master AI tactical positioning
+        if (botDifficulty === 'master') {
+          // Run back checkers out of white home board (+40)
+          if (typeof a.from === 'number' && a.from <= 6) scoreA += 40;
+          if (typeof b.from === 'number' && b.from <= 6) scoreB += 40;
+
+          // Penalize exposing single blot if it leaves it open to direct attack
+          if (typeof a.to === 'number' && points[a.to].count === 0 && a.to < 18) scoreA -= 25;
+          if (typeof b.to === 'number' && points[b.to].count === 0 && b.to < 18) scoreB -= 25;
+        }
+
+        return scoreB - scoreA;
+      });
+
+      const chosen = allPossibleMoves[0];
+      executeMove(chosen.from, chosen.to, chosen.dieUsed);
+    } catch (err) {
+      console.error("Bot AI move error:", err);
+      endTurn(points, bar, borneOff, 'black');
+    }
   };
 
   // Pip Counts & Advantage
@@ -1570,7 +1634,9 @@ export default function Backgammon() {
   const bottomPlayerRole = isFlipped ? 'black' : 'white';
   const topPlayerRole = isFlipped ? 'white' : 'black';
 
-  const isMyTurn = turn === bottomPlayerRole;
+  const isMyTurn = gameMode === 'local' 
+    ? true 
+    : (gameMode === 'bot' ? turn === 'white' : turn === myOnlineRole);
   const topPip = topPlayerRole === 'white' ? pipWhite : pipBlack;
   const bottomPip = bottomPlayerRole === 'white' ? pipWhite : pipBlack;
 
@@ -2076,6 +2142,13 @@ export default function Backgammon() {
                     >
                       رد نوبت ⏭️
                     </button>
+                    <button
+                      onClick={() => rollDiceAction()}
+                      className="px-2 py-1 rounded-lg bg-black/75 hover:bg-black/90 text-cyan-300 text-[10px] font-bold border border-cyan-400/40 active:scale-95 shadow"
+                      title="پرتاب مجدد تاس"
+                    >
+                      🔄 تاس مجدد
+                    </button>
                   </div>
                 </div>
               )}
@@ -2364,6 +2437,8 @@ export default function Backgammon() {
           setIsProfileModalOpen(false);
           setIsStoreModalOpen(true);
         }}
+        boardTheme={boardTheme}
+        onSelectTheme={(newTheme) => setBoardTheme(newTheme)}
         isRtl={isRtl}
         colorMode={colorMode}
       />
