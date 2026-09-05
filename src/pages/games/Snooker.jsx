@@ -848,18 +848,35 @@ export default function Snooker() {
 
       // ── Outer Wood Cushion Rail (Luxury Mahogany) ──
       const woodGrad = ctx.createLinearGradient(0, 0, W, H);
-      woodGrad.addColorStop(0, '#2d1810');
-      woodGrad.addColorStop(0.5, '#452213');
-      woodGrad.addColorStop(1, '#241209');
+      woodGrad.addColorStop(0, '#3a1f14');
+      woodGrad.addColorStop(0.5, '#5c2d1b');
+      woodGrad.addColorStop(1, '#2f170c');
       ctx.fillStyle = woodGrad;
       ctx.roundRect(0, 0, W, H, 36);
       ctx.fill();
 
-      // Subtle Outer Wood Bevel Highlight
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.lineWidth = 2.5;
-      ctx.roundRect(2, 2, W - 4, H - 4, 34);
+      // Delicate wood highlight
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.roundRect(4, 4, W - 8, H - 8, 32);
       ctx.stroke();
+      
+      // ChaZha Brand Logo Plate (Bottom Cushion)
+      const logoW = 80;
+      const logoH = 16;
+      ctx.fillStyle = '#111';
+      ctx.roundRect(W / 2 - logoW / 2, H - 20, logoW, logoH, 4);
+      ctx.fill();
+      
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.font = 'bold 10px "Arial"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('C h a Z h a', W / 2, H - 11.5);
       
       // Diamonds (Sights) on the rails
       ctx.fillStyle = '#fde047';
@@ -888,11 +905,11 @@ export default function Snooker() {
       }
 
       // ── Snooker Cloth Playing Bed ──
-      ctx.fillStyle = selectedTheme.clothColor || '#0b532c';
+      ctx.fillStyle = selectedTheme.clothColor || '#14753c';
       ctx.fillRect(MARGIN_X, MARGIN_Y, PLAY_W, PLAY_H);
       
       // Cloth subtle texture lines (Zambulozimbo)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
       ctx.lineWidth = 1;
       for(let i=0; i<PLAY_W; i+=20) {
         ctx.beginPath(); ctx.moveTo(MARGIN_X + i, MARGIN_Y); ctx.lineTo(MARGIN_X + i, H - MARGIN_Y); ctx.stroke();
@@ -902,7 +919,7 @@ export default function Snooker() {
       }
 
       // Cushion Nose Lines (Rich green cushion rubber face)
-      ctx.fillStyle = selectedTheme.cushionColor || '#073d1f';
+      ctx.fillStyle = selectedTheme.cushionColor || '#0c5c2a';
       ctx.fillRect(MARGIN_X, MARGIN_Y - 8, PLAY_W, 8); // Top
       ctx.fillRect(MARGIN_X, H - MARGIN_Y, PLAY_W, 8); // Bottom
       ctx.fillRect(MARGIN_X - 8, MARGIN_Y, 8, PLAY_H); // Left
@@ -933,10 +950,10 @@ export default function Snooker() {
         ctx.stroke();
         ctx.setLineDash([]);
         
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
-        ctx.font = '10px tahoma';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+        ctx.font = 'bold 11px tahoma';
         ctx.textAlign = 'center';
-        ctx.fillText(isRtl ? 'توپ را اینجا تنظیم کنید' : 'Place Cue Ball Here', W / 2, BAULK_Y + 40);
+        ctx.fillText(isRtl ? 'توپ را اینجا تنظیم کنید' : 'Place Cue Ball Here', W / 2, BAULK_Y + 45);
       }
 
       // Spot Markers (Small crosses on cloth)
@@ -950,25 +967,27 @@ export default function Snooker() {
 
       // ── Draw 6 Snooker Drop Pockets & Curved Jaws ──
       POCKETS.forEach(p => {
-        // Drop Pocket Hole (Pure Deep Depth)
-        ctx.fillStyle = '#040404';
+        // Brass pocket corner plate
+        ctx.fillStyle = '#b48a30'; // metallic brass
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r + 9, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#fcd34d'; // bright brass highlight
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        
+        // Leather net dark inner
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r + 3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Polished Brass Pocket Corner Rim
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2.8;
+        // Drop Pocket Hole (Pure Deep Depth)
+        ctx.fillStyle = '#000000';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Inner Brass Pocket Shading
-        ctx.strokeStyle = '#78350f';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r - 2, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.arc(p.x, p.y, p.r - 0.5, 0, Math.PI * 2);
+        ctx.fill();
       });
 
       // ── Draw Balls with 3D Glossy Specular Shading & Drop Shadows ──
@@ -1124,10 +1143,10 @@ export default function Snooker() {
         }
 
         // ── Draw 3D Cue Stick (Over Everything!) ──
-        const cueLength = 320;
+        const cueLength = 450;
         const currentPull = isPullingCue ? (powerSliderPos / 100) : (shotPower / 100);
-        const pullBack = currentPull * 55;
-        const cueTipDist = BALL_R + 10 + pullBack;
+        const pullBack = currentPull * 65;
+        const cueTipDist = BALL_R + 8 + pullBack;
 
         const cueStartX = white.x - dirX * cueTipDist;
         const cueStartY = white.y - dirY * cueTipDist;
@@ -1135,41 +1154,50 @@ export default function Snooker() {
         const cueEndY = white.y - dirY * (cueTipDist + cueLength);
 
         // Draw shadow under the cue stick
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.lineWidth = 8;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 10;
         ctx.beginPath();
-        ctx.moveTo(cueStartX + 5, cueStartY + 8);
-        ctx.lineTo(cueEndX + 5, cueEndY + 8);
+        ctx.moveTo(cueStartX + 6, cueStartY + 10);
+        ctx.lineTo(cueEndX + 8, cueEndY + 12);
         ctx.stroke();
 
-        // Cue Tip
-        ctx.strokeStyle = activeCue.tipColor || '#f59e0b';
-        ctx.lineWidth = 5.5;
+        // Cue Tip (Chalk blue)
+        ctx.strokeStyle = activeCue.tipColor || '#38bdf8';
+        ctx.lineWidth = 6;
         ctx.beginPath();
         ctx.moveTo(cueStartX, cueStartY);
-        ctx.lineTo(cueStartX - dirX * 22, cueStartY - dirY * 22);
+        ctx.lineTo(cueStartX - dirX * 16, cueStartY - dirY * 16);
         ctx.stroke();
 
-        // Cue Shaft & Wood Body
-        ctx.strokeStyle = '#e5a55d';
-        ctx.lineWidth = 7.5;
+        // White Ferrule
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 6.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 22, cueStartY - dirY * 22);
+        ctx.moveTo(cueStartX - dirX * 16, cueStartY - dirY * 16);
+        ctx.lineTo(cueStartX - dirX * 26, cueStartY - dirY * 26);
+        ctx.stroke();
+
+        // Cue Shaft (Light Wood)
+        ctx.strokeStyle = '#e5a55d';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(cueStartX - dirX * 26, cueStartY - dirY * 26);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
         
-        ctx.strokeStyle = '#8b4513';
-        ctx.lineWidth = 7.5;
+        // Cue Butt (Dark Wood)
+        ctx.strokeStyle = '#703310';
+        ctx.lineWidth = 10.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 100, cueStartY - dirY * 100);
+        ctx.moveTo(cueStartX - dirX * 150, cueStartY - dirY * 150);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
 
         // Cue Grip Wrap
-        ctx.strokeStyle = activeCue.accentGradient ? '#111' : '#3b2011';
-        ctx.lineWidth = 8.5;
+        ctx.strokeStyle = activeCue.accentGradient ? '#111' : '#1f130b';
+        ctx.lineWidth = 11.5;
         ctx.beginPath();
-        ctx.moveTo(cueStartX - dirX * 200, cueStartY - dirY * 200);
+        ctx.moveTo(cueStartX - dirX * 290, cueStartY - dirY * 290);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
       }
