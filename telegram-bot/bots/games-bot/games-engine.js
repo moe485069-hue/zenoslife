@@ -230,6 +230,26 @@ async function spinWheel(botToken, chatId, userId) {
 }
 
 // ----------------------------------------------------
+// 6. LEADERBOARD
+// ----------------------------------------------------
+async function sendGameLeaderboard(botToken, chatId) {
+  const users = Object.values(db.users);
+  const topCoins = users.sort((a, b) => (b.coins || 0) - (a.coins || 0)).slice(0, 10);
+
+  let text = '🏆 <b>جدول قهرمانان و ثروتمندترین بازیکنان چاژا:</b>\n\n';
+  topCoins.forEach((u, i) => {
+    const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i + 1}.`));
+    text += `${medal} <b>${u.name || 'کاربر چاژا'}</b>: ${(u.coins || 0).toLocaleString()} سکه (Lvl ${u.level || 1})\n`;
+  });
+
+  return callTgApi(botToken, 'sendMessage', {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML'
+  });
+}
+
+// ----------------------------------------------------
 // 7. DAILY MISSIONS & QUESTS SYSTEM
 // ----------------------------------------------------
 function getDailyMissions(userId) {
