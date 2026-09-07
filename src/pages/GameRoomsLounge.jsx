@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, Users, MessageSquare, Trophy, Plus, Search, 
   Sparkles, Swords, UserPlus, Send, RefreshCw, Lock, Globe,
-  Check, Flame, Shield, ArrowRight, Gamepad2, Coins, ShoppingBag
+  Check, Flame, Shield, ArrowRight, Gamepad2, Coins, ShoppingBag, Share2
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
@@ -13,22 +13,75 @@ import soundEngine from '../utils/audio';
 import haptics from '../utils/haptics';
 import OpponentProfileModal from '../components/games/OpponentProfileModal';
 import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
+import { shareToTelegram } from '../utils/telegram';
 
-// Supported Games in the Lounge
+// Supported Games in the Lounge (Plato-Style Roster)
 const LOUNGE_GAMES = [
   { id: 'all', titleFa: 'همه بازی‌ها', icon: '🎯' },
-  { id: 'snooker', titleFa: 'اسنوکر شاهانه', icon: '🎱', path: '/games/snooker' },
-  { id: 'backgammon', titleFa: 'تخته نرد', icon: '🎲', path: '/games/backgammon' },
-  { id: 'billiards', titleFa: 'بیلیارد', icon: '🎱', path: '/games/billiards' },
-  { id: 'cosmic-chess', titleFa: 'شطرنج', icon: '♟️', path: '/games/cosmic-chess' },
-  { id: 'battleship', titleFa: 'کشتی جنگی', icon: '🚢', path: '/games/battleship' },
-  { id: 'connect-four', titleFa: 'دوز ۴ تایی', icon: '🔴', path: '/games/connect-four' },
-  { id: 'finger-soccer', titleFa: 'فوتبال انگشتی', icon: '⚽', path: '/games/finger-soccer' },
-  { id: 'cosmic-pong', titleFa: 'پینگ‌پنگ', icon: '🏓', path: '/games/cosmic-pong' },
+  { id: 'hokm', titleFa: 'حکم ۴ نفره', icon: '🂡', path: '/games/hokm', maxPlayers: 4 },
+  { id: 'pasur', titleFa: 'پاسور چهاربرگ', icon: '🃏', path: '/games/pasur', maxPlayers: 2 },
+  { id: 'ludo', titleFa: 'منچ دورهمی', icon: '🎲', path: '/games/ludo', maxPlayers: 4 },
+  { id: 'ocho', titleFa: 'اونو (هفت خبیث)', icon: '🎴', path: '/games/ocho', maxPlayers: 4 },
+  { id: 'snooker', titleFa: 'اسنوکر شاهانه', icon: '🎱', path: '/games/snooker', maxPlayers: 2 },
+  { id: 'backgammon', titleFa: 'تخته نرد', icon: '🎲', path: '/games/backgammon', maxPlayers: 2 },
+  { id: 'billiards', titleFa: 'بیلیارد', icon: '🎱', path: '/games/billiards', maxPlayers: 2 },
+  { id: 'air-hockey', titleFa: 'ایر هاکی نئونی', icon: '🏒', path: '/games/air-hockey', maxPlayers: 2 },
+  { id: 'dots-and-boxes', titleFa: 'نقطه و خط', icon: '✏️', path: '/games/dots-and-boxes', maxPlayers: 2 },
+  { id: 'cosmic-chess', titleFa: 'شطرنج', icon: '♟️', path: '/games/cosmic-chess', maxPlayers: 2 },
+  { id: 'battleship', titleFa: 'کشتی جنگی', icon: '🚢', path: '/games/battleship', maxPlayers: 2 },
+  { id: 'connect-four', titleFa: 'دوز ۴ تایی', icon: '🔴', path: '/games/connect-four', maxPlayers: 2 },
+  { id: 'finger-soccer', titleFa: 'فوتبال انگشتی', icon: '⚽', path: '/games/finger-soccer', maxPlayers: 2 },
+  { id: 'snakes-and-ladders', titleFa: 'مار و پله', icon: '🐍', path: '/games/snakes-and-ladders', maxPlayers: 4 },
+  { id: 'cosmic-pong', titleFa: 'پینگ‌پنگ', icon: '🏓', path: '/games/cosmic-pong', maxPlayers: 2 },
 ];
 
 // Initial mock lively rooms to populate the feed
 const INITIAL_ROOMS = [
+  {
+    id: 'HOKM-9102',
+    gameId: 'hokm',
+    gameTitle: 'حکم ۴ نفره آنلاین',
+    gameIcon: '🂡',
+    hostName: 'سلطان_پاسور',
+    hostAvatar: '👑',
+    level: 20,
+    bet: 500,
+    sets: 1,
+    status: 'waiting',
+    players: 3,
+    maxPlayers: 4,
+    createdAt: Date.now() - 30000,
+  },
+  {
+    id: 'LUDO-5541',
+    gameId: 'ludo',
+    gameTitle: 'منچ دورهمی شاد',
+    gameIcon: '🎲',
+    hostName: 'شایان_تاس‌طلا',
+    hostAvatar: '🦁',
+    level: 13,
+    bet: 100,
+    sets: 1,
+    status: 'waiting',
+    players: 2,
+    maxPlayers: 4,
+    createdAt: Date.now() - 60000,
+  },
+  {
+    id: 'PASS-3319',
+    gameId: 'pasur',
+    gameTitle: 'پاسور چهاربرگ کلاسیک',
+    gameIcon: '🃏',
+    hostName: 'نگین_تک‌خال',
+    hostAvatar: '💎',
+    level: 11,
+    bet: 250,
+    sets: 1,
+    status: 'waiting',
+    players: 1,
+    maxPlayers: 2,
+    createdAt: Date.now() - 90000,
+  },
   {
     id: 'BACK-7721',
     gameId: 'backgammon',
@@ -235,12 +288,33 @@ export default function GameRoomsLounge() {
     const cleanCode = searchRoomCode.trim().toUpperCase();
     soundEngine.playTap?.();
     haptics.success?.();
-    if (cleanCode.startsWith('SNOO')) {
+
+    if (cleanCode.startsWith('HOKM')) {
+      navigate(`/games/hokm?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('LUDO')) {
+      navigate(`/games/ludo?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('PASS') || cleanCode.startsWith('PASU')) {
+      navigate(`/games/pasur?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('OCHO') || cleanCode.startsWith('UNO')) {
+      navigate(`/games/ocho?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('DOTS')) {
+      navigate(`/games/dots-and-boxes?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('AIRH') || cleanCode.startsWith('HOCK')) {
+      navigate(`/games/air-hockey?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('SNAK')) {
+      navigate(`/games/snakes-and-ladders?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('SNOO')) {
       navigate(`/games/snooker?room=${cleanCode}&mode=online`);
     } else if (cleanCode.startsWith('BILL')) {
       navigate(`/games/billiards?room=${cleanCode}&mode=online`);
     } else if (cleanCode.startsWith('CHES')) {
       navigate(`/games/cosmic-chess?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('BATT')) {
+      navigate(`/games/battleship?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('CONN')) {
+      navigate(`/games/connect-four?room=${cleanCode}&mode=online`);
+    } else if (cleanCode.startsWith('FING') || cleanCode.startsWith('SOCC')) {
+      navigate(`/games/finger-soccer?room=${cleanCode}&mode=online`);
     } else {
       navigate(`/games/backgammon?room=${cleanCode}&mode=online`);
     }
@@ -265,7 +339,7 @@ export default function GameRoomsLounge() {
       sets: newRoomSets,
       status: 'waiting',
       players: 1,
-      maxPlayers: 2,
+      maxPlayers: selectedGame?.maxPlayers || 2,
       createdAt: Date.now(),
     };
 
@@ -532,15 +606,33 @@ export default function GameRoomsLounge() {
                       </div>
                     </div>
 
-                    {/* Right: Join Button */}
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <button
-                        onClick={() => handleJoinRoom(room)}
-                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-black shadow-md shadow-emerald-500/25 active:scale-95 transition-all flex items-center gap-1 hover:brightness-110"
-                      >
-                        <Swords size={13} />
-                        <span>مسابقه ⚔️</span>
-                      </button>
+                    {/* Right: Join & Share Buttons */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            soundEngine.playTap?.();
+                            shareToTelegram({
+                              roomCode: room.id,
+                              gameType: room.gameId,
+                              gameTitleFa: room.gameTitle,
+                              bet: room.bet
+                            });
+                          }}
+                          title="دعوت دوستان در تلگرام"
+                          className="p-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 transition-all active:scale-90 flex items-center justify-center shadow-sm"
+                        >
+                          <Share2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleJoinRoom(room)}
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-black shadow-md shadow-emerald-500/25 active:scale-95 transition-all flex items-center gap-1 hover:brightness-110"
+                        >
+                          <Swords size={13} />
+                          <span>مسابقه ⚔️</span>
+                        </button>
+                      </div>
                       <span className="text-[9px] text-slate-500 font-mono font-bold">
                         ظرفیت: {room.players}/{room.maxPlayers}
                       </span>

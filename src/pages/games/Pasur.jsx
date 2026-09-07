@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, RotateCcw, Trophy, Star, Zap } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
+import InGameReactions from '../../components/games/InGameReactions';
 
 // ── Deck Builder ──────────────────────────────────────────
 const SUITS = [
@@ -104,6 +105,8 @@ function calcScores(playerPile, botPile, playerSweeps, botSweeps) {
 // ── Main Game ─────────────────────────────────────────────
 export default function Pasur() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('room') || 'PASUR_MAIN';
   const { language } = useAppStore();
 
   const [deck, setDeck] = useState([]);
@@ -489,6 +492,10 @@ export default function Pasur() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Plato In-Game Reactions Launcher */}
+      <InGameReactions roomId={roomId} />
+
     </div>
   );
 }

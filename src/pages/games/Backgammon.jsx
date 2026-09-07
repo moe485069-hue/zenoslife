@@ -16,6 +16,7 @@ import ConfettiOverlay from '../../components/games/ConfettiOverlay';
 import WaitingForOpponentOverlay from '../../components/games/WaitingForOpponentOverlay';
 import OpponentProfileModal from '../../components/games/OpponentProfileModal';
 import ChazhaStoreModal from '../../components/games/ChazhaStoreModal';
+import InGameReactions from '../../components/games/InGameReactions';
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegram';
 
@@ -2509,6 +2510,9 @@ export default function Backgammon() {
           }
         }}
       />
+
+      {/* Plato In-Game Reactions Launcher */}
+      <InGameReactions roomId={onlineRoomCode || 'BACKGAMMON_MAIN'} />
 
     </div>
   );

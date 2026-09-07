@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, RotateCcw, Trophy, Crown, Sparkles, Swords, Volume2 } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import useMultiplayerStore from '../../store/multiplayerStore';
@@ -68,6 +68,8 @@ const PLAYERS_META = [
 
 export default function Hokm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('room') || 'HOKM_MAIN';
   const { coins, addCoins, spendCoins } = useAppStore();
   const { userName, userAvatar } = useMultiplayerStore();
 
@@ -575,6 +577,9 @@ export default function Hokm() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Plato In-Game Reactions Launcher */}
+      <InGameReactions roomId={roomId} />
 
     </div>
   );

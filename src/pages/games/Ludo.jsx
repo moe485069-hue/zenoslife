@@ -233,6 +233,7 @@ const renderCellBackground = (cell, r, c) => {
 export default function Ludo() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const roomId = searchParams.get('room') || 'LUDO_MAIN';
   const { language, addXP, addCoins, recordGameResult } = useAppStore();
   const isRtl = language === 'fa';
   const gameStartTimeRef = useRef(Date.now());
@@ -770,6 +771,9 @@ export default function Ludo() {
           setWinner(null);
         }}
       />
+
+      {/* Plato In-Game Reactions Launcher */}
+      <InGameReactions roomId={roomId} />
 
     </div>
   );
