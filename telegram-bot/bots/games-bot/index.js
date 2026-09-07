@@ -21,7 +21,17 @@ const {
   sendTriviaQuestion,
   handleTriviaAnswer,
   spinWheel,
-  sendGameLeaderboard
+  sendGameLeaderboard,
+  sendMissionsMenu,
+  claimMissionReward,
+  recordMissionProgress,
+  sendTournamentsMenu,
+  registerTournament,
+  sendPlatoWeaponsShop,
+  buyPlatoWeapon,
+  openMysteryChest,
+  sendCreateStakesMatchMenu,
+  handleGenerateStakedDuel
 } = require('./games-engine');
 
 const BOT_TOKEN = CONFIG.BOT_TOKEN_GAMES;
@@ -167,7 +177,17 @@ async function sendGamesDashboard(chatId, userId) {
       text: isEn ? '🚀 Play Now • Enter Games Lounge 🎮' : '🚀 ورود مستقیم به سالن بازی‌ها (Play Now) 🎮',
       web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` }
     }],
-    // 2. Top Iranian & International Hits
+    // 2. Plato Tournaments & Daily Missions
+    [
+      { text: isEn ? '🏆 Tournaments & Cups 👑' : '🏆 لیگ‌ها و جام‌های قهرمانی 👑', callback_data: 'menu_tournaments' },
+      { text: isEn ? '🎯 Daily Missions 🎁' : '🎯 ماموریت‌های روزانه 🎁', callback_data: 'menu_missions' }
+    ],
+    // 3. Staked Duels & Plato Weapons
+    [
+      { text: isEn ? '⚔️ Custom Staked Duels' : '⚔️ ساخت میز شرط‌بندی 💰', callback_data: 'setup_stakes_menu' },
+      { text: isEn ? '🍅 Weapons & Items 💣' : '🍅 زرادخانه اقلام پلاتو 💣', callback_data: 'menu_weapons' }
+    ],
+    // 4. Top Games
     [
       { text: isEn ? '🂡 Hokm 4-Player' : '🂡 حکم ۴ نفره آنلاین', callback_data: 'launch_hokm_card' },
       { text: isEn ? '🪵 Backgammon' : '🪵 تخته‌نرد شاهانه', callback_data: 'launch_backgammon_card' }
@@ -180,13 +200,13 @@ async function sendGamesDashboard(chatId, userId) {
       { text: isEn ? '🎱 Royal Snooker 3D' : '🎱 اسنوکر و بیلیارد ۳D', callback_data: 'launch_snooker_card' },
       { text: isEn ? '🎯 All 15+ Games' : '🎯 کاتالوگ همه بازی‌ها', callback_data: 'menu_all_games' }
     ],
-    // 3. Mini Games & Lucky Wheel
+    // 5. Mini Games & Lucky Mystery Chest
     [
+      { text: isEn ? '🎁 Mystery Chest' : '🎁 صندوقچه شانس', callback_data: 'open_mystery_chest' },
       { text: isEn ? '🎡 Lucky Wheel' : '🎡 گردونه شانس', callback_data: 'spin_wheel_action' },
-      { text: isEn ? '🧠 Trivia Quiz' : '🧠 مسابقه کوئیز', callback_data: 'play_trivia_quiz' },
-      { text: isEn ? '🎲 Dice Duel' : '🎲 دوئل تاس', callback_data: 'play_bot_dice' }
+      { text: isEn ? '🧠 Trivia Quiz' : '🧠 مسابقه کوئیز', callback_data: 'play_trivia_quiz' }
     ],
-    // 4. Finance & Growth
+    // 6. Finance & Growth
     [
       { text: isEn ? '💎 Wallet & Stars ⭐' : '💎 کیف‌پول و استارز ⭐', callback_data: 'nav_wallet' },
       { text: isEn ? '🏆 Leaderboard' : '🏆 رتبه‌بندی', callback_data: 'view_leaderboard' },
@@ -780,6 +800,35 @@ async function onMessage(msg) {
     return sendGameLeaderboard(BOT_TOKEN, chatId);
   }
 
+  if (text.includes('تورنمنت') || text.includes('جام') || text === '/tournaments') {
+    return sendTournamentsMenu(BOT_TOKEN, chatId, userId);
+  }
+
+  if (text.includes('ماموریت') || text === '/missions' || text === '/quests') {
+    return sendMissionsMenu(BOT_TOKEN, chatId, userId);
+  }
+
+  if (text.includes('شرط') || text === '/duel') {
+    return sendCreateStakesMatchMenu(BOT_TOKEN, chatId, userId, 'hokm');
+  }
+
+  if (text.includes('سلاح') || text.includes('پرتاب') || text === '/weapons') {
+    return sendPlatoWeaponsShop(BOT_TOKEN, chatId, userId);
+  }
+
+  if (text.includes('صندوقچه') || text === '/chest') {
+    return openMysteryChest(BOT_TOKEN, chatId, userId);
+  }
+
+  if (text.startsWith('/start') || text === '🔙 بازگشت به منوی اصلی' || text === '🔙 بازگشت') {
+    callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '🎮 کنسول بازی‌ها و کیبورد سریع چاژا فعال است.',
+      reply_markup: getMainReplyKeyboard(getUser(userId).lang)
+    }).catch(() => {});
+    return sendGamesDashboard(chatId, userId);
+  }
+
   return sendGamesDashboard(chatId, userId);
 }
 
@@ -1075,6 +1124,67 @@ async function onCallback(cq) {
 
   if (data === 'nav_wallet') {
     return sendWalletMenu(chatId, userId);
+  }
+
+  // Plato Tournaments & Leagues
+  if (data === 'menu_tournaments') {
+    return sendTournamentsMenu(BOT_TOKEN, chatId, userId);
+  }
+
+  if (data.startsWith('register_tourn_')) {
+    const tournKey = data.replace('register_tourn_', '').trim();
+    return registerTournament(BOT_TOKEN, chatId, userId, tournKey);
+  }
+
+  if (data.startsWith('view_ticket_')) {
+    const tournKey = data.replace('view_ticket_', '').trim();
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: `🎟️ <b>وضعیت بلیط تورنمنت شما:</b>\nشما در این مسابقه ثبت‌نام کرده‌اید و صندلی مسابقه برای شما رزرو شده است. نیم ساعت قبل از شروع بازی لینک اتاق اختصاصی برایتان ارسال خواهد شد.`,
+      parse_mode: 'HTML'
+    });
+  }
+
+  // Plato Daily Missions & Quests
+  if (data === 'menu_missions') {
+    return sendMissionsMenu(BOT_TOKEN, chatId, userId);
+  }
+
+  if (data.startsWith('claim_mission_')) {
+    const missionKey = data.replace('claim_mission_', '').trim();
+    return claimMissionReward(BOT_TOKEN, chatId, userId, missionKey);
+  }
+
+  // Plato Weapons & Throwing Items Shop
+  if (data === 'menu_weapons') {
+    return sendPlatoWeaponsShop(BOT_TOKEN, chatId, userId);
+  }
+
+  if (data.startsWith('buy_weapon_')) {
+    const weaponKey = data.replace('buy_weapon_', '').trim();
+    return buyPlatoWeapon(BOT_TOKEN, chatId, userId, weaponKey);
+  }
+
+  // Daily Mystery Chest
+  if (data === 'open_mystery_chest') {
+    return openMysteryChest(BOT_TOKEN, chatId, userId);
+  }
+
+  // Custom Stakes Duel Match Creator
+  if (data === 'setup_stakes_menu') {
+    return sendCreateStakesMatchMenu(BOT_TOKEN, chatId, userId, 'hokm');
+  }
+
+  if (data.startsWith('setup_stake_')) {
+    const gameKey = data.replace('setup_stake_', '').trim();
+    return sendCreateStakesMatchMenu(BOT_TOKEN, chatId, userId, gameKey);
+  }
+
+  if (data.startsWith('create_duel_')) {
+    const parts = data.replace('create_duel_', '').split('_');
+    const gameKey = parts[0] || 'hokm';
+    const stakeKey = parts[1] || 'free';
+    return handleGenerateStakedDuel(BOT_TOKEN, chatId, userId, gameKey, stakeKey);
   }
 
   // 8. Settings: Language Selector
@@ -1412,17 +1522,24 @@ const runner = new TelegramBotRunner('Chazha Games Bot', BOT_TOKEN, {
 async function start() {
   await runner.init({
     menuButton: {
-      text: '🎮 آرکید بازی‌های چاژا',
-      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games`
+      text: '🎮 سالن بازی‌های چاژا (Plato)',
+      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge`
     },
     commands: [
-      { command: 'start', description: '🚀 منوی بازی‌های چاژا' },
-      { command: 'snooker', description: '🎱 بازی اسنوکر حرفه‌ای' },
-      { command: 'backgammon', description: '🪵 بازی تخته نرد' },
-      { command: 'games', description: '🎮 بازی‌ها و دوئل‌ها' },
+      { command: 'start', description: '🚀 کنسول بازی‌های چاژا' },
+      { command: 'tournaments', description: '🏆 لیگ‌ها و جام‌های هفتگی' },
+      { command: 'missions', description: '🎯 ماموریت‌های روزانه و پاداش' },
+      { command: 'duel', description: '⚔️ ساخت میز مسابقه با شرط سکه' },
+      { command: 'weapons', description: '🍅 زرادخانه اقلام پرتابی پلاتو' },
+      { command: 'chest', description: '🎁 صندوقچه شانس روزانه' },
+      { command: 'hokm', description: '🂡 حکم ۴ نفره آنلاین' },
+      { command: 'ludo', description: '🎲 منچ دورهمی شاد' },
+      { command: 'pasur', description: '🃏 پاسور چهاربرگ' },
+      { command: 'backgammon', description: '🪵 تخته نرد شاهانه' },
+      { command: 'snooker', description: '🎱 اسنوکر و بیلیارد ۳D' },
       { command: 'wheel', description: '🎡 گردونه شانس روزانه' },
-      { command: 'top', description: '🏆 جدول قهرمانان' },
-      { command: 'wallet', description: '💎 کیف‌پول و سکه‌ها' }
+      { command: 'top', description: '🏆 جدول برترین قهرمانان' },
+      { command: 'wallet', description: '💎 خزانه‌داری، کیف‌پول و VIP' }
     ]
   });
 
