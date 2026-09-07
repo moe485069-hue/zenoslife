@@ -114,26 +114,42 @@ async function handlePaymentSuccess(botToken, msg) {
   }
 }
 
+const TREASURY_BANNER = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&auto=format&fit=crop&q=80';
+
 async function sendFinanceHub(botToken, chatId, userId) {
   const user = getUser(userId);
-  const text = `💎 <b>کیف‌پول، فروشگاه و بخش درآمدزایی</b>\n\n` +
-               `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b>\n` +
-               `👑 وضعیت اشتراک: <b>${user.is_vip ? 'VIP طلایی فعال ✅' : 'عادی'}</b>\n` +
-               `⭐ ستاره‌های حمایتی: خرید آنی با تلگرام استارز\n\n` +
-               `یک گزینه را انتخاب کنید:`;
+  const text = `💎 <b>کیف‌پول، فروشگاه و بخش درآمدزایی زنوسلایف</b>\n` +
+               `━━━━━━━━━━━━━━━━━━━━\n` +
+               `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()} 🪙</b>\n` +
+               `👑 اشتراک ویژه: <b>${user.is_vip ? 'VIP طلایی فعال ✅' : 'کاربر عادی'}</b>\n` +
+               `⭐ خرید آنی و معتبر با ستاره‌های تلگرام (Stars) یا TON\n` +
+               `━━━━━━━━━━━━━━━━━━━━\n` +
+               `👇 یک بخش را برای افزایش موجودی یا ارتقای حساب انتخاب کنید:`;
 
-  return callTgApi(botToken, 'sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '⭐ خرید بسته‌های سکه', callback_data: 'shop_buy_coins' }, { text: '👑 ارتقا به VIP', callback_data: 'shop_buy_vip' }],
-        [{ text: '🎁 لینک دعوت و درآمدزایی', callback_data: 'show_referral' }],
-        [{ text: '🏆 جدول برترین‌ها', callback_data: 'view_leaderboard' }]
-      ]
-    }
-  });
+  const replyMarkup = {
+    inline_keyboard: [
+      [{ text: '⭐ خرید بسته‌های سکه', callback_data: 'shop_buy_coins' }, { text: '👑 ارتقا به VIP رویال', callback_data: 'shop_buy_vip' }],
+      [{ text: '🎁 لینک دعوت و درآمدزایی (۱۰٪ پورسانت)', callback_data: 'show_referral' }],
+      [{ text: '🏆 جدول برترین‌ها', callback_data: 'view_leaderboard' }]
+    ]
+  };
+
+  try {
+    return await callTgApi(botToken, 'sendPhoto', {
+      chat_id: chatId,
+      photo: TREASURY_BANNER,
+      caption: text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  } catch (_) {
+    return callTgApi(botToken, 'sendMessage', {
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'HTML',
+      reply_markup: replyMarkup
+    });
+  }
 }
 
 module.exports = {

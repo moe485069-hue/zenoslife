@@ -32,6 +32,8 @@ const {
 
 const BOT_TOKEN = CONFIG.BOT_TOKEN_DATING;
 
+const DATING_BANNER_PHOTO = 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=900&auto=format&fit=crop&q=80';
+
 function getDatingReplyKeyboard() {
   return {
     keyboard: [
@@ -59,18 +61,54 @@ async function sendDatingDashboard(chatId, userId) {
     }).catch(() => {});
   }
 
-  const text = `💬 <b>به حُذا (سامانه چت ناشناس و دوستیابی هوشمند زنوسلایف) خوش آمدید!</b>\n\n` +
-               `👤 <b>${user.name || 'کاربر حُذا'}</b> | ⭐ کارمای اخلاق: <b>${user.karma || 100}</b>\n` +
-               `🪙 موجودی سکه: <b>${(user.coins || 0).toLocaleString()}</b> | سطح: <b>Level ${user.level || 1}</b>\n` +
-               `👑 وضعیت: <b>${user.is_vip ? 'VIP طلایی فعال ✅' : 'کاربر عادی'}</b>\n\n` +
-               `یک گزینه را برای شروع مکالمه انتخاب کنید:`;
+  const caption = `💬 <b>حُـذا (Whoza) | سامانه چت ناشناس و دوستیابی</b>\n` +
+                  `━━━━━━━━━━━━━━━━━━━━\n` +
+                  `👤 <b>پروفایل:</b> ${user.name || 'کاربر حُذا'}\n` +
+                  `⭐ <b>کارمای اخلاق:</b> ${user.karma || 100} امتیاز\n` +
+                  `🪙 <b>موجودی سکه:</b> ${(user.coins || 0).toLocaleString()} 🪙\n` +
+                  `🏆 <b>سطح کاربری:</b> Level ${user.level || 1} (${user.xp || 0} XP)\n` +
+                  `👑 <b>وضعیت حساب:</b> ${user.is_vip ? 'VIP طلایی فعال 🌟' : 'کاربر عادی'}\n` +
+                  `━━━━━━━━━━━━━━━━━━━━\n` +
+                  `🎯 <i>با افراد جدید هم‌صحبت شو، دوستان هم‌فرکانس پیدا کن یا به صورت تصادفی و آزادانه گپ بزن!</i>`;
 
-  return callTgApi(BOT_TOKEN, 'sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: getDatingReplyKeyboard()
-  });
+  const inlineMarkup = {
+    inline_keyboard: [
+      [{ text: '💬 شروع فوری چت ناشناس 🎲', callback_data: 'filter_random' }],
+      [
+        { text: '👩 چت با دختر', callback_data: 'filter_female' },
+        { text: '👨 چت با پسر', callback_data: 'filter_male' }
+      ],
+      [
+        { text: '🌈 چت بر اساس حس‌وحال (مود)', callback_data: 'open_mood_menu' },
+        { text: '👑 تالار VIP', callback_data: 'enter_vip_lounge' }
+      ],
+      [{
+        text: '🌟 ورود به تالار و چت‌روم‌های حُذا (وب‌اپ) 💬',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=whoza#/chat` }
+      }],
+      [
+        { text: '💎 کیف‌پول و شارژ', callback_data: 'nav_wallet' },
+        { text: '🎁 دعوت دوستان (+۵۰۰)', callback_data: 'show_referral' }
+      ]
+    ]
+  };
+
+  try {
+    return await callTgApi(BOT_TOKEN, 'sendPhoto', {
+      chat_id: chatId,
+      photo: DATING_BANNER_PHOTO,
+      caption: caption,
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
+    });
+  } catch (_) {
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: caption,
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
+    });
+  }
 }
 
 // ----------------------------------------------------
@@ -222,6 +260,63 @@ async function onCallback(cq) {
     return callTgApi(BOT_TOKEN, 'sendMessage', {
       chat_id: chatId,
       text: '🙏 از ثبت نظر شما متشکریم! (+۵ امتیاز اخلاق به هم‌صحبت اضافه شد)'
+    });
+  }
+
+  if (data === 'nav_wallet') {
+    return sendFinanceHub(BOT_TOKEN, chatId, userId);
+  }
+
+  if (data === 'enter_vip_lounge') {
+    const user = getUser(userId);
+    if (!user.is_vip) {
+      return callTgApi(BOT_TOKEN, 'sendMessage', {
+        chat_id: chatId,
+        text: '👑 <b>تالار گفتگوی ویژه اعضای VIP حُذا</b>\nبرای ورود به این تالار نیاز به اشتراک VIP دارید.',
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [[{ text: '⭐ فعال‌سازی VIP', callback_data: 'shop_buy_vip' }]]
+        }
+      });
+    }
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '👑 <b>به تالار گفتگوی رویال VIP خوش آمدید!</b>\nدر این بخش می‌توانید آزادانه با سایر اعضای ویژه در ارتباط باشید.',
+      parse_mode: 'HTML'
+    });
+  }
+
+  if (data === 'show_referral') {
+    const refLink = `https://t.me/whoza_bot?start=ref_${userId}`;
+    const text = `👥 <b>دعوت دوستان به چت حُذا و دریافت سکه رایگان!</b>\n\n` +
+      `با ارسال لینک اختصاصی به دوستانتان، به ازای هر نفری که ملحق شود:\n` +
+      `🎁 <b>شما ۵۰۰ سکه و ۱۰۰ XP دریافت می‌کنید!</b>\n` +
+      `🎁 <b>دوست شما هم ۵۰۰ سکه هدیه می‌گیرد!</b>\n\n` +
+      `🔗 لینک اختصاصی شما:\n<code>${refLink}</code>`;
+    const shareRefUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('بیا توی حُذا چت ناشناس کنیم و با آدمای باحال آشنا بشیم! 💬')}`;
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '📤 ارسال لینک دعوت برای دوستان', url: shareRefUrl }]]
+      }
+    });
+  }
+
+  if (data === 'view_leaderboard') {
+    const topUsers = Object.values(db.users)
+      .sort((a, b) => ((b.karma || 100) + (b.level || 1) * 20) - ((a.karma || 100) + (a.level || 1) * 20))
+      .slice(0, 10);
+    let boardText = `🏆 <b>جدول محبوب‌ترین و بااخلاق‌ترین کاربران حُذا:</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
+    topUsers.forEach((u, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🎖️';
+      boardText += `${medal} <b>${u.name || 'کاربر'}</b>: ⭐ ${u.karma || 100} کارما | 🪙 ${(u.coins || 0).toLocaleString()} سکه\n`;
+    });
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: boardText,
+      parse_mode: 'HTML'
     });
   }
 

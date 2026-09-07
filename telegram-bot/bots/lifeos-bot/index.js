@@ -42,6 +42,8 @@ function getLifeOsReplyKeyboard() {
   };
 }
 
+const LIFEOS_BANNER_PHOTO = 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=900&auto=format&fit=crop&q=80';
+
 async function sendLifeOsDashboard(chatId, userId) {
   const user = getUser(userId);
   const streak = checkDailyStreak(userId);
@@ -54,18 +56,53 @@ async function sendLifeOsDashboard(chatId, userId) {
     }).catch(() => {});
   }
 
-  const text = `👑 <b>به زنوسلایف (سیستم‌عامل زندگی، رشد فردی و خودشناسی) خوش آمدید!</b>\n\n` +
-               `👤 <b>${user.name || 'کاربر زنوسلایف'}</b> (سطح ${user.level || 1})\n` +
-               `⭐ کارمای اخلاق: <b>${user.karma || 100}</b> | موجودی: <b>${(user.coins || 0).toLocaleString()}</b> سکه\n` +
-               `👑 وضعیت اشتراک: <b>${user.is_vip ? 'VIP طلایی فعال ✅' : 'کاربر عادی'}</b>\n\n` +
-               `یک بخش را برای شروع انتخاب کنید یا وارد مینی‌اپ کامل شوید:`;
+  const caption = `🌱 <b>سیستم‌عامل زندگی و خودشناسی زنوسلایف (ZenOsLife)</b>\n` +
+                  `━━━━━━━━━━━━━━━━━━━━\n` +
+                  `👤 <b>کاربر:</b> ${user.name || 'کاربر زنوسلایف'}\n` +
+                  `🏆 <b>سطح تکامل:</b> Level ${user.level || 1} (${user.xp || 0} XP)\n` +
+                  `⭐ <b>کارمای معنوی:</b> ${user.karma || 100} امتیاز\n` +
+                  `🪙 <b>موجودی سکه:</b> ${(user.coins || 0).toLocaleString()} 🪙\n` +
+                  `👑 <b>وضعیت اشتراک:</b> ${user.is_vip ? 'VIP طلایی فعال 🌟' : 'کاربر عادی'}\n` +
+                  `━━━━━━━━━━━━━━━━━━━━\n` +
+                  `🎯 <i>قدم‌زدن در راهروهای فکری، آزمون‌های خودشناسی، مربی هوش مصنوعی و سازماندهی ذهن و روزمره!</i>`;
 
-  return callTgApi(BOT_TOKEN, 'sendMessage', {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML',
-    reply_markup: getLifeOsReplyKeyboard()
-  });
+  const inlineMarkup = {
+    inline_keyboard: [
+      [
+        { text: '🚪 راهروهای فکری (Stroll)', callback_data: 'nav_stroll' },
+        { text: '🧭 خودشناسی و آزمون‌ها', callback_data: 'nav_selftest' }
+      ],
+      [
+        { text: '🤖 مربی هوش مصنوعی', callback_data: 'nav_mentor' },
+        { text: '⏰ تنظیم یادآورها', callback_data: 'nav_reminders' }
+      ],
+      [{
+        text: '✨ ورود به مینی‌اپ کامل زنوسلایف (Web App) 🌟',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=zenos` }
+      }],
+      [
+        { text: '💎 کیف‌پول و شارژ', callback_data: 'nav_wallet' },
+        { text: '🔗 دعوت دوستان (+۵۰۰)', callback_data: 'show_referral' }
+      ]
+    ]
+  };
+
+  try {
+    return await callTgApi(BOT_TOKEN, 'sendPhoto', {
+      chat_id: chatId,
+      photo: LIFEOS_BANNER_PHOTO,
+      caption: caption,
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
+    });
+  } catch (_) {
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: caption,
+      parse_mode: 'HTML',
+      reply_markup: inlineMarkup
+    });
+  }
 }
 
 // ----------------------------------------------------
@@ -277,6 +314,59 @@ async function onCallback(cq) {
 
   if (data.startsWith('snooze_rem_')) {
     return handleSnoozeReminder(BOT_TOKEN, userId, data.replace('snooze_rem_', ''));
+  }
+
+  if (data === 'nav_stroll') return sendRealmsMenu(BOT_TOKEN, chatId, userId);
+  if (data === 'nav_selftest') return sendSelfDiscoveryMenu(BOT_TOKEN, chatId, userId);
+  if (data === 'nav_mentor') return sendMentorAdvice(BOT_TOKEN, chatId, userId);
+  if (data === 'nav_wallet') return sendFinanceHub(BOT_TOKEN, chatId, userId);
+  if (data === 'nav_reminders') {
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: '⏰ <b>تنظیم یادآور و تقویم زنوسلایف:</b>\nبرای ثبت یادآور می‌توانید پیام یا صوت خود را به همراه زمان دلخواه ارسال کنید، یا از مینی‌اپ زنوسلایف استفاده فرمایید.',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '🌟 باز کردن تقویم در وب‌اپ', web_app: { url: `${CONFIG.WEBAPP_URL}?app=zenos#/calendar` } }]]
+      }
+    });
+  }
+
+  if (data === 'show_referral') {
+    const refLink = `https://t.me/zenosaaa_bot?start=ref_${userId}`;
+    const user = getUser(userId);
+    const refMsg = `🎁 <b>سیستم دعوت و درآمدزایی زنوسلایف</b>\n\n` +
+                   `🔗 <b>لینک اختصاصی شما:</b>\n<code>${refLink}</code>\n\n` +
+                   `• ۱,۰۰۰ سکه هدیه به ازای هر دعوت موفق برای شما\n` +
+                   `• ۱,۰۰۰ سکه هدیه در بدو ورود برای دوست شما\n` +
+                   `• ۱۰٪ پورسانت مادام‌العمر از تمامی خریدهای ستاره تلگرام!\n\n` +
+                   `👥 تعداد دوستان دعوت‌شده: <b>${(user.referrals || []).length} نفر</b>`;
+
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: refMsg,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🚀 ارسال فوری برای دوستان', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('به سیستم‌عامل زندگی و خودشناسی زنوسلایف بپیوندید!')}` }]
+        ]
+      }
+    });
+  }
+
+  if (data === 'view_leaderboard') {
+    const topUsers = Object.values(db.users)
+      .sort((a, b) => ((b.xp || 0) + (b.level || 1) * 100) - ((a.xp || 0) + (a.level || 1) * 100))
+      .slice(0, 10);
+    let boardText = `🏆 <b>جدول برترین رشد و تکامل کاربران زنوسلایف:</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
+    topUsers.forEach((u, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🎖️';
+      boardText += `${medal} <b>${u.name || 'کاربر'}</b>: سطح ${u.level || 1} (${(u.xp || 0).toLocaleString()} XP) | ⭐ ${u.karma || 100} کارما\n`;
+    });
+    return callTgApi(BOT_TOKEN, 'sendMessage', {
+      chat_id: chatId,
+      text: boardText,
+      parse_mode: 'HTML'
+    });
   }
 
   // Shop Callbacks
