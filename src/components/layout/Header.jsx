@@ -17,8 +17,8 @@ export default function Header() {
   const appMode = useAppMode();
 
   const currentPath = location.pathname;
-  // Hide global Header during active games for 100% immersive full-screen zero-scroll experience
-  if (currentPath.startsWith('/games/') && currentPath !== '/games' && currentPath !== '/games/lounge') {
+  // Hide global Header on all /games routes to prevent duplicate headers in Mini App
+  if (currentPath.startsWith('/games')) {
     return null;
   }
 

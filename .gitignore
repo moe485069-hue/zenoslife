@@ -21,3 +21,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Telegram Bot local runtime data
+telegram-bot/bot_database.json
+telegram-bot/backups/

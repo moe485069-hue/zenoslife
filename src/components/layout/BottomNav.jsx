@@ -45,10 +45,11 @@ export default function BottomNav() {
             {/* Arcade Games */}
             <NavLink
               to="/games"
+              end
               onClick={handleNavClick}
               className={({ isActive }) =>
                 clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all flex-1',
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
                   isActive ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-slate-200'
                 )
               }
@@ -56,8 +57,28 @@ export default function BottomNav() {
             >
               {({ isActive }) => (
                 <>
-                  <Gamepad2 size={23} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'آرکید بازی‌ها' : 'Games'}</span>
+                  <Gamepad2 size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'بازی‌ها' : 'Games'}</span>
+                </>
+              )}
+            </NavLink>
+
+            {/* Live Social Lounge & Chat */}
+            <NavLink
+              to="/games/lounge"
+              onClick={handleNavClick}
+              className={({ isActive }) =>
+                clsx(
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
+                  isActive ? 'text-pink-400 font-black' : 'text-slate-400 hover:text-slate-200'
+                )
+              }
+              title={isRtl ? 'سالن گفتگو و بازی' : 'Live Lounge'}
+            >
+              {({ isActive }) => (
+                <>
+                  <MessagesSquare size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'سالن زنده' : 'Lounge'}</span>
                 </>
               )}
             </NavLink>
@@ -68,7 +89,7 @@ export default function BottomNav() {
               onClick={handleNavClick}
               className={({ isActive }) =>
                 clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all flex-1',
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
                   isActive ? 'text-yellow-400 font-black' : 'text-slate-400 hover:text-slate-200'
                 )
               }
@@ -88,7 +109,7 @@ export default function BottomNav() {
                 handleNavClick();
                 setIsShopOpen(true);
               }}
-              className="flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl text-amber-400 hover:text-amber-300 transition-all flex-1"
+              className="flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl text-amber-400 hover:text-amber-300 transition-all flex-1"
               title={isRtl ? 'کیف‌پول و شارژ سکه' : 'Shop & Coins'}
             >
               <Coins size={22} strokeWidth={2} />
@@ -101,7 +122,7 @@ export default function BottomNav() {
               onClick={handleNavClick}
               className={({ isActive }) =>
                 clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all flex-1',
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
                   isActive ? 'text-cyan-400 font-black' : 'text-slate-400 hover:text-slate-200'
                 )
               }
