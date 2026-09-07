@@ -38,111 +38,113 @@ export default function BottomNav() {
     return (
       <>
         <nav
-          className="fixed bottom-0 left-0 right-0 z-40 glass-card border-t border-[var(--border)] px-3 py-2 backdrop-blur-2xl"
-          style={{ background: 'var(--bg-card)' }}
+          className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] backdrop-blur-2xl px-2 pb-[max(env(safe-area-inset-bottom),4px)] pt-1.5"
+          style={{ background: 'rgba(9,7,20,0.94)' }}
         >
-          <div className="max-w-md mx-auto flex items-center justify-around gap-1">
+          <div className="max-w-md mx-auto flex items-end justify-around gap-0.5">
             {/* Arcade Games */}
             <NavLink
               to="/games?tab=games"
               onClick={handleNavClick}
               className={() => {
                 const queryTab = new URLSearchParams(location.search).get('tab');
-                const isGamesActive = location.pathname === '/games' && queryTab !== 'rooms';
-                return clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1 cursor-pointer',
-                  isGamesActive ? 'text-amber-500 font-black' : 'text-slate-400 hover:text-slate-200'
-                );
+                const isActive = location.pathname === '/games' && queryTab !== 'rooms';
+                return `flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all flex-1 cursor-pointer relative ${
+                  isActive ? 'text-purple-400' : 'text-slate-500 hover:text-slate-300'
+                }`;
               }}
-              title={isRtl ? 'آرکید بازی‌ها' : 'Games Arcade'}
             >
               {() => {
                 const queryTab = new URLSearchParams(location.search).get('tab');
-                const isGamesActive = location.pathname === '/games' && queryTab !== 'rooms';
+                const isActive = location.pathname === '/games' && queryTab !== 'rooms';
                 return (
                   <>
-                    <Gamepad2 size={22} strokeWidth={isGamesActive ? 2.5 : 2} />
-                    <span className="text-[10px] mt-1 font-bold">{isRtl ? 'بازی‌ها' : 'Games'}</span>
+                    {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-purple-400" />}
+                    <Gamepad2 size={21} strokeWidth={isActive ? 2.5 : 1.8} />
+                    <span className={`text-[9px] mt-0.5 font-bold tracking-tight ${isActive ? 'text-purple-400' : 'text-slate-500'}`}>
+                      {isRtl ? 'بازی‌ها' : 'Games'}
+                    </span>
                   </>
                 );
               }}
             </NavLink>
 
-            {/* Live Rooms & Chat Lounge */}
+            {/* Rooms & Chat */}
             <NavLink
               to="/games?tab=rooms"
               onClick={handleNavClick}
               className={() => {
                 const queryTab = new URLSearchParams(location.search).get('tab');
-                const isRoomsActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
-                return clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1 cursor-pointer',
-                  isRoomsActive ? 'text-pink-500 font-black' : 'text-slate-400 hover:text-slate-200'
-                );
+                const isActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
+                return `flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all flex-1 cursor-pointer relative ${
+                  isActive ? 'text-pink-400' : 'text-slate-500 hover:text-slate-300'
+                }`;
               }}
-              title={isRtl ? 'اتاق‌ها و سالن گفتگو' : 'Rooms & Lounge'}
             >
               {() => {
                 const queryTab = new URLSearchParams(location.search).get('tab');
-                const isRoomsActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
+                const isActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
                 return (
                   <>
-                    <MessagesSquare size={22} strokeWidth={isRoomsActive ? 2.5 : 2} />
-                    <span className="text-[10px] mt-1 font-bold">{isRtl ? 'اتاق‌ها و چت' : 'Rooms'}</span>
+                    {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-pink-400" />}
+                    <MessagesSquare size={21} strokeWidth={isActive ? 2.5 : 1.8} />
+                    <span className={`text-[9px] mt-0.5 font-bold tracking-tight ${isActive ? 'text-pink-400' : 'text-slate-500'}`}>
+                      {isRtl ? 'اتاق‌ها' : 'Rooms'}
+                    </span>
                   </>
                 );
               }}
             </NavLink>
 
-            {/* Leaderboard & Rewards */}
+            {/* Leaderboard */}
             <NavLink
               to="/rewards"
               onClick={handleNavClick}
               className={({ isActive }) =>
-                clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
-                  isActive ? 'text-yellow-400 font-black' : 'text-slate-400 hover:text-slate-200'
-                )
+                `flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all flex-1 relative ${
+                  isActive ? 'text-yellow-400' : 'text-slate-500 hover:text-slate-300'
+                }`
               }
-              title={isRtl ? 'رتبه‌بندی و جوایز' : 'Leaderboard'}
             >
               {({ isActive }) => (
                 <>
-                  <Trophy size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'رتبه‌بندی' : 'Rankings'}</span>
+                  {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-yellow-400" />}
+                  <Trophy size={21} strokeWidth={isActive ? 2.5 : 1.8} />
+                  <span className={`text-[9px] mt-0.5 font-bold tracking-tight ${isActive ? 'text-yellow-400' : 'text-slate-500'}`}>
+                    {isRtl ? 'رتبه‌بندی' : 'Rankings'}
+                  </span>
                 </>
               )}
             </NavLink>
 
-            {/* Quick Coin Shop Button */}
+            {/* Coins */}
             <button
-              onClick={() => {
-                handleNavClick();
-                setIsShopOpen(true);
-              }}
-              className="flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl text-amber-400 hover:text-amber-300 transition-all flex-1"
-              title={isRtl ? 'کیف‌پول و شارژ سکه' : 'Shop & Coins'}
+              onClick={() => { handleNavClick(); setIsShopOpen(true); }}
+              className="flex flex-col items-center justify-center py-1 px-2 rounded-2xl text-amber-500 hover:text-amber-300 transition-all flex-1 relative"
             >
-              <Coins size={22} strokeWidth={2} />
-              <span className="text-[10px] mt-1 font-bold">{isRtl ? 'شارژ سکه' : 'Coins'}</span>
+              <Coins size={21} strokeWidth={1.8} />
+              <span className="text-[9px] mt-0.5 font-bold tracking-tight text-amber-500">
+                {isRtl ? 'سکه' : 'Coins'}
+              </span>
             </button>
 
-            {/* Settings & Profile */}
+            {/* Settings */}
             <NavLink
               to="/settings"
               onClick={handleNavClick}
               className={({ isActive }) =>
-                clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
-                  isActive ? 'text-cyan-400 font-black' : 'text-slate-400 hover:text-slate-200'
-                )
+                `flex flex-col items-center justify-center py-1 px-2 rounded-2xl transition-all flex-1 relative ${
+                  isActive ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300'
+                }`
               }
-              title={isRtl ? 'تنظیمات و حساب کاربری' : 'Settings & Profile'}
             >
               {({ isActive }) => (
                 <>
-                  <Settings size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'تنظیمات' : 'Settings'}</span>
+                  {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-cyan-400" />}
+                  <Settings size={21} strokeWidth={isActive ? 2.5 : 1.8} />
+                  <span className={`text-[9px] mt-0.5 font-bold tracking-tight ${isActive ? 'text-cyan-400' : 'text-slate-500'}`}>
+                    {isRtl ? 'تنظیمات' : 'Settings'}
+                  </span>
                 </>
               )}
             </NavLink>
