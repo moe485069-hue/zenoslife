@@ -127,7 +127,7 @@ export default function BottomNav() {
               <span className="text-[10px] mt-1 font-bold">{isRtl ? 'شارژ سکه' : 'Coins'}</span>
             </button>
 
-            {/* Gamer Profile */}
+            {/* Settings & Profile */}
             <NavLink
               to="/settings"
               onClick={handleNavClick}
@@ -137,12 +137,12 @@ export default function BottomNav() {
                   isActive ? 'text-cyan-400 font-black' : 'text-slate-400 hover:text-slate-200'
                 )
               }
-              title={isRtl ? 'پروفایل گیمر' : 'Profile'}
+              title={isRtl ? 'تنظیمات و حساب کاربری' : 'Settings & Profile'}
             >
               {({ isActive }) => (
                 <>
-                  <User size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'پروفایل' : 'Profile'}</span>
+                  <Settings size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'تنظیمات' : 'Settings'}</span>
                 </>
               )}
             </NavLink>

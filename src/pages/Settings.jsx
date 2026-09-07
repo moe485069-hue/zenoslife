@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sun, Moon, Sparkles, Volume2, VolumeX, Globe, Download, Upload, Smartphone, Tv, Laptop,
-  Award, Shield, Check, CheckCircle, Info, Lock, Unlock, Key, Cloud, Bell, Clock, RefreshCw, Send, AlertTriangle
+  Award, Shield, Check, CheckCircle, Info, Lock, Key, Cloud, Bell, Send, AlertTriangle,
+  User, Camera, Edit3, Image, Copy, CheckCircle2, Coins, Crown, Flame, Zap, Share2, Palette
 } from 'lucide-react';
 import useAppStore, { BADGES_LIST, FONTS_LIST } from '../store/appStore';
 import { exportAllDataJSON, importAllDataJSON } from '../db/database';
@@ -13,16 +14,94 @@ import useNotifications from '../hooks/useNotifications';
 import InstallGuideModal from '../components/ui/InstallGuideModal';
 import CloudAuthModal from '../components/ui/CloudAuthModal';
 import cloudAuthSync from '../services/cloudAuthSync';
+import CoinShopModal from '../components/shop/CoinShopModal';
+import { getTelegramWebApp } from '../utils/telegram';
+
+// Preset Avatars Gallery for Gamer Profile
+export const PRESET_AVATARS = [
+  { id: 'king', icon: '👑', label: 'شاهانه' },
+  { id: 'lion', icon: '🦁', label: 'شیر پارسی' },
+  { id: 'dragon', icon: '🐉', label: 'اژدها' },
+  { id: 'ninja', icon: '🥷', label: 'نینجا' },
+  { id: 'mage', icon: '🧙‍♂️', label: 'خردمند' },
+  { id: 'robot', icon: '🤖', label: 'سایبورگ' },
+  { id: 'fox', icon: '🦊', label: 'روباه دانا' },
+  { id: 'diamond', icon: '💎', label: 'الماس' },
+  { id: 'zen', icon: '🧘', label: 'استاد ذن' },
+  { id: 'falcon', icon: '🦅', label: 'عقاب' },
+  { id: 'tiger', icon: '🐯', label: 'ببر' },
+  { id: 'lightning', icon: '⚡', label: 'صاعقه' },
+  { id: 'cosmic', icon: '🪐', label: 'کیهان' },
+  { id: 'fire', icon: '🔥', label: 'شعله' },
+  { id: 'spade', icon: '♠️', label: 'پیک تک‌خال' },
+  { id: 'dice', icon: '🎲', label: 'تاس جفت‌شیش' }
+];
+
+// Quick Bio Suggestions
+export const BIO_SUGGESTIONS = [
+  '👑 شوالیه بی‌ادعا، ولی همیشه برنده',
+  '🎲 سلطان حکم و تخته نرد چاژا',
+  '⚡ بازی سریع، تمرکز بالا، پیروزی قطعی',
+  '🧘 ذهن آرام در آشوب، استراتژی شکست‌ناپذیر',
+  '🏆 فقط برای رتبه اول لیگ می‌جنگم',
+  '✨ اهل رقابت دوستانه و کل‌کل سالم'
+];
+
+// Helper to safely render Avatar (Image URL, Data URL, or Emoji)
+function SafeAvatar({ avatar, size = 'w-16 h-16 text-3xl', ringColor = 'border-amber-400' }) {
+  if (!avatar) return <div className={`${size} rounded-3xl bg-purple-600 flex items-center justify-center text-white shrink-0`}>👤</div>;
+  if (avatar.startsWith('data:image/') || avatar.startsWith('http')) {
+    return (
+      <img
+        src={avatar}
+        alt="Avatar"
+        className={`${size} rounded-3xl object-cover border-2 ${ringColor} shadow-lg shrink-0`}
+      />
+    );
+  }
+  return (
+    <div className={`${size} rounded-3xl bg-gradient-to-br from-purple-600 via-indigo-600 to-amber-600 text-white flex items-center justify-center border-2 ${ringColor} shadow-lg shrink-0`}>
+      {avatar}
+    </div>
+  );
+}
 
 export default function Settings() {
+  // Store state
   const { 
     theme, setTheme, language, setLanguage, fontFamily, setFontFamily,
-    fontScale, setFontScale, soundEnabled, setSoundEnabled,
-    xp, level, streak, badges, getLevelTitle, showInstallPrompt, deferredPrompt,
-    aiKey, setAiKey
+    soundEnabled, setSoundEnabled,
+    xp, level, streak, badges, getLevelTitle, deferredPrompt,
+    aiKey, setAiKey, userProfile, setUserProfile, coins, isVip,
+    invitedCount, referralEarnings
   } = useAppStore();
-  const isRtl = language === 'fa';
 
+  const isRtl = language === 'fa';
+  const isLight = theme === 'light' || theme === 'dawn' || theme === 'mint';
+
+  // Active Tab: 'profile' | 'appearance' | 'language' | 'system'
+  const [activeTab, setActiveTab] = useState('profile');
+
+  // Profile Form States
+  const [displayName, setDisplayName] = useState(() => {
+    return userProfile?.fullName || localStorage.getItem('life_os_user_name') || (isRtl ? 'کاربر چاژا' : 'Chazha Player');
+  });
+  const [userUsername, setUserUsername] = useState(() => {
+    return userProfile?.username || localStorage.getItem('life_os_user_username') || '';
+  });
+  const [bioText, setBioText] = useState(() => {
+    return userProfile?.bio || localStorage.getItem('life_os_user_bio') || (isRtl ? '✨ قهرمان مسابقات آنلاین چاژا در تلگرام' : 'Official Chazha Player');
+  });
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    return userProfile?.avatar || localStorage.getItem('life_os_user_avatar') || '👑';
+  });
+
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [isShopModalOpen, setIsShopModalOpen] = useState(false);
+
+  // Cloud and system states
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [cloudState, setCloudState] = useState({
     isLoggedIn: cloudAuthSync.isLoggedIn(),
@@ -36,6 +115,7 @@ export default function Settings() {
     return unsub;
   }, []);
 
+  // Notifications
   const {
     permission,
     isSupported: isNotifSupported,
@@ -60,15 +140,14 @@ export default function Settings() {
   const [testNotifSent, setTestNotifSent] = useState(false);
 
   const fileInputRef = useRef(null);
+  const avatarFileInputRef = useRef(null);
 
+  // Detect PWA Installation status
   useEffect(() => {
-    // Check if running as standalone PWA
     const mq = window.matchMedia('(display-mode: standalone)');
     setIsInstalled(mq.matches || window.navigator.standalone === true);
 
-    const handler = (e) => {
-      setIsInstalled(e.matches);
-    };
+    const handler = (e) => setIsInstalled(e.matches);
     mq.addEventListener('change', handler);
 
     const onAppInstalled = () => {
@@ -83,9 +162,123 @@ export default function Settings() {
     };
   }, []);
 
-  const levelTitle = getLevelTitle ? getLevelTitle(level) : (isRtl ? 'جوینده مسیر' : 'Pathfinder');
+  // Auto-sync telegram user details on first load if available
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (tgUser) {
+      if (!userProfile?.fullName || userProfile?.fullName === 'کاربر چاژا') {
+        const full = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ');
+        if (full) {
+          setDisplayName(full);
+          localStorage.setItem('life_os_user_name', full);
+        }
+      }
+      if (tgUser.username && !userProfile?.username) {
+        setUserUsername(tgUser.username);
+      }
+      if (tgUser.photo_url && (!userProfile?.avatar || userProfile?.avatar === '👑')) {
+        setAvatarUrl(tgUser.photo_url);
+        localStorage.setItem('life_os_user_avatar', tgUser.photo_url);
+      }
+    }
+  }, [userProfile]);
 
-  // Export Data (Plain JSON or Encrypted)
+  const levelTitle = getLevelTitle ? getLevelTitle(level) : (isRtl ? 'فرمانروای بازی‌ها' : 'Game Sovereign');
+
+  // Save Profile Handler
+  const handleSaveProfile = () => {
+    const cleanName = displayName.trim() || (isRtl ? 'کاربر چاژا' : 'Chazha Player');
+    const cleanUsername = userUsername.trim().replace(/^@/, '');
+    const cleanBio = bioText.trim();
+
+    setUserProfile({
+      fullName: cleanName,
+      username: cleanUsername,
+      bio: cleanBio,
+      avatar: avatarUrl
+    });
+
+    localStorage.setItem('life_os_user_name', cleanName);
+    localStorage.setItem('life_os_user_username', cleanUsername);
+    localStorage.setItem('life_os_user_bio', cleanBio);
+    localStorage.setItem('life_os_user_avatar', avatarUrl);
+
+    haptics.success?.();
+    soundEngine.playCheckmark?.();
+    setSaveMessage(isRtl ? '✓ پروفایل با موفقیت ذخیره شد!' : '✓ Profile saved successfully!');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };
+
+  // Sync directly from Telegram Profile
+  const handleSyncTelegramProfile = () => {
+    const tg = getTelegramWebApp();
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (tgUser) {
+      const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username || '';
+      const username = tgUser.username || '';
+      const photo = tgUser.photo_url || avatarUrl;
+
+      if (fullName) setDisplayName(fullName);
+      if (username) setUserUsername(username);
+      if (tgUser.photo_url) setAvatarUrl(tgUser.photo_url);
+
+      setUserProfile({
+        fullName: fullName || displayName,
+        username: username || userUsername,
+        avatar: photo
+      });
+
+      localStorage.setItem('life_os_user_name', fullName);
+      localStorage.setItem('life_os_user_username', username);
+      if (tgUser.photo_url) localStorage.setItem('life_os_user_avatar', tgUser.photo_url);
+
+      haptics.success?.();
+      soundEngine.playLevelUp?.();
+      setSaveMessage(isRtl ? '✨ اطلاعات با موفقیت از تلگرام همگام شد!' : '✨ Synced with Telegram profile!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } else {
+      alert(isRtl ? 'اطلاعات تلگرام در دسترس نیست یا برنامه در مرورگر معمولی باز شده است.' : 'Telegram WebApp data not detected.');
+    }
+  };
+
+  // Custom Avatar File Upload
+  const handleAvatarFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert(isRtl ? 'حجم تصویر باید کمتر از ۲ مگابایت باشد.' : 'Image size must be under 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target.result;
+      setAvatarUrl(base64);
+      setUserProfile({ avatar: base64 });
+      localStorage.setItem('life_os_user_avatar', base64);
+      setShowAvatarModal(false);
+      haptics.success?.();
+      soundEngine.playLevelUp?.();
+      setSaveMessage(isRtl ? '✓ تصویر پروفایل با موفقیت آپلود شد!' : '✓ Avatar image updated!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Switch Theme (Light vs Dark master toggle)
+  const handleToggleLightDark = (target) => {
+    soundEngine.playTap?.();
+    haptics.tap?.();
+    if (target === 'light') {
+      setTheme('light');
+    } else {
+      setTheme('cosmic');
+    }
+  };
+
+  // Export Data
   const handleExportData = async () => {
     try {
       const json = await exportAllDataJSON();
@@ -107,7 +300,7 @@ export default function Settings() {
       a.click();
       URL.revokeObjectURL(url);
 
-      haptics.success();
+      haptics.success?.();
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 3000);
     } catch (e) {
@@ -123,32 +316,27 @@ export default function Settings() {
 
     try {
       const text = await file.text();
-      
-      // Check if it's an encrypted backup
       if (file.name.endsWith('.enc') || (text.includes('"salt"') && text.includes('"iv"'))) {
         setPendingEncryptedFile(text);
         setImportStatus(isRtl ? '🔒 فایل رمزنگاری شده است. لطفاً رمز عبور را وارد کنید.' : '🔒 Encrypted file detected. Please enter password.');
         return;
       }
-
-      // Plain JSON
       await importAllDataJSON(text);
-      haptics.levelUp();
+      haptics.levelUp?.();
+      soundEngine.playLevelUp?.();
       setImportStatus(isRtl ? '✨ اطلاعات با موفقیت بازیابی شد! صفحه را رفرش کنید.' : '✨ Data restored successfully! Please refresh.');
-      soundEngine.playLevelUp();
     } catch (err) {
       setImportStatus(isRtl ? '❌ خطا در خواندن فایل پشتیبان' : '❌ Error importing file');
     }
   };
 
-  // Decrypt and import pending file
   const handleDecryptAndImport = async () => {
     if (!pendingEncryptedFile || !decryptPassphrase.trim()) return;
     try {
       const decryptedText = await decryptData(pendingEncryptedFile, decryptPassphrase.trim());
       await importAllDataJSON(decryptedText);
-      haptics.levelUp();
-      soundEngine.playLevelUp();
+      haptics.levelUp?.();
+      soundEngine.playLevelUp?.();
       setImportStatus(isRtl ? '✨ فایل رمزگشایی و با موفقیت بازیابی شد!' : '✨ Backup decrypted & restored successfully!');
       setPendingEncryptedFile(null);
       setDecryptPassphrase('');
@@ -158,7 +346,7 @@ export default function Settings() {
   };
 
   const handleTestNotification = async () => {
-    haptics.tap();
+    haptics.tap?.();
     const success = await testNotification();
     if (success) {
       setTestNotifSent(true);
@@ -179,705 +367,781 @@ export default function Settings() {
     }
   };
 
+  const SETTINGS_TABS = [
+    { id: 'profile', labelFa: '👤 پروفایل و بیو', labelEn: 'Profile & Bio' },
+    { id: 'appearance', labelFa: '🎨 تم و ظاهر', labelEn: 'Appearance' },
+    { id: 'language', labelFa: '🌐 زبان و صدا', labelEn: 'Audio & Lang' },
+    { id: 'system', labelFa: '⚙️ کیف‌پول و ابر', labelEn: 'Wallet & Cloud' }
+  ];
+
   return (
-    <div className="page-container flex flex-col gap-6 pb-20">
-      {/* Title Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <span>⚙️</span>
-          {isRtl ? 'تنظیمات و زیرساخت فنی' : 'Settings & Architecture'}
-        </h1>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-          {isRtl ? 'شخصی‌سازی، پشتیبان‌گیری ابری و نوتیفیکیشن‌ها' : 'Customization, Cloud Sync & Notifications'}
-        </p>
+    <div
+      className={`min-h-screen pb-32 px-3.5 sm:px-6 pt-4 max-w-2xl mx-auto transition-colors duration-200 ${
+        isLight ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#060814] text-white'
+      }`}
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
+      {/* Header Bar */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black flex items-center gap-2">
+            <span>⚙️</span>
+            <span>{isRtl ? 'تنظیمات و حساب کاربری' : 'Settings & Profile'}</span>
+          </h1>
+          <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            {isRtl ? 'شخصی‌سازی نام، بیو، آواتار، تم روشن/تاریک و داده‌ها' : 'Manage your gamer profile, theme, language & data'}
+          </p>
+        </div>
+
+        {/* Quick Coin Indicator */}
+        <button
+          onClick={() => { soundEngine.playTap?.(); haptics.tap?.(); setIsShopModalOpen(true); }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border shadow-sm active:scale-95 transition-all ${
+            isLight ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+          }`}
+        >
+          <Coins size={16} className="text-amber-500" />
+          <span className="text-xs font-black">{coins.toLocaleString(isRtl ? 'fa-IR' : 'en-US')}</span>
+          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">+</span>
+        </button>
       </div>
 
-      {/* SECTION 1: PROFILE & GAMIFICATION SUMMARY */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-6 border-b border-[var(--border)]">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[var(--accent)] to-purple-600 flex items-center justify-center text-white text-3xl font-black shadow-lg">
-            👑
-          </div>
-          <div>
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {levelTitle}
-              </h2>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-extrabold">
-                Lvl {level}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              {xp} {isRtl ? 'امتیاز تجربه (XP)' : 'XP points'} • 🔥 {streak} {isRtl ? 'روز استمرار متوالی' : 'days streak'}
-            </p>
-          </div>
-        </div>
-
-        {/* Badges Grid */}
-        <div className="mt-5">
-          <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Award size={16} className="text-[var(--warning)]" />
-            <span>{isRtl ? 'نشان‌های افتخار و دستاوردها' : 'Achievements & Badges'}</span>
-            <span className="text-xs text-[var(--text-secondary)]">({badges.length} / {BADGES_LIST.length})</span>
-          </h3>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            {BADGES_LIST.map((badge) => {
-              const isEarned = badges.includes(badge.id);
-              return (
-                <div
-                  key={badge.id}
-                  className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-1.5 transition-all ${
-                    isEarned
-                      ? 'bg-[var(--bg-secondary)] border-[var(--warning)]/50 shadow-sm'
-                      : 'bg-[var(--bg-secondary)]/40 border-[var(--border)] opacity-40 grayscale'
-                  }`}
-                >
-                  <span className="text-2xl">{badge.icon}</span>
-                  <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                    {isRtl ? badge.nameFa : badge.nameEn}
-                  </span>
-                  <span className="text-[9px] text-[var(--text-secondary)] line-clamp-2">
-                    {isRtl ? badge.descFa : badge.descEn}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 2: APPEARANCE & THEMES */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <span>🎨</span>
-          {isRtl ? 'تم‌های بصری برنامه' : 'Visual Themes'}
-        </h3>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <button
-            onClick={() => setTheme('cosmic')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'cosmic'
-                ? 'border-purple-400 bg-purple-950/60 ring-2 ring-purple-500 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#030014] opacity-75 hover:opacity-100 hover:border-purple-500/40'
-            }`}
-          >
-            <Sparkles size={24} className="text-purple-300 animate-pulse" />
-            <span className="text-xs font-black text-white">🌌 {isRtl ? 'کیهانی شاهانه' : 'Cosmic Sovereign'}</span>
-            <span className="text-[10px] text-purple-300/80">{isRtl ? 'بنفش عمیق و طلای ۲۴ عیار' : 'Deep Violet & Gold'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('royal')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'royal'
-                ? 'border-amber-400 bg-amber-950/60 ring-2 ring-amber-400 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#08080c] opacity-75 hover:opacity-100 hover:border-amber-500/40'
-            }`}
-          >
-            <span className="text-2xl drop-shadow-md">👑</span>
-            <span className="text-xs font-black text-amber-200">👑 {isRtl ? 'طلای سلطنتی' : 'Imperial Gold'}</span>
-            <span className="text-[10px] text-amber-300/80">{isRtl ? 'عقیق سیاه و طلای درخشان' : 'Onyx & 24K Gold'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('light')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'light'
-                ? 'border-purple-500 bg-white ring-2 ring-purple-500 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-slate-50 opacity-75 hover:opacity-100 hover:border-purple-500/40'
-            }`}
-          >
-            <Sun size={24} className="text-amber-500" />
-            <span className="text-xs font-black text-slate-900">💎 {isRtl ? 'ابریشم بلورین (روشن)' : 'Luminous Silk (Light)'}</span>
-            <span className="text-[10px] text-slate-600">{isRtl ? 'سفید آلاباستر و پاستیلی' : 'Alabaster & Silk'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('dawn')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'dawn'
-                ? 'border-rose-500 bg-[#fff8f5] ring-2 ring-rose-500 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#fff8f5] opacity-75 hover:opacity-100 hover:border-rose-500/40'
-            }`}
-          >
-            <span className="text-2xl">🌅</span>
-            <span className="text-xs font-black text-rose-950">🌅 {isRtl ? 'سحرگاه زرین (روشن)' : 'Warm Dawn (Light)'}</span>
-            <span className="text-[10px] text-rose-700">{isRtl ? 'رز کوارتز پاستلی و گرم' : 'Rose Quartz & Peach'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('mint')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'mint'
-                ? 'border-emerald-500 bg-[#f0fdf9] ring-2 ring-emerald-500 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#f0fdf9] opacity-75 hover:opacity-100 hover:border-emerald-500/40'
-            }`}
-          >
-            <span className="text-2xl">🍃</span>
-            <span className="text-xs font-black text-emerald-950">🍃 {isRtl ? 'نسیم زمرد (روشن)' : 'Mint Breeze (Light)'}</span>
-            <span className="text-[10px] text-emerald-700">{isRtl ? 'یاس سپید و سبز باطراوت' : 'Mint & Fresh Jade'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('nature')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'nature'
-                ? 'border-emerald-400 bg-emerald-950/60 ring-2 ring-emerald-400 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#05120a] opacity-75 hover:opacity-100 hover:border-emerald-500/40'
-            }`}
-          >
-            <span className="text-2xl">🌲</span>
-            <span className="text-xs font-black text-emerald-200">🌲 {isRtl ? 'فردوس زمردین' : 'Emerald Sanctuary'}</span>
-            <span className="text-[10px] text-emerald-300/80">{isRtl ? 'سبز یشم و آرامش طبیعت' : 'Zen Jade & Forest'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('space')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'space'
-                ? 'border-sky-400 bg-sky-950/60 ring-2 ring-sky-400 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#020617] opacity-75 hover:opacity-100 hover:border-sky-500/40'
-            }`}
-          >
-            <span className="text-2xl">🪐</span>
-            <span className="text-xs font-black text-sky-200">🪐 {isRtl ? 'اقیانوس کهکشان' : 'Deep Nebula'}</span>
-            <span className="text-[10px] text-sky-300/80">{isRtl ? 'سایان الکتریک و لاجوردی' : 'Electric Cyan'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('rose')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'rose'
-                ? 'border-rose-400 bg-rose-950/60 ring-2 ring-rose-400 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#0d0208] opacity-75 hover:opacity-100 hover:border-rose-500/40'
-            }`}
-          >
-            <span className="text-2xl">🌹</span>
-            <span className="text-xs font-black text-rose-200">🌹 {isRtl ? 'یاقوت سرخ شاهانه' : 'Ruby Sovereign'}</span>
-            <span className="text-[10px] text-rose-300/80">{isRtl ? 'مخمل شرابی و رز کوارتز' : 'Velvet Merlot'}</span>
-          </button>
-
-          <button
-            onClick={() => setTheme('dark')}
-            className={`p-4 rounded-3xl border flex flex-col items-center gap-2 transition-all ${
-              theme === 'dark'
-                ? 'border-indigo-400 bg-slate-900 ring-2 ring-indigo-400 shadow-xl scale-102'
-                : 'border-[var(--border)] bg-[#090d16] opacity-75 hover:opacity-100 hover:border-indigo-500/40'
-            }`}
-          >
-            <Moon size={24} className="text-indigo-300" />
-            <span className="text-xs font-black text-slate-200">🌙 {isRtl ? 'آبنوس مات' : 'Onyx Slate'}</span>
-            <span className="text-[10px] text-slate-400">{isRtl ? 'تاریک ملایم و ضد خستگی' : 'Minimal Charcoal'}</span>
-          </button>
-        </div>
-      </div>
-      {/* SECTION 2.5: TYPOGRAPHY & PERSIAN FONTS STUDIO */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <span>✍️</span>
-            {isRtl ? 'انتخاب قلم و فونت اختصاصی' : 'Custom Fonts & Typography'}
-          </h3>
-          <span className="text-xs text-[var(--accent)] font-bold px-3 py-1 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/30">
-            {FONTS_LIST.find(f => f.id === fontFamily)?.nameFa || 'وزیرمتن'}
-          </span>
-        </div>
-
-        <p className="text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
-          {isRtl 
-            ? 'فونت مورد علاقه خود را انتخاب کنید؛ تمام بخش‌ها، نوشته‌ها و کارت‌های آموزشی بلافاصله با قلم انتخابی شما بازنویسی می‌شوند.' 
-            : 'Select your preferred typography. The entire Life OS interface will immediately adapt to your chosen font.'}
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {FONTS_LIST.map((font) => {
-            const isSelected = (fontFamily === font.id) || (!fontFamily && font.id === 'vazirmatn');
-            return (
-              <button
-                key={font.id}
-                onClick={() => {
-                  setFontFamily(font.id);
-                  soundEngine.playTap?.();
-                  haptics.tap?.();
-                }}
-                className={`p-4 rounded-2xl border text-start flex flex-col justify-between gap-3 transition-all ${
-                  isSelected
-                    ? 'border-[var(--accent)] bg-[var(--accent)]/15 ring-2 ring-[var(--accent)] shadow-lg scale-[1.02]'
-                    : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-[var(--accent)]/40 hover:bg-[var(--bg-card)]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-black" style={{ color: 'var(--text-primary)' }}>
-                      {isRtl ? font.nameFa : font.nameEn}
-                    </h4>
-                    <span className="text-[10px] text-[var(--text-secondary)]">
-                      {font.style}
-                    </span>
-                  </div>
-                  {isSelected && (
-                    <div className="w-6 h-6 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-xs">
-                      <Check size={14} />
-                    </div>
-                  )}
-                </div>
-
-                <div 
-                  className={`p-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-xs leading-relaxed ${font.id === 'lalezar' ? 'text-sm font-bold' : ''}`}
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  <span className={`font-${font.id}`}>{font.sample}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* SECTION 3: LANGUAGE & AUDIO PREFERENCES */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <h3 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <span>🌐</span>
-          {isRtl ? 'زبان و افکت‌های صوتی' : 'Language & Sound'}
-        </h3>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)]">
-            <div className="flex items-center gap-2.5">
-              <Globe size={18} className="text-[var(--accent)]" />
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {isRtl ? 'زبان برنامه (فارسی / English)' : 'Interface Language'}
-              </span>
-            </div>
-            <div className="flex gap-1 p-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]">
-              <button
-                onClick={() => setLanguage('fa')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  language === 'fa' ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)]'
-                }`}
-              >
-                فارسی (RTL)
-              </button>
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                  language === 'en' ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--text-secondary)]'
-                }`}
-              >
-                English (LTR)
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)]">
-            <div className="flex items-center gap-2.5">
-              {soundEnabled ? <Volume2 size={18} className="text-[var(--accent)]" /> : <VolumeX size={18} className="text-[var(--text-secondary)]" />}
-              <div>
-                <span className="text-xs font-semibold block" style={{ color: 'var(--text-primary)' }}>
-                  {isRtl ? 'افکت‌های صوتی و زنگ تبتی' : 'Sound Effects & Bowl Chimes'}
-                </span>
-                <span className="text-[10px] text-[var(--text-secondary)]">
-                  {isRtl ? 'پخش صدای تیک زدن، ارتقای لول و زنگ مراقبه' : 'Audio cues for checks, level up & bowls'}
-                </span>
-              </div>
-            </div>
+      {/* Modern Segmented Navigation Tabs */}
+      <div className={`flex p-1.5 rounded-2xl border mb-5 shadow-sm gap-1 ${
+        isLight ? 'bg-slate-200/80 border-slate-300' : 'bg-slate-900/90 border-white/10'
+      }`}>
+        {SETTINGS_TABS.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
             <button
+              key={tab.id}
               onClick={() => {
-                setSoundEnabled(!soundEnabled);
-                if (!soundEnabled) soundEngine.playCheckmark();
+                soundEngine.playTap?.();
+                haptics.tap?.();
+                setActiveTab(tab.id);
               }}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                soundEnabled ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border)]'
+              className={`flex-1 py-2 px-1 text-center rounded-xl text-xs font-black transition-all truncate ${
+                isActive
+                  ? (isLight 
+                      ? 'bg-white text-slate-900 shadow-sm' 
+                      : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md')
+                  : (isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
               }`}
             >
-              {soundEnabled ? (isRtl ? 'فعال' : 'On') : (isRtl ? 'بی‌صدا' : 'Muted')}
+              {isRtl ? tab.labelFa : tab.labelEn}
             </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* SECTION 4: AI MENTOR CONFIGURATION */}
-      <div className="glass-card p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-br from-purple-900/10 to-transparent">
-        <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-purple-400">
-          <span>🧠</span>
-          {isRtl ? 'اتصال مربی هوشمند (AI Stoic Mentor)' : 'AI Mentor Configuration'}
-        </h3>
-        
-        <p className="text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
-          {isRtl 
-            ? 'برای اینکه دستیار هوشمند بتواند به صورت اختصاصی با شما گفتگو کند، می‌توانید کلید API خود (مثلاً Gemini) را وارد کنید. کلید شما منحصراً در مرورگر شما (رمزنگاری‌شده) ذخیره می‌شود.'
-            : 'Enter your AI API Key (e.g. Gemini) to enable the personalized Stoic Mentor. Your key is stored securely in your browser and never shared.'}
-        </p>
-
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Key size={14} className="text-purple-400" />
-            </div>
-            <input
-              type="password"
-              value={aiKey || ''}
-              onChange={(e) => setAiKey(e.target.value)}
-              placeholder={isRtl ? 'مثلاً: AIzaSyD...' : 'e.g. AIzaSyD...'}
-              className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-purple-950/20 border border-purple-500/30 text-xs text-[var(--text-primary)] outline-none focus:border-purple-400 font-mono"
-            />
-          </div>
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2.5 rounded-2xl bg-purple-600/20 text-purple-300 hover:bg-purple-600/40 text-xs font-bold transition-all whitespace-nowrap"
+      {/* Toast Feedback */}
+      <AnimatePresence>
+        {saveMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 p-3 rounded-2xl bg-emerald-500 text-white text-xs font-bold text-center shadow-lg flex items-center justify-center gap-2"
           >
-            {isRtl ? 'دریافت کلید' : 'Get Key'}
-          </a>
-        </div>
-      </div>
-
-      {/* SECTION 4: LOCAL PUSH & SERVICE WORKER NOTIFICATIONS */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Bell size={18} className="text-cyan-500" />
-            <span>{isRtl ? 'نوتیفیکیشن‌های آفلاین و مستقل' : 'Offline Scheduled Notifications'}</span>
-          </h3>
-
-          <button
-            onClick={handleTestNotification}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-bold hover:bg-cyan-500/25 transition-colors"
-          >
-            <Send size={12} />
-            <span>{testNotifSent ? (isRtl ? '✓ ارسال شد' : '✓ Sent') : (isRtl ? 'تست نوتیفیکیشن' : 'Test Alert')}</span>
-          </button>
-        </div>
-
-        <p className="text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
-          {isRtl
-            ? 'سرویس‌ورکر اختصاصی اپلیکیشن حتی در حالت بسته بودن برنامه، یادآوری‌های تندرستی و خواب را در ساعت مقرر ارسال می‌کند.'
-            : 'Background Service Worker dispatches offline reminders for hydration, mindfulness and sleep even when app is closed.'}
-        </p>
-
-        {permission !== 'granted' && (
-          <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={18} className="text-amber-500 flex-shrink-0" />
-              <span className="text-xs text-amber-300 font-medium">
-                {isRtl ? 'مجوز اعلان‌ها هنوز صادر نشده است.' : 'Notifications permission not granted yet.'}
-              </span>
-            </div>
-            <button
-              onClick={requestPermission}
-              className="px-3 py-1 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold hover:opacity-90"
-            >
-              {isRtl ? 'فعال‌سازی' : 'Enable'}
-            </button>
-          </div>
+            <CheckCircle2 size={16} />
+            <span>{saveMessage}</span>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Reminders List */}
-        <div className="space-y-2.5">
-          {reminders.map(r => (
-            <div
-              key={r.id}
-              className="p-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-between gap-3"
-            >
-              <div className="flex-1">
-                <span className="text-xs font-bold block" style={{ color: 'var(--text-primary)' }}>
-                  {isRtl ? r.titleFa : r.titleEn}
-                </span>
-                <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 block">
-                  {isRtl ? r.bodyFa : r.bodyEn}
-                </span>
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* TAB 1: PROFILE & BIO                                               */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {activeTab === 'profile' && (
+        <div className="space-y-4">
+          {/* Avatar & Identity Hero Card */}
+          <div className={`p-5 rounded-3xl border shadow-sm transition-all ${
+            isLight ? 'bg-white border-slate-200 shadow-slate-200/60' : 'bg-slate-900/80 border-white/10 backdrop-blur-xl'
+          }`}>
+            <div className="flex flex-col sm:flex-row items-center gap-4 pb-5 border-b border-inherit">
+              {/* Avatar with Edit Overlay */}
+              <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+                <SafeAvatar avatar={avatarUrl} size="w-20 h-20 text-4xl" ringColor="border-amber-400" />
+                <div className="absolute inset-0 rounded-3xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                  <Camera size={22} />
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowAvatarModal(true); }}
+                  className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-amber-500 text-slate-950 shadow-md hover:bg-amber-400 active:scale-90 transition-transform"
+                  title={isRtl ? 'تغییر تصویر' : 'Change Avatar'}
+                >
+                  <Edit3 size={13} />
+                </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Name & Quick Badges */}
+              <div className="text-center sm:text-start flex-1 min-w-0">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <h2 className={`text-lg font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {displayName || (isRtl ? 'کاربر چاژا' : 'Chazha Player')}
+                  </h2>
+                  {isVip && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/40">
+                      VIP 👑
+                    </span>
+                  )}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30">
+                    Lvl {level}
+                  </span>
+                </div>
+
+                <p className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {userUsername ? `@${userUsername}` : (isRtl ? 'شناسه گیمر تلگرام' : 'Telegram Gamer ID')} • {levelTitle}
+                </p>
+
+                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+                  <button
+                    onClick={() => setShowAvatarModal(true)}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold border active:scale-95 transition-all ${
+                      isLight 
+                        ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' 
+                        : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    🖼️ {isRtl ? 'انتخاب آواتار' : 'Change Avatar'}
+                  </button>
+
+                  <button
+                    onClick={handleSyncTelegramProfile}
+                    className="px-3 py-1 rounded-xl text-xs font-bold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300 hover:bg-sky-500/25 active:scale-95 transition-all"
+                  >
+                    🔄 {isRtl ? 'همگام با تلگرام' : 'Sync Telegram'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Editable Fields Form */}
+            <div className="pt-4 space-y-3.5">
+              {/* Display Name Input */}
+              <div>
+                <label className={`block text-xs font-bold mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                  {isRtl ? 'نام نمایشی / گیمرتگ:' : 'Display Name / Gamer Tag:'}
+                </label>
                 <input
-                  type="time"
-                  value={r.time}
-                  onChange={(e) => updateReminderTime(r.id, e.target.value)}
-                  className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-mono outline-none"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder={isRtl ? 'مثلاً: شوالیه طلایی' : 'e.g. Royal Knight'}
+                  className={`w-full px-3.5 py-2.5 rounded-2xl border text-xs font-bold outline-none transition-all ${
+                    isLight 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-purple-600 focus:bg-white' 
+                      : 'bg-slate-950/60 border-white/10 text-white focus:border-purple-400'
+                  }`}
+                />
+              </div>
+
+              {/* Username Input */}
+              <div>
+                <label className={`block text-xs font-bold mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                  {isRtl ? 'نام کاربری تلگرام (Username):' : 'Telegram Username:'}
+                </label>
+                <div className="relative">
+                  <span className={`absolute inset-y-0 ${isRtl ? 'right-3.5' : 'left-3.5'} flex items-center text-xs font-bold opacity-50`}>
+                    @
+                  </span>
+                  <input
+                    type="text"
+                    value={userUsername}
+                    onChange={(e) => setUserUsername(e.target.value)}
+                    placeholder="username"
+                    dir="ltr"
+                    className={`w-full ${isRtl ? 'pr-8 pl-3.5' : 'pl-8 pr-3.5'} py-2.5 rounded-2xl border text-xs font-mono font-bold outline-none transition-all ${
+                      isLight 
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-purple-600 focus:bg-white' 
+                        : 'bg-slate-950/60 border-white/10 text-white focus:border-purple-400'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Bio & Status */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    {isRtl ? 'بیوگرافی و معرفی کوتاه:' : 'Gamer Bio & Status:'}
+                  </label>
+                  <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {bioText.length}/120
+                  </span>
+                </div>
+                <textarea
+                  rows={2}
+                  maxLength={120}
+                  value={bioText}
+                  onChange={(e) => setBioText(e.target.value)}
+                  placeholder={isRtl ? 'یک جمله درباره سبک بازی، ادعا یا علایق خود بنویسید...' : 'Write a short bio or status...'}
+                  className={`w-full px-3.5 py-2.5 rounded-2xl border text-xs leading-relaxed outline-none transition-all resize-none ${
+                    isLight 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-purple-600 focus:bg-white' 
+                      : 'bg-slate-950/60 border-white/10 text-white focus:border-purple-400'
+                  }`}
                 />
 
+                {/* Quick Bio Chips */}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {BIO_SUGGESTIONS.map((sug, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { soundEngine.playTap?.(); haptics.tap?.(); setBioText(sug); }}
+                      className={`text-[10px] px-2.5 py-1 rounded-xl border transition-all truncate max-w-full ${
+                        isLight 
+                          ? 'bg-slate-100 hover:bg-purple-100 text-slate-700 border-slate-200' 
+                          : 'bg-white/5 hover:bg-purple-900/40 text-slate-300 border-white/10'
+                      }`}
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <button
+                onClick={handleSaveProfile}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:opacity-95 active:scale-98 text-white text-xs font-black shadow-lg shadow-purple-600/30 transition-all flex items-center justify-center gap-2 mt-2"
+              >
+                <Check size={16} />
+                <span>{isRtl ? 'ذخیره تغییرات پروفایل' : 'Save Profile Changes'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Gamer Achievements Summary */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Award size={16} className="text-amber-500" />
+              <span>{isRtl ? 'مدال‌ها و افتخارات بازی' : 'Achievements & Badges'}</span>
+              <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>({badges.length} / {BADGES_LIST.length})</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {BADGES_LIST.slice(0, 8).map(badge => {
+                const isEarned = badges.includes(badge.id);
+                return (
+                  <div
+                    key={badge.id}
+                    className={`p-2.5 rounded-2xl border text-center flex flex-col items-center gap-1 ${
+                      isEarned
+                        ? (isLight ? 'bg-amber-50/80 border-amber-300 text-amber-950' : 'bg-amber-950/20 border-amber-500/40 text-amber-200')
+                        : (isLight ? 'bg-slate-100 border-slate-200 opacity-40 grayscale' : 'bg-white/5 border-white/5 opacity-40 grayscale')
+                    }`}
+                  >
+                    <span className="text-xl">{badge.icon}</span>
+                    <span className="text-[11px] font-bold truncate max-w-full">
+                      {isRtl ? badge.nameFa : badge.nameEn}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* TAB 2: APPEARANCE & THEMES                                         */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {activeTab === 'appearance' && (
+        <div className="space-y-4">
+          {/* Master Light vs Dark Switcher */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Palette size={16} className="text-purple-500" />
+              <span>{isRtl ? 'حالت اصلی ظاهر (روشن / تاریک)' : 'Master Appearance Mode'}</span>
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Light Mode Card */}
+              <button
+                onClick={() => handleToggleLightDark('light')}
+                className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-95 text-center ${
+                  isLight
+                    ? 'border-purple-500 bg-purple-50/80 ring-2 ring-purple-500/60 shadow-md text-slate-900'
+                    : 'border-white/10 bg-white/5 opacity-70 hover:opacity-100 text-slate-300'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-500 text-2xl shadow-inner">
+                  <Sun size={26} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black">{isRtl ? '☀️ تم روز و روشن' : '☀️ Light Mode'}</h4>
+                  <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    {isRtl ? 'سفید خالص، نوشته‌های تیره و خوانا' : 'Crisp white & dark typography'}
+                  </p>
+                </div>
+                {isLight && (
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-600 text-white mt-1">
+                    {isRtl ? 'فعال ✓' : 'Active ✓'}
+                  </span>
+                )}
+              </button>
+
+              {/* Dark Mode Card */}
+              <button
+                onClick={() => handleToggleLightDark('dark')}
+                className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-95 text-center ${
+                  !isLight
+                    ? 'border-purple-400 bg-purple-950/60 ring-2 ring-purple-500 shadow-md text-white'
+                    : 'border-slate-200 bg-slate-100 opacity-70 hover:opacity-100 text-slate-600'
+                }`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 text-2xl shadow-inner">
+                  <Moon size={26} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black">{isRtl ? '🌙 تم شب و تاریک' : '🌙 Dark Mode'}</h4>
+                  <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {isRtl ? 'مخمل مشکی، ضد خستگی و نئونی' : 'Velvet dark & neon accents'}
+                  </p>
+                </div>
+                {!isLight && (
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-500 text-white mt-1">
+                    {isRtl ? 'فعال ✓' : 'Active ✓'}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Palettes Gallery */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Sparkles size={16} className="text-amber-500" />
+              <span>{isRtl ? 'پالت‌های رنگی اختصاصی' : 'Color Palettes'}</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {[
+                { id: 'light', nameFa: '💎 ابریشم بلورین (روشن)', nameEn: 'Luminous Silk', icon: '💎', isLightPalette: true },
+                { id: 'cosmic', nameFa: '🌌 کیهانی شاهانه (تاریک)', nameEn: 'Cosmic Sovereign', icon: '🌌', isLightPalette: false },
+                { id: 'royal', nameFa: '👑 طلای سلطنتی (تاریک)', nameEn: 'Imperial Gold', icon: '👑', isLightPalette: false },
+                { id: 'space', nameFa: '🪐 اقیانوس کهکشان (تاریک)', nameEn: 'Deep Space', icon: '🪐', isLightPalette: false },
+                { id: 'nature', nameFa: '🌲 فردوس زمردین (تاریک)', nameEn: 'Emerald Forest', icon: '🌲', isLightPalette: false },
+                { id: 'dawn', nameFa: '🌅 سحرگاه زرین (روشن)', nameEn: 'Warm Dawn', icon: '🌅', isLightPalette: true },
+                { id: 'mint', nameFa: '🍃 نسیم نعنایی (روشن)', nameEn: 'Mint Breeze', icon: '🍃', isLightPalette: true },
+                { id: 'dark', nameFa: '🌙 آبنوس مات (تاریک)', nameEn: 'Onyx Slate', icon: '🌙', isLightPalette: false }
+              ].map(pal => {
+                const isSelected = theme === pal.id;
+                return (
+                  <button
+                    key={pal.id}
+                    onClick={() => {
+                      soundEngine.playTap?.();
+                      haptics.tap?.();
+                      setTheme(pal.id);
+                    }}
+                    className={`p-3 rounded-2xl border text-start flex items-center gap-2 transition-all active:scale-95 ${
+                      isSelected
+                        ? 'border-purple-500 bg-purple-500/15 ring-2 ring-purple-500/40 font-black shadow-sm'
+                        : (isLight 
+                            ? 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700' 
+                            : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300')
+                    }`}
+                  >
+                    <span className="text-xl shrink-0">{pal.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className={`text-xs block truncate ${isSelected ? (isLight ? 'text-purple-700' : 'text-purple-300') : ''}`}>
+                        {isRtl ? pal.nameFa : pal.nameEn}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Persian Typography Studio */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center justify-between ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <div className="flex items-center gap-2">
+                <span>✍️</span>
+                <span>{isRtl ? 'قلم و فونت اختصاصی' : 'Typography & Fonts'}</span>
+              </div>
+              <span className="text-xs text-purple-600 dark:text-purple-400 font-bold px-2 py-0.5 rounded-lg bg-purple-500/10">
+                {FONTS_LIST.find(f => f.id === fontFamily)?.nameFa || 'وزیرمتن'}
+              </span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {FONTS_LIST.slice(0, 6).map(font => {
+                const isSelected = (fontFamily === font.id) || (!fontFamily && font.id === 'vazirmatn');
+                return (
+                  <button
+                    key={font.id}
+                    onClick={() => {
+                      setFontFamily(font.id);
+                      soundEngine.playTap?.();
+                      haptics.tap?.();
+                    }}
+                    className={`p-3 rounded-2xl border text-start transition-all active:scale-95 ${
+                      isSelected
+                        ? 'border-purple-500 bg-purple-500/15 ring-2 ring-purple-500/40 shadow-sm'
+                        : (isLight ? 'border-slate-200 bg-slate-50 hover:bg-slate-100' : 'border-white/10 bg-white/5 hover:bg-white/10')
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-bold ${isSelected ? (isLight ? 'text-purple-700' : 'text-purple-300') : ''}`}>
+                        {isRtl ? font.nameFa : font.nameEn}
+                      </span>
+                      {isSelected && <Check size={12} className="text-purple-500" />}
+                    </div>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1 truncate">
+                      {font.style}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* TAB 3: LANGUAGE & AUDIO                                            */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {activeTab === 'language' && (
+        <div className="space-y-4">
+          {/* Language Selector Card */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Globe size={16} className="text-cyan-500" />
+              <span>{isRtl ? 'زبان برنامه (Interface Language)' : 'Interface Language'}</span>
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { setLanguage('fa'); soundEngine.playTap?.(); haptics.tap?.(); }}
+                className={`p-4 rounded-2xl border text-center flex flex-col items-center gap-2 transition-all active:scale-95 ${
+                  language === 'fa'
+                    ? 'border-cyan-500 bg-cyan-500/15 ring-2 ring-cyan-500/40 shadow-sm'
+                    : (isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5')
+                }`}
+              >
+                <span className="text-2xl">🇮🇷</span>
+                <span className="text-xs font-black">فارسی (RTL)</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>چیدمان راست‌به‌چپ</span>
+              </button>
+
+              <button
+                onClick={() => { setLanguage('en'); soundEngine.playTap?.(); haptics.tap?.(); }}
+                className={`p-4 rounded-2xl border text-center flex flex-col items-center gap-2 transition-all active:scale-95 ${
+                  language === 'en'
+                    ? 'border-cyan-500 bg-cyan-500/15 ring-2 ring-cyan-500/40 shadow-sm'
+                    : (isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5')
+                }`}
+              >
+                <span className="text-2xl">🇬🇧</span>
+                <span className="text-xs font-black">English (LTR)</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Left-to-Right layout</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sound FX & Haptic Audio */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Volume2 size={16} className="text-emerald-500" />
+              <span>{isRtl ? 'افکت‌های صوتی و لرزش (صدا و ویبره)' : 'Sound FX & Haptics'}</span>
+            </h3>
+
+            <div className="space-y-3">
+              <div className={`flex items-center justify-between p-3.5 rounded-2xl border ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {soundEnabled ? <Volume2 size={20} className="text-emerald-500" /> : <VolumeX size={20} className="text-slate-400" />}
+                  <div>
+                    <h4 className="text-xs font-bold">{isRtl ? 'افکت‌های صوتی بازی‌ها' : 'Game Sound Effects'}</h4>
+                    <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {isRtl ? 'صدای ریختن تاس، کارت‌ها، ضربه توپ و پیروزی' : 'Dice roll, cards, ball hits & fanfares'}
+                    </p>
+                  </div>
+                </div>
+
                 <button
-                  onClick={() => toggleReminder(r.id)}
-                  className={`w-10 h-6 rounded-full transition-colors relative p-0.5 ${
-                    r.enabled ? 'bg-[var(--accent)]' : 'bg-slate-700'
+                  onClick={() => {
+                    setSoundEnabled(!soundEnabled);
+                    if (!soundEnabled) soundEngine.playCheckmark?.();
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    soundEnabled
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : (isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/10 text-slate-400')
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${r.enabled ? (isRtl ? '-translate-x-4' : 'translate-x-4') : 'translate-x-0'}`} />
+                  {soundEnabled ? (isRtl ? 'روشن' : 'On') : (isRtl ? 'خاموش' : 'Muted')}
                 </button>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* SECTION 4.8: ZERO-KNOWLEDGE CLOUD ACCOUNT & MULTI-DEVICE SYNC */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)] relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${cloudState.isLoggedIn ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-purple-500/15 text-purple-400 border border-purple-500/30'}`}>
-              <Cloud size={24} className={cloudState.isLoggedIn ? 'animate-pulse' : ''} />
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* TAB 4: WALLET, BACKUP & CLOUD                                      */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {activeTab === 'system' && (
+        <div className="space-y-4">
+          {/* Wallet & Referral Card */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-sm font-black flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                <Coins size={16} className="text-amber-500" />
+                <span>{isRtl ? 'کیف‌پول سکه و استارز تلگرام' : 'Coin Wallet & Stars'}</span>
+              </h3>
+
+              <button
+                onClick={() => { soundEngine.playTap?.(); haptics.tap?.(); setIsShopModalOpen(true); }}
+                className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm transition-all"
+              >
+                + {isRtl ? 'خرید سکه' : 'Buy Coins'}
+              </button>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
-                  {isRtl ? 'حساب ابری و همگام‌سازی چنددستگاهی' : 'Cloud Sync & Multi-Device Vault'}
-                </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-bold border border-purple-500/30">
-                  {isRtl ? 'اختیاری' : 'Optional'}
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-amber-50 border-amber-200' : 'bg-amber-950/20 border-amber-500/30'}`}>
+                <span className={`text-[10px] block ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>
+                  {isRtl ? 'موجودی سکه طلا' : 'Gold Coins Balance'}
+                </span>
+                <span className="text-lg font-black text-amber-600 dark:text-amber-300 mt-1 block">
+                  {coins.toLocaleString(isRtl ? 'fa-IR' : 'en-US')} 🪙
                 </span>
               </div>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                {cloudState.isLoggedIn 
-                  ? (isRtl ? `متصل به حساب: @${cloudState.currentUser?.username} (رمزنگاری سرتاسری AES-256)` : `Active Account: @${cloudState.currentUser?.username}`)
-                  : (isRtl ? 'با ثبت نام کاربری و رمز، در هر دستگاهی به تمام اطلاعات و تسک‌هایتان دسترسی پیدا کنید.' : 'Access your data on any device with your username and password.')}
-              </p>
+
+              <div className={`p-3.5 rounded-2xl border ${isLight ? 'bg-purple-50 border-purple-200' : 'bg-purple-950/20 border-purple-500/30'}`}>
+                <span className={`text-[10px] block ${isLight ? 'text-purple-800' : 'text-purple-300'}`}>
+                  {isRtl ? 'اشتراک رویال VIP' : 'VIP Status'}
+                </span>
+                <span className="text-sm font-black text-purple-600 dark:text-purple-300 mt-1.5 block">
+                  {isVip ? (isRtl ? 'فعال 👑' : 'Active 👑') : (isRtl ? 'معمولی (غیرفعال)' : 'Standard')}
+                </span>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={() => setIsCloudModalOpen(true)}
-            className={`px-5 py-2.5 rounded-2xl font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 ${
-              cloudState.isLoggedIn 
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
-                : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white'
-            }`}
-          >
-            <Cloud size={16} />
-            <span>{cloudState.isLoggedIn ? (isRtl ? 'مدیریت و همگام‌سازی' : 'Manage Account') : (isRtl ? 'ورود یا ساخت حساب ابری' : 'Login / Register')}</span>
-          </button>
-        </div>
-
-        {cloudState.isLoggedIn ? (
-          <div className="p-4 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[var(--text-secondary)]">{isRtl ? 'وضعیت:' : 'Status:'}</span>
-              <span className="font-bold text-emerald-500">{isRtl ? 'همگام‌سازی خودکار فعال' : 'Auto-Sync Active'}</span>
-            </div>
-            <div className="text-[var(--text-secondary)]">
-              <span>{isRtl ? 'آخرین همگام‌سازی:' : 'Last Synced:'}</span>{' '}
-              <span className="font-bold text-[var(--text-primary)]">
-                {cloudState.lastSynced ? new Date(cloudState.lastSynced).toLocaleString('fa-IR') : (isRtl ? 'همین الان' : 'Just now')}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs flex items-center gap-2">
-            <Info size={16} className="shrink-0" />
-            <span>{isRtl ? 'در حال حاضر برنامه در حالت مهمان (آفلاین محلی) در حال اجراست و نیازی به ورود اجباری ندارید.' : 'Currently running in local offline mode.'}</span>
-          </div>
-        )}
-      </div>
-
-      {/* SECTION 5: CLOUD BACKUP, ENCRYPTION & GOOGLE DRIVE SYNC */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Cloud size={18} className="text-[var(--accent)]" />
-            <span>{isRtl ? 'پشتیبان‌گیری ابری و رمزنگاری‌شده' : 'Encrypted Cloud Backup & Sync'}</span>
-          </h3>
-
-          <button
-            onClick={() => setShowDriveGuide(!showDriveGuide)}
-            className="text-xs text-[var(--accent)] hover:underline font-bold flex items-center gap-1"
-          >
-            <span>{isRtl ? 'همگام‌سازی با گوگل درایو' : 'Google Drive Sync'}</span>
-          </button>
-        </div>
-
-        {/* Google Drive Guide Card */}
-        <AnimatePresence>
-          {showDriveGuide && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 overflow-hidden"
-            >
-              <h4 className="text-xs font-bold text-blue-400 mb-1 flex items-center gap-1.5">
-                <Shield size={14} />
-                {isRtl ? 'راهنمای همگام‌سازی بین گوشی و لپ‌تاپ (بدون واسطه سرور)' : 'Cross-Device Zero-Knowledge Cloud Sync'}
-              </h4>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
-                {isRtl
-                  ? '۱. از دکمه زیر فایل پشتیبان رمزگذاری شده با رمز شخصی خود بگیرید.\n۲. فایل را در پوشه Google Drive ذخیره کنید.\n۳. در دستگاه دیگر (لپ‌تاپ/گوشی) وارد بخش تنظیمات شده و فایل را بازیابی کنید.'
-                  : '1. Export encrypted backup with your private passphrase.\n2. Save the file to your personal Google Drive / iCloud folder.\n3. Open Life OS on your laptop or second phone and import with password.'}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Encryption Passphrase Toggle */}
-        <div className="p-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] mb-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock size={15} className="text-purple-400" />
-              <span className="text-xs font-bold text-[var(--text-primary)]">
-                {isRtl ? 'رمزنگاری پیشرفته (AES-GCM 256-bit)' : 'Zero-Knowledge AES-256 Encryption'}
-              </span>
-            </div>
-            <button
-              onClick={() => setUseEncryption(!useEncryption)}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                useEncryption ? 'bg-purple-600 text-white' : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border border-[var(--border)]'
-              }`}
-            >
-              {useEncryption ? (isRtl ? 'فعال' : 'Active') : (isRtl ? 'غیرفعال' : 'Off')}
-            </button>
-          </div>
-
-          {useEncryption && (
-            <input
-              type="password"
-              placeholder={isRtl ? 'گذرواژه اختصاصی برای رمزنگاری فایل پشتیبان...' : 'Enter encryption password for backup...'}
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] outline-none focus:border-purple-500 font-mono mt-2"
-              dir="ltr"
-            />
-          )}
-        </div>
-
-        {/* Export / Import Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={handleExportData}
-            className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-purple-600 text-white text-xs font-bold shadow-md hover:opacity-95 active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <Download size={16} />
-            <span>{exportSuccess ? (isRtl ? '✓ دانلود شد!' : '✓ Downloaded!') : (useEncryption ? (isRtl ? 'دانلود نسخه رمزنگاری‌شده (.enc)' : 'Export Encrypted (.enc)') : (isRtl ? 'دانلود فایل پشتیبان (JSON)' : 'Export JSON Backup'))}</span>
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.enc,.txt"
-            onChange={handleImportFile}
-            className="hidden"
-          />
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-1 py-3.5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] text-xs font-bold hover:border-[var(--accent)] text-[var(--text-primary)] active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <Upload size={16} className="text-[var(--success)]" />
-            <span>{isRtl ? 'بازیابی از فایل (Import)' : 'Import Backup'}</span>
-          </button>
-        </div>
-
-        {/* Decrypt Prompt if file was encrypted */}
-        {pendingEncryptedFile && (
-          <div className="mt-4 p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-3">
-            <h4 className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-              <Key size={14} />
-              {isRtl ? 'رمزگشایی فایل پشتیبان' : 'Decrypt Backup File'}
-            </h4>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                placeholder={isRtl ? 'رمز عبور فایل را وارد کنید...' : 'Enter password...'}
-                value={decryptPassphrase}
-                onChange={(e) => setDecryptPassphrase(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)] outline-none focus:border-purple-500 font-mono"
-                dir="ltr"
-              />
+            {/* Referral Copy */}
+            <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-2 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
+            }`}>
+              <div className="min-w-0">
+                <span className="text-xs font-bold block">{isRtl ? 'لینک دعوت دوستان (+۱,۰۰۰ سکه)' : 'Referral Link'}</span>
+                <span className={`text-[10px] truncate block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  https://t.me/chazha_bot?start=ref_{cloudState.currentUser?.id || 'vip'}
+                </span>
+              </div>
               <button
-                onClick={handleDecryptAndImport}
-                className="px-4 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl shadow-md hover:opacity-90"
+                onClick={() => {
+                  soundEngine.playTap?.();
+                  haptics.tap?.();
+                  navigator.clipboard?.writeText(`https://t.me/chazha_bot?start=ref_${cloudState.currentUser?.id || 'vip'}`);
+                  setCopiedReferral(true);
+                  setTimeout(() => setCopiedReferral(false), 2500);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                  copiedReferral
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-purple-600 hover:bg-purple-500 text-white'
+                }`}
               >
-                {isRtl ? 'رمزگشایی و بازیابی' : 'Decrypt'}
+                {copiedReferral ? (isRtl ? 'کپی شد!' : 'Copied!') : (isRtl ? 'کپی لینک' : 'Copy')}
               </button>
             </div>
           </div>
-        )}
 
-        {importStatus && (
-          <p className="text-xs text-center mt-3 font-semibold text-[var(--accent)]">
-            {importStatus}
-          </p>
-        )}
-      </div>
+          {/* Cloud Account Sync Card */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Cloud size={18} className="text-purple-500" />
+                <h3 className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {isRtl ? 'حساب ابری و همگام‌سازی چنددستگاهی' : 'Cloud Sync & Multi-Device'}
+                </h3>
+              </div>
 
-      {/* SECTION 6: PWA INSTALLATION & MULTI-DEVICE SUPPORT */}
-      <div className="glass-card p-6 rounded-3xl border border-[var(--border)]">
-        <h3 className="text-base font-bold mb-2 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <span>📲</span>
-          {isRtl ? 'وضعیت نصب و پشتیبانی چنددستگاهی (PWA)' : 'PWA App Installation'}
-        </h3>
-        
-        {isInstalled ? (
-          <div className="p-4 rounded-2xl bg-[var(--success)]/10 border border-[var(--success)]/30 flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-[var(--success)] text-white flex items-center justify-center flex-shrink-0">
-              <CheckCircle size={22} />
+              <button
+                onClick={() => setIsCloudModalOpen(true)}
+                className="px-3 py-1 rounded-xl bg-purple-600 text-white font-bold text-xs shadow-sm hover:bg-purple-500 transition-all"
+              >
+                {cloudState.isLoggedIn ? (isRtl ? 'مدیریت حساب' : 'Manage') : (isRtl ? 'ورود / عضویت' : 'Login')}
+              </button>
             </div>
-            <div>
-              <p className="text-sm font-bold text-[var(--success)]">
-                {isRtl ? 'اپلیکیشن به عنوان برنامه مستقل نصب شده است' : 'Life OS is installed as a Standalone App'}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                {isRtl ? 'تمام امکانات به صورت کاملاً آفلاین و پرسرعت فعال است.' : 'All features work 100% offline at native speed.'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
-              {isRtl
-                ? 'این وب‌اپلیکیشن به صورت PWA استاندارد طراحی شده و بدون نیاز به دانلود از استورها، مستقیماً روی اندروید، آیفون (iOS)، دسکتاپ و تلویزیون هوشمند نصب و کاملاً آفلاین کار می‌کند.'
-                : 'Life OS is a full Progressive Web App that works 100% offline and installs natively on Android, iOS, Desktop & Android TV.'}
+
+            <p className={`text-xs mb-3 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              {cloudState.isLoggedIn 
+                ? (isRtl ? `متصل به حساب: @${cloudState.currentUser?.username || 'کاربر'} (رمزنگاری سرتاسری)` : `Connected: @${cloudState.currentUser?.username}`)
+                : (isRtl ? 'امکان ورود ابری برای بازی با یک اکانت در موبایل، کامپیوتر و چند تلگرام' : 'Sync your games and coins across all your devices.')}
             </p>
-
-            <button
-              onClick={handleInstallApp}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-indigo-600 text-white text-xs font-bold shadow-lg hover:opacity-95 active:scale-98 transition-all flex items-center justify-center gap-2 mb-4"
-            >
-              <Download size={18} />
-              <span>{isRtl ? 'نصب مستقیم اپلیکیشن روی دستگاه' : 'Install Life OS App'}</span>
-            </button>
-          </>
-        )}
-
-        {/* Device Guide Badges */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center gap-2.5">
-            <Smartphone size={18} className="text-[#10b981]" />
-            <div className="text-[11px]">
-              <span className="font-bold block" style={{ color: 'var(--text-primary)' }}>Android & iOS</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">
-                {isRtl ? 'افزودن به صفحه اصلی' : 'Add to Home Screen'}
-              </span>
-            </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center gap-2.5">
-            <Laptop size={18} className="text-[#6366f1]" />
-            <div className="text-[11px]">
-              <span className="font-bold block" style={{ color: 'var(--text-primary)' }}>Windows & Mac</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">
-                {isRtl ? 'نصب مستقل با کروم/اج' : 'Desktop Standalone'}
-              </span>
-            </div>
-          </div>
+          {/* Backup & Export/Import */}
+          <div className={`p-5 rounded-3xl border shadow-sm ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-white/10'
+          }`}>
+            <h3 className={`text-sm font-black mb-3 flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <Download size={16} className="text-purple-500" />
+              <span>{isRtl ? 'پشتیبان‌گیری از داده‌ها (Backup / Restore)' : 'Data Backup & Restore'}</span>
+            </h3>
 
-          <div className="p-3 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center gap-2.5">
-            <Tv size={18} className="text-[#eab308]" />
-            <div className="text-[11px]">
-              <span className="font-bold block" style={{ color: 'var(--text-primary)' }}>Android TV</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">
-                {isRtl ? 'پشتیبانی از ریموت کنترل' : 'Remote D-Pad Ready'}
-              </span>
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                onClick={handleExportData}
+                className="flex-1 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Download size={15} />
+                <span>{exportSuccess ? (isRtl ? '✓ ذخیره شد' : '✓ Saved') : (isRtl ? 'دانلود فایل پشتیبان (JSON)' : 'Export Backup')}</span>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex-1 py-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  isLight ? 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200' : 'bg-white/10 border-white/15 text-white hover:bg-white/15'
+                }`}
+              >
+                <Upload size={15} />
+                <span>{isRtl ? 'بازیابی از فایل (Import)' : 'Import Backup'}</span>
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.enc,.txt"
+                onChange={handleImportFile}
+                className="hidden"
+              />
             </div>
+
+            {importStatus && (
+              <p className="text-xs text-center mt-3 font-semibold text-purple-500">
+                {importStatus}
+              </p>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Bottom info */}
-      <div className="text-center text-[10px] text-[var(--text-secondary)] py-2">
-        Life OS v2.0 • سیستم عامل جامع مدیریت زندگی • ساخته‌شده با عشق و تفکر عمیق 💜
-      </div>
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      {/* AVATAR SELECTION MODAL                                             */}
+      {/* ─────────────────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showAvatarModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`w-full max-w-sm p-5 rounded-3xl border shadow-2xl space-y-4 ${
+                isLight ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900 text-white border-white/15'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black flex items-center gap-2">
+                  <span>🖼️</span>
+                  <span>{isRtl ? 'انتخاب تصویر و آواتار پروفایل' : 'Choose Profile Avatar'}</span>
+                </h3>
+                <button
+                  onClick={() => setShowAvatarModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Upload Custom Photo Button */}
+              <div>
+                <input
+                  ref={avatarFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => avatarFileInputRef.current?.click()}
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs shadow-md hover:opacity-90 active:scale-98 transition-all flex items-center justify-center gap-2"
+                >
+                  <Camera size={16} />
+                  <span>{isRtl ? '📷 بارگذاری عکس از گالری گوشی' : '📷 Upload Photo from Device'}</span>
+                </button>
+              </div>
+
+              {/* Preset Avatar Grid */}
+              <div>
+                <span className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  {isRtl ? 'یا یکی از آواتارهای اختصاصی گیمری را انتخاب کنید:' : 'Or choose a preset gamer avatar:'}
+                </span>
+
+                <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1">
+                  {PRESET_AVATARS.map(avatar => {
+                    const isSelected = avatarUrl === avatar.icon;
+                    return (
+                      <button
+                        key={avatar.id}
+                        onClick={() => {
+                          soundEngine.playTap?.();
+                          haptics.tap?.();
+                          setAvatarUrl(avatar.icon);
+                          setUserProfile({ avatar: avatar.icon });
+                          localStorage.setItem('life_os_user_avatar', avatar.icon);
+                          setShowAvatarModal(false);
+                          setSaveMessage(isRtl ? '✓ آواتار تغییر یافت!' : '✓ Avatar updated!');
+                          setTimeout(() => setSaveMessage(''), 2500);
+                        }}
+                        className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 transition-all active:scale-90 ${
+                          isSelected
+                            ? 'border-amber-400 bg-amber-400/20 ring-2 ring-amber-400/50 shadow-md scale-105'
+                            : (isLight ? 'border-slate-200 bg-slate-50 hover:bg-slate-100' : 'border-white/10 bg-white/5 hover:bg-white/10')
+                        }`}
+                      >
+                        <span className="text-2xl">{avatar.icon}</span>
+                        <span className="text-[9px] font-bold truncate max-w-full">
+                          {avatar.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowAvatarModal(false)}
+                className={`w-full py-2.5 rounded-2xl border text-xs font-bold transition-all ${
+                  isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-white/10 text-slate-300 hover:bg-white/10'
+                }`}
+              >
+                {isRtl ? 'انصراف و بستن' : 'Cancel'}
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Coin Shop Modal */}
+      <CoinShopModal
+        isOpen={isShopModalOpen}
+        onClose={() => setIsShopModalOpen(false)}
+      />
 
       {/* Install Guide Modal */}
       <InstallGuideModal
@@ -885,7 +1149,7 @@ export default function Settings() {
         onClose={() => setIsInstallModalOpen(false)}
       />
 
-      {/* Cloud Auth & Multi-Device Sync Modal */}
+      {/* Cloud Auth Modal */}
       <CloudAuthModal
         isOpen={isCloudModalOpen}
         onClose={() => setIsCloudModalOpen(false)}

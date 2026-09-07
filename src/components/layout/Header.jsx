@@ -16,40 +16,6 @@ export default function Header() {
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
   const appMode = useAppMode();
 
-  const currentPath = location.pathname;
-  // Hide global Header on all /games routes to prevent duplicate headers in Mini App
-  if (currentPath.startsWith('/games')) {
-    return null;
-  }
-
-  let isRoot = currentPath === '/' || currentPath === '/welcome';
-  if (appMode === 'chazha') isRoot = currentPath === '/games';
-  if (appMode === 'whoza') isRoot = currentPath === '/chat' || currentPath === '/chat-rooms';
-
-  let brandTitle = isRtl ? 'زنوسلایف' : 'ZenOsLife';
-  let homePath = '/';
-  if (appMode === 'chazha') {
-    brandTitle = isRtl ? 'چاژا 🎮' : 'CHAZHA 🎮';
-    homePath = '/games';
-  } else if (appMode === 'whoza') {
-    brandTitle = isRtl ? 'حُذا 💬' : 'WHOZA 💬';
-    homePath = '/chat';
-  }
-
-  const handleForceUpdate = async () => {
-    haptics.success?.();
-    soundEngine.playLevelUp?.();
-    if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-    if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
-    }
-    window.location.replace(window.location.origin + window.location.pathname + '?v=' + Date.now() + window.location.hash);
-  };
-
   // PWA Install State
   const [isInstalled, setIsInstalled] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -87,6 +53,40 @@ export default function Header() {
       }
     };
   }, []);
+
+  const currentPath = location.pathname;
+  // Hide global Header on all /games routes to prevent duplicate headers in Mini App
+  if (currentPath.startsWith('/games')) {
+    return null;
+  }
+
+  let isRoot = currentPath === '/' || currentPath === '/welcome';
+  if (appMode === 'chazha') isRoot = currentPath === '/games';
+  if (appMode === 'whoza') isRoot = currentPath === '/chat' || currentPath === '/chat-rooms';
+
+  let brandTitle = isRtl ? 'زنوسلایف' : 'ZenOsLife';
+  let homePath = '/';
+  if (appMode === 'chazha') {
+    brandTitle = isRtl ? 'چاژا 🎮' : 'CHAZHA 🎮';
+    homePath = '/games';
+  } else if (appMode === 'whoza') {
+    brandTitle = isRtl ? 'حُذا 💬' : 'WHOZA 💬';
+    homePath = '/chat';
+  }
+
+  const handleForceUpdate = async () => {
+    haptics.success?.();
+    soundEngine.playLevelUp?.();
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    window.location.replace(window.location.origin + window.location.pathname + '?v=' + Date.now() + window.location.hash);
+  };
 
   const handleBack = () => {
     haptics.tap?.();
