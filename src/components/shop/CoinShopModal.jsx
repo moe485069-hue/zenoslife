@@ -77,10 +77,18 @@ export default function CoinShopModal({ isOpen, onClose }) {
     soundEngine.playTap?.();
     haptics.impact?.();
 
-    if (window.Telegram?.WebApp?.openInvoice && paymentMethod === 'stars') {
+    const tg = window.Telegram?.WebApp;
+    if (paymentMethod === 'stars' && tg) {
       try {
-        window.Telegram.WebApp.HapticFeedback?.notificationOccurred('success');
+        tg.HapticFeedback?.notificationOccurred('success');
       } catch (_) {}
+
+      if (tg.openTelegramLink) {
+        tg.openTelegramLink(`https://t.me/chazha_bot?start=buy_${selectedPack.id}`);
+        setIsProcessing(false);
+        onClose();
+        return;
+      }
     }
 
     setTimeout(() => {
@@ -92,7 +100,7 @@ export default function CoinShopModal({ isOpen, onClose }) {
       }
       setShowSuccess(true);
       soundEngine.playLevelUp?.();
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -121,7 +129,7 @@ export default function CoinShopModal({ isOpen, onClose }) {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white flex items-center gap-1.5">
-                    <span>{isRtl ? 'فروشگاه سکه و الماس زنوسلایف' : 'ZenOsLife Coin & Diamond Shop'}</span>
+                    <span>{isRtl ? 'خرید سکه و اشتراک VIP چاژا 👑' : 'Chazha Coins & VIP Shop 👑'}</span>
                   </h3>
                   <p className="text-[11px] text-amber-300 font-bold">
                     {isRtl ? `موجودی فعلی شما: ${(coins || 0).toLocaleString()} 🪙` : `Current Balance: ${(coins || 0).toLocaleString()} 🪙`}

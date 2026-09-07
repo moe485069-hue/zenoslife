@@ -127,14 +127,10 @@ function getMainReplyKeyboard(lang = 'fa') {
   const isEn = lang === 'en';
   return {
     keyboard: [
-      // Row 1: Big prominent button
-      [{ text: isEn ? '🎮 Play Games & Tournaments 🚀' : '🎮 ورود به سالن بازی‌ها و مسابقات 🚀' }],
-      // Row 2: 3 clean buttons
-      [
-        { text: isEn ? '💎 Wallet & Stars ⭐' : '💎 کیف‌پول و استارز ⭐' },
-        { text: isEn ? '👤 My Profile' : '👤 پروفایل من' },
-        { text: isEn ? '⚙️ Settings' : '⚙️ تنظیمات' }
-      ]
+      [{
+        text: isEn ? '🎮 Play Games (Launch Mini App) 🚀' : '🎮 ورود به بازی‌ها و مسابقات چاژا 🚀',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
+      }]
     ],
     resize_keyboard: true
   };
@@ -158,59 +154,34 @@ async function sendGamesDashboard(chatId, userId) {
   }
 
   const caption = isEn
-    ? `🎮 <b>Chazha Arcade & Plato Social Gaming</b> 🏆\n\n` +
-      `┌ 👤 <b>Player:</b> ${user.name || 'Chazha Player'}\n` +
-      `├ 🏆 <b>Rank:</b> Level ${user.level || 1}  •  ⚡ <b>XP:</b> ${(user.xp || 0).toLocaleString()}\n` +
-      `├ 🪙 <b>Coins:</b> ${(user.coins || 0).toLocaleString()} Coins\n` +
-      `└ 👑 <b>Status:</b> ${user.is_vip ? 'Active Royal VIP ⭐' : 'Standard Member'}\n\n` +
-      `🔥 <i>Play live online, throw animated tomatoes & bombs at opponents, and win Telegram Stars!</i>`
-    : `🎮 <b>کنسول بازی‌ها و دوئل‌های آنلاین چاژا (سبک پلاتو)</b> 🏆\n\n` +
-      `┌ 👤 <b>بازیکن:</b> ${user.name || 'کاربر چاژا'}\n` +
-      `├ 🏆 <b>سطح گیمر:</b> لول ${user.level || 1}  •  ⚡ <b>تجربه:</b> ${(user.xp || 0).toLocaleString()} XP\n` +
-      `├ 🪙 <b>موجودی:</b> ${(user.coins || 0).toLocaleString()} سکه طلا\n` +
-      `└ 👑 <b>وضعیت حساب:</b> ${user.is_vip ? 'VIP طلایی فعال ⭐' : 'کاربر عادی'}\n\n` +
-      `🔥 <i>وارد سالن بازی‌ها بشید، با پرتاب گوجه و بمب کل‌کل کنید و سکه ببرید:</i>`;
+    ? `🎮 <b>ChaZha • Telegram Multiplayer Gaming Club</b> 👑\n\n` +
+      `Welcome <b>${user.name || 'Player'}</b>!\n` +
+      `Play authentic Persian card & board games live with friends across Telegram:\n\n` +
+      `🃏 <b>Featured Games:</b> Hokm 4P • Backgammon • Ludo • Pasur • Snooker 3D\n` +
+      `🪙 <b>Your Balance:</b> ${(user.coins || 0).toLocaleString()} Coins  •  Level ${user.level || 1} ${user.is_vip ? '👑 VIP' : ''}\n\n` +
+      `🔥 <i>Compete live, place wagers, and win Telegram Stars!</i>`
+    : `🎮 <b>چاژا | کلاب بازی‌های چندنفره و دورهمی تلگرام</b> 👑\n\n` +
+      `سلام <b>${user.name || 'کاربر چاژا'}</b> عزیز، خوش اومدی!\n` +
+      `بزرگترین کلوپ بازی‌های دورهمی آنلاین در تلگرام:\n\n` +
+      `🃏 <b>بازی‌های برتر:</b> حکم ۴ نفره • تخته نرد • منچ دورهمی • پاسور • اسنوکر ۳D\n` +
+      `🪙 <b>موجودی شما:</b> ${(user.coins || 0).toLocaleString()} سکه طلا  •  سطح ${user.level || 1} ${user.is_vip ? '👑 VIP' : ''}\n\n` +
+      `🔥 <i>با حریفان آنلاین سراسر کشور رقابت کن، شرط ببند و استارز ببر:</i>`;
 
   const keyboard = [
-    // 1. BIG MAIN MINI APP PLAY BUTTON
+    // 1. BIG HERO PLAY BUTTON (Direct into the Games Hub)
     [{
-      text: isEn ? '🚀 Play Now • Enter Games Lounge 🎮' : '🚀 ورود مستقیم به سالن بازی‌ها (Play Now) 🎮',
-      web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` }
+      text: isEn ? '🚀 Play Now • Launch Chazha 🎮' : '🚀 شروع بازی و ورود به چاژا (Play Now) 🎮',
+      web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
     }],
-    // 2. Plato Tournaments & Daily Missions
+    // 2. Tournaments & Daily Lucky Chest
     [
-      { text: isEn ? '🏆 Tournaments & Cups 👑' : '🏆 لیگ‌ها و جام‌های قهرمانی 👑', callback_data: 'menu_tournaments' },
-      { text: isEn ? '🎯 Daily Missions 🎁' : '🎯 ماموریت‌های روزانه 🎁', callback_data: 'menu_missions' }
+      { text: isEn ? '🏆 Tournaments & Cups 👑' : '🏆 جام‌ها و لیگ‌های هفتگی 👑', callback_data: 'menu_tournaments' },
+      { text: isEn ? '🎁 Daily Lucky Chest 🪙' : '🎁 صندوقچه شانس روزانه 🪙', callback_data: 'open_mystery_chest' }
     ],
-    // 3. Staked Duels & Plato Weapons
+    // 3. Referral & Stars Shop
     [
-      { text: isEn ? '⚔️ Custom Staked Duels' : '⚔️ ساخت میز شرط‌بندی 💰', callback_data: 'setup_stakes_menu' },
-      { text: isEn ? '🍅 Weapons & Items 💣' : '🍅 زرادخانه اقلام پلاتو 💣', callback_data: 'menu_weapons' }
-    ],
-    // 4. Top Games
-    [
-      { text: isEn ? '🂡 Hokm 4-Player' : '🂡 حکم ۴ نفره آنلاین', callback_data: 'launch_hokm_card' },
-      { text: isEn ? '🪵 Backgammon' : '🪵 تخته‌نرد شاهانه', callback_data: 'launch_backgammon_card' }
-    ],
-    [
-      { text: isEn ? '🎲 Ludo Party' : '🎲 منچ دورهمی شاد', callback_data: 'launch_ludo_card' },
-      { text: isEn ? '🃏 Pasur 4-Barg' : '🃏 پاسور چهاربرگ', callback_data: 'launch_pasur_card' }
-    ],
-    [
-      { text: isEn ? '🎱 Royal Snooker 3D' : '🎱 اسنوکر و بیلیارد ۳D', callback_data: 'launch_snooker_card' },
-      { text: isEn ? '🎯 All 15+ Games' : '🎯 کاتالوگ همه بازی‌ها', callback_data: 'menu_all_games' }
-    ],
-    // 5. Mini Games & Lucky Mystery Chest
-    [
-      { text: isEn ? '🎁 Mystery Chest' : '🎁 صندوقچه شانس', callback_data: 'open_mystery_chest' },
-      { text: isEn ? '🎡 Lucky Wheel' : '🎡 گردونه شانس', callback_data: 'spin_wheel_action' },
-      { text: isEn ? '🧠 Trivia Quiz' : '🧠 مسابقه کوئیز', callback_data: 'play_trivia_quiz' }
-    ],
-    // 6. Finance & Growth
-    [
-      { text: isEn ? '💎 Wallet & Stars ⭐' : '💎 کیف‌پول و استارز ⭐', callback_data: 'nav_wallet' },
-      { text: isEn ? '🏆 Leaderboard' : '🏆 رتبه‌بندی', callback_data: 'view_leaderboard' },
-      { text: isEn ? '👥 Free Coins' : '👥 سکه رایگان (دعوت)', callback_data: 'show_referral' }
+      { text: isEn ? '👥 Invite Friends (+1000 Coins)' : '👥 دعوت دوستان (+۱,۰۰۰ سکه هدیه)', callback_data: 'show_referral' },
+      { text: isEn ? '💎 Buy Coins & VIP ⭐' : '💎 خرید سکه و VIP (استارز ⭐)', callback_data: 'nav_wallet' }
     ]
   ];
 
@@ -302,8 +273,8 @@ async function sendAllGamesMenu(chatId, userId) {
 
   const keyboard = [
     [{
-      text: isEn ? '🎪 Open Plato Lounge & Chat 💬' : '🎪 ورود به سالن اصلی و اتاق‌های بازی (Lounge) 💬',
-      web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge` }
+      text: isEn ? '🚀 Open Chazha Games Arcade 🎮' : '🚀 ورود به آرکید و کاتالوگ بازی‌ها (Play) 🎮',
+      web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
     }],
     [
       { text: '🂡 حکم ۴ نفره', callback_data: 'launch_hokm_card' },
@@ -568,6 +539,26 @@ async function onMessage(msg) {
     }
   }
 
+  // Handle Direct Purchase Invoices from Mini App (/start buy_<pkgKey>)
+  if (text.startsWith('/start buy_') || text.startsWith('/start pay_')) {
+    const pkg = text.replace('/start buy_', '').replace('/start pay_', '').trim();
+    if (pkg.includes('vip')) {
+      return sendInvoiceForVip(BOT_TOKEN, chatId, userId, 30);
+    }
+    const pkgMap = {
+      'pack_starter': 'bronze',
+      'pack_popular': 'silver',
+      'pack_gold': 'global',
+      'pack_legendary': 'vip',
+      'bronze': 'bronze',
+      'silver': 'silver',
+      'global': 'global',
+      'vip': 'vip'
+    };
+    const key = pkgMap[pkg] || 'silver';
+    return sendInvoiceForPackage(BOT_TOKEN, chatId, userId, key);
+  }
+
   // Handle Friend Request link from In-Game Profile (/start friend_<senderId>)
   if (text.startsWith('/start friend_')) {
     const targetFriendId = text.replace('/start friend_', '').trim();
@@ -732,16 +723,21 @@ async function onMessage(msg) {
   }
 
   // 2. Wallet & Coins Hub
-  if (text.includes('کیف‌پول') || text.includes('Wallet') || text === '/wallet') {
+  if (text.includes('کیف‌پول') || text.includes('Wallet') || text.includes('خرید سکه') || text.includes('استارز') || text === '/wallet') {
     return sendWalletMenu(chatId, userId);
   }
 
-  // 3. Player Profile Hub
-  if (text === '👤 پروفایل من' || text === '👤 My Profile' || text === '/profile' || text === '/me') {
+  // 3. Tournaments & Leagues
+  if (text.includes('مسابقات') || text.includes('لیگ‌ها') || text.includes('تورنمنت') || text.includes('Tournaments') || text === '/tournaments') {
+    return sendTournamentsMenu(BOT_TOKEN, chatId, userId);
+  }
+
+  // 4. Player Profile Hub
+  if (text.includes('پروفایل') || text.includes('Profile') || text.includes('آمار') || text === '/profile' || text === '/me') {
     return sendProfileMenu(chatId, userId);
   }
 
-  // 4. Settings Hub
+  // 5. Settings Hub
   if (text === '⚙️ تنظیمات' || text === '⚙️ Settings' || text === '/settings') {
     return sendSettingsMenu(chatId, userId);
   }
@@ -821,11 +817,6 @@ async function onMessage(msg) {
   }
 
   if (text.startsWith('/start') || text === '🔙 بازگشت به منوی اصلی' || text === '🔙 بازگشت') {
-    callTgApi(BOT_TOKEN, 'sendMessage', {
-      chat_id: chatId,
-      text: '🎮 کنسول بازی‌ها و کیبورد سریع چاژا فعال است.',
-      reply_markup: getMainReplyKeyboard(getUser(userId).lang)
-    }).catch(() => {});
     return sendGamesDashboard(chatId, userId);
   }
 
@@ -1522,8 +1513,8 @@ const runner = new TelegramBotRunner('Chazha Games Bot', BOT_TOKEN, {
 async function start() {
   await runner.init({
     menuButton: {
-      text: '🎮 سالن بازی‌های چاژا (Plato)',
-      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games/lounge`
+      text: '🎮 بازی کن (Play)',
+      url: `${CONFIG.WEBAPP_URL}?app=chazha#/games`
     },
     commands: [
       { command: 'start', description: '🚀 کنسول بازی‌های چاژا' },

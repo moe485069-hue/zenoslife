@@ -497,66 +497,48 @@ function LiveRoomCard({ room, onJoin, isRtl }) {
 
 export const TOP_GAME_IDS = ['hokm', 'backgammon', 'ludo', 'pasur', 'snooker', 'air_hockey'];
 
-// Clean, modern Plato-style Game Card (Zero Clutter)
+// Clean, modern Plato-style Game Card (Zero Clutter, App-Store Tile)
 function GameCard({ game, theme, isRtl, onGameClick }) {
   const liveCount = Math.floor(Math.random() * 80) + 20;
   return (
     <motion.div
-      whileHover={{ y: -3, scale: 1.01 }}
-      whileTap={{ scale: 0.97 }}
+      whileHover={{ y: -3, scale: 1.02 }}
+      whileTap={{ scale: 0.95 }}
       onClick={() => onGameClick(game)}
-      className={`p-3.5 sm:p-4 rounded-3xl cursor-pointer border ${
-        theme === 'light' 
-          ? 'bg-white border-slate-200 shadow-md hover:shadow-xl' 
-          : 'bg-gradient-to-br ' + game.color + ' shadow-lg hover:shadow-2xl'
-      } backdrop-blur-xl flex flex-col justify-between space-y-3 transition-all group relative overflow-hidden`}
+      className="p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl cursor-pointer border border-white/10 hover:border-purple-400/60 bg-gradient-to-b from-slate-900/90 via-slate-900/70 to-slate-950/90 backdrop-blur-xl flex flex-col justify-between aspect-[1/1.1] sm:aspect-[1/1] transition-all group relative overflow-hidden shadow-lg hover:shadow-purple-500/20"
     >
+      {/* Ambient background glow */}
+      <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full bg-gradient-to-br ${game.color} blur-2xl opacity-40 group-hover:opacity-80 transition-opacity pointer-events-none`} />
+
       {/* Top badges: Level & Live count */}
-      <div className="flex items-center justify-between relative z-10">
-        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
-          theme === 'light' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-black/40 text-slate-200 border-white/10'
-        }`}>
+      <div className="flex items-center justify-between relative z-10 w-full">
+        <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-black/40 text-slate-200 border border-white/10 truncate max-w-[75px]">
           {isRtl ? game.levelFa : game.levelEn}
         </span>
-        <div className="flex items-center gap-1 bg-red-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-          <span>{liveCount} {isRtl ? 'آنلاین' : 'Live'}</span>
+        <div className="flex items-center gap-1 bg-black/50 text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-emerald-500/30">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          <span>{liveCount}</span>
         </div>
       </div>
 
-      {/* Center: Emoji & Title */}
-      <div className="flex items-center gap-3 relative z-10">
-        <span className={`text-3xl sm:text-4xl p-2.5 rounded-2xl shrink-0 ${
-          theme === 'light' ? 'bg-slate-100 border-slate-200 shadow-sm' : 'bg-black/40 border-white/10 shadow-inner'
-        } group-hover:scale-110 transition-transform`}>
+      {/* Center: Emoji in luminous bubble & Title */}
+      <div className="flex flex-col items-center justify-center my-auto py-1 relative z-10 text-center">
+        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${game.color} border border-white/15 flex items-center justify-center text-3xl sm:text-4xl shadow-inner group-hover:scale-110 transition-transform mb-1.5`}>
           {game.icon}
-        </span>
-        <div className="min-w-0">
-          <h3 className={`text-xs sm:text-sm font-black truncate transition-colors ${
-            theme === 'light' ? 'text-slate-900 group-hover:text-purple-600' : 'text-white group-hover:' + game.accentColor
-          }`}>
-            {isRtl ? game.titleFa : game.titleEn}
-          </h3>
-          <p className={`text-[10px] sm:text-[11px] mt-0.5 line-clamp-1 ${
-            theme === 'light' ? 'text-slate-500' : 'text-slate-300/80'
-          }`}>
-            {isRtl ? game.descFa : game.descEn}
-          </p>
         </div>
+        <h3 className="text-xs sm:text-sm font-black text-white text-center truncate max-w-full px-1 group-hover:text-amber-300 transition-colors">
+          {isRtl ? game.titleFa : game.titleEn}
+        </h3>
       </div>
 
-      {/* Bottom info bar */}
-      <div className={`flex items-center justify-between pt-2 border-t text-[10px] z-10 relative mt-auto ${
-        theme === 'light' ? 'border-slate-200' : 'border-white/10'
-      }`}>
-        <span className={`font-bold flex items-center gap-1 ${
-          theme === 'light' ? 'text-slate-500' : 'text-slate-400'
-        }`}>
-          <Users size={11} />
+      {/* Bottom info bar: Players + Play CTA */}
+      <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[10px] sm:text-[11px] z-10 relative mt-auto w-full">
+        <span className="font-bold text-slate-400 flex items-center gap-1">
+          <Users size={11} className="text-purple-400" />
           <span>{game.maxPlayers > 1 ? (isRtl ? `${game.maxPlayers} نفره` : `${game.maxPlayers}P`) : (isRtl ? 'تک‌نفره' : 'Solo')}</span>
         </span>
-        <span className="text-amber-400 font-black flex items-center gap-1 group-hover:translate-x-[-2px] transition-transform">
-          <span>{isRtl ? 'شروع' : 'Play'}</span>
+        <span className="text-amber-400 font-black flex items-center gap-0.5 group-hover:translate-x-[-2px] transition-transform">
+          <span>{isRtl ? 'بازی' : 'Play'}</span>
           <Play size={10} className="fill-amber-400" />
         </span>
       </div>
@@ -1143,229 +1125,178 @@ export default function Games() {
               </div>
               <div className="flex items-center gap-1 mt-0.5 text-[10px] text-emerald-500 dark:text-emerald-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                <span>{isRtl ? 'پروفایل چاژا 👤' : 'Online Profile 👤'}</span>
+                <span>{isRtl ? 'پروفایل گیمر 👤' : 'Gamer Profile 👤'}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Action Badges */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Theme Toggle */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className={`p-2 rounded-2xl border text-xs font-black shadow-sm active:scale-95 transition-all ${theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-white/10 border-white/20 text-slate-200'}`}
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
-
+          <div className="flex items-center gap-2 shrink-0">
             {/* Tournaments */}
             <button
               onClick={() => { setShowTournamentsModal(true); soundEngine.playTap?.(); }}
-              className={`p-2 px-2.5 rounded-2xl border text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all ${theme === 'light' ? 'bg-amber-100 border-amber-300 text-amber-700' : 'bg-amber-500/15 border-amber-400/40 text-amber-300 hover:bg-amber-500/25'}`}
+              className="p-2 px-2.5 rounded-2xl border text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition-all bg-amber-500/15 border-amber-400/40 text-amber-300 hover:bg-amber-500/25 cursor-pointer"
               title={isRtl ? 'جام قهرمانان و تورنمنت‌ها' : 'Tournaments'}
             >
-              <Trophy size={14} className={theme === 'light' ? 'text-amber-600' : 'text-yellow-400'} />
-              <span className="hidden xs:inline">{isRtl ? 'تورنمنت' : 'Tourneys'}</span>
+              <Trophy size={15} className="text-yellow-400" />
+              <span className="hidden xs:inline">{isRtl ? 'تورنمنت' : 'Cups'}</span>
             </button>
 
             {/* Coin Shop Balance (Direct Store Trigger) */}
             <button
               onClick={() => { setShowShopModal(true); soundEngine.playTap?.(); }}
-              className="p-2 px-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-xs font-black flex items-center gap-1 shadow-lg shadow-yellow-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
-              title={isRtl ? 'فروشگاه سکه، بنرها و آیتم‌ها' : 'Coins & Items Shop'}
+              className="p-2 px-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-lg shadow-yellow-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              title={isRtl ? 'خرید سکه با ستاره‌های تلگرام (Stars)' : 'Buy Coins with Stars'}
             >
-              <Coins size={14} />
+              <Coins size={15} />
               <span>{(coins || 0).toLocaleString()}</span>
+              <span className="w-4 h-4 rounded-full bg-slate-950/20 text-slate-950 flex items-center justify-center text-[10px] font-black">+</span>
             </button>
           </div>
         </div>
 
-        {/* Single Spotlight Hero Card - Plato / Apple Arcade Style */}
-        <div className="relative overflow-hidden rounded-3xl p-4 sm:p-5 border border-amber-500/30 bg-gradient-to-br from-[#1e110a] via-[#160c1d] to-[#0d0714] shadow-2xl">
-          {/* Subtle glowing accents */}
-          <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Sleek Compact Spotlight Banner - Plato / Apple Arcade Style */}
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 border border-amber-500/35 bg-gradient-to-r from-[#221206] via-[#1a0d24] to-[#090412] shadow-xl">
+          <div className="absolute -top-10 -right-10 w-36 h-36 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-3xl shadow-lg shadow-amber-500/25 shrink-0 border border-amber-300/40">
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/25 shrink-0 border border-amber-300/40">
                 👑
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black flex items-center gap-1">
-                    <Crown size={11} /> {isRtl ? 'بازی برگزیده هفته' : 'Featured Game'}
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="px-2 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black">
+                    {isRtl ? 'برگزیده هفته' : 'Featured'}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
-                    {isRtl ? 'آنلاین ۴ نفره ⚡' : 'Online 4P ⚡'}
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[9px] font-bold">
+                    ⚡ {isRtl ? 'آنلاین ۴ نفره' : 'Online 4P'}
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300">
+                <h2 className="text-sm sm:text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-100 truncate">
                   {isRtl ? 'حکم ۴ نفره شاهانه و مسابقات' : 'Royal 4-Player Hokm Cup'}
                 </h2>
-                <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">
-                  {isRtl ? 'رقابت دورهمی با حریفان زنده سراسر ایران با جوایز سکه 🪙' : 'Play live with players across Iran, bet and win coins!'}
+                <p className="text-[10px] sm:text-xs text-slate-300 truncate">
+                  {isRtl ? 'رقابت آنلاین با حریفان زنده سراسر ایران با جوایز سکه 🪙' : 'Play live with players across Iran, win coins!'}
                 </p>
               </div>
             </div>
 
-            {/* Quick Action CTAs */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
                   const hokmDef = GAME_DEFS.find(g => g.id === 'hokm');
                   if (hokmDef) handleGameClick(hokmDef);
                 }}
-                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-lg shadow-amber-500/20 hover:brightness-110 transition-all flex items-center gap-1 cursor-pointer"
               >
-                <Zap size={14} className="fill-slate-950" />
-                <span>{isRtl ? 'شروع بازی' : 'Play Now'}</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  soundEngine.playTap?.();
-                  navigate('/games/lounge');
-                }}
-                className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-black text-xs active:scale-95 border border-white/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                title={isRtl ? 'سالن بازی‌ها و گپ‌وگفت' : 'Lounge'}
-              >
-                <span>🎪</span>
-                <span>{isRtl ? 'سالن زنده' : 'Lounge'}</span>
+                <Zap size={13} className="fill-slate-950" />
+                <span>{isRtl ? 'شروع' : 'Play'}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* 3-Tab Segmented Control */}
-        <div className="flex p-1 rounded-2xl bg-slate-900/90 border border-white/10 backdrop-blur-md gap-1 shadow-lg">
+        {/* Quick Multiplayer Actions Row */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => { setActiveTab('top'); soundEngine.playTap?.(); }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
-              activeTab === 'top'
-                ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'text-slate-400 hover:text-white'
+            onClick={() => setShowCreateModal(true)}
+            className="flex-1 py-2.5 px-3 rounded-2xl bg-gradient-to-r from-purple-600/30 via-pink-600/30 to-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 hover:border-purple-400 transition-all shadow-sm cursor-pointer"
+          >
+            <Plus size={15} className="text-purple-300" />
+            <span>{isRtl ? 'ساخت میز مسابقه آنلاین' : 'Create Online Match'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundEngine.playTap?.();
+              navigate('/games/lounge');
+            }}
+            className="py-2.5 px-3.5 rounded-2xl bg-slate-900/80 border border-white/10 text-slate-300 text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 hover:text-white hover:border-white/20 transition-all cursor-pointer"
+          >
+            <span>🎪</span>
+            <span>{isRtl ? 'سالن زنده' : 'Lounge'}</span>
+          </button>
+        </div>
+
+        {/* Category Filter Chips */}
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+          <button
+            onClick={() => { setActiveCategory('top'); soundEngine.playTap?.(); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1 transition-all border shrink-0 cursor-pointer ${
+              activeCategory === 'top'
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
             }`}
           >
             <span>🌟</span>
-            <span>{isRtl ? 'برگزیده' : 'Top Hits'}</span>
+            <span>{isRtl ? 'محبوب‌ترین‌ها' : 'Top Hits'}</span>
           </button>
 
           <button
-            onClick={() => { setActiveTab('all'); soundEngine.playTap?.(); }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
-              activeTab === 'all'
-                ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/20'
-                : 'text-slate-400 hover:text-white'
+            onClick={() => { setActiveCategory('all'); soundEngine.playTap?.(); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1 transition-all border shrink-0 cursor-pointer ${
+              activeCategory === 'all'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-400 shadow-md shadow-purple-500/25'
+                : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
             }`}
           >
-            <Gamepad2 size={14} />
-            <span>{isRtl ? `همه بازی‌ها (${GAME_DEFS.length})` : `All (${GAME_DEFS.length})`}</span>
+            <span>🎮</span>
+            <span>{isRtl ? `همه (${GAME_DEFS.length})` : `All (${GAME_DEFS.length})`}</span>
           </button>
 
+          {CATEGORIES.filter(c => c.id !== 'all').map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => { setActiveCategory(cat.id); soundEngine.playTap?.(); }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1 transition-all border shrink-0 cursor-pointer ${
+                activeCategory === cat.id
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-400 shadow-md shadow-purple-500/25'
+                  : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>{cat.icon}</span>
+              <span>{isRtl ? cat.labelFa : cat.labelEn}</span>
+            </button>
+          ))}
+
           <button
-            onClick={() => { setActiveTab('live'); soundEngine.playTap?.(); }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
-              activeTab === 'live'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white'
+            onClick={() => { setActiveCategory('live'); soundEngine.playTap?.(); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer ${
+              activeCategory === 'live'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400 shadow-md shadow-emerald-500/25'
+                : 'bg-slate-900/80 border-white/10 text-emerald-400 hover:text-emerald-300'
             }`}
           >
-            <Radio size={14} className={activeTab === 'live' ? 'animate-pulse' : ''} />
-            <span>{isRtl ? 'اتاق‌های زنده' : 'Live Rooms'}</span>
+            <Radio size={12} className={liveRooms.length > 0 ? 'animate-pulse' : ''} />
+            <span>{isRtl ? 'میزهای زنده' : 'Live'}</span>
             {liveRooms.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-400 text-slate-950 text-[9px] font-black">
                 {liveRooms.length}
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => { setActiveCategory('history'); soundEngine.playTap?.(); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1 transition-all border shrink-0 cursor-pointer ${
+              activeCategory === 'history'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-400 shadow-md'
+                : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>📜</span>
+            <span>{isRtl ? 'تاریخچه' : 'History'}</span>
+          </button>
         </div>
 
-        {/* Tab 1: Top Featured Games */}
-        {activeTab === 'top' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold text-slate-400">
-                {isRtl ? '🌟 ۶ بازی محبوب و پرطرفدار کاربران ایرانی' : '🌟 Top 6 Most Played Games'}
-              </span>
-              <button
-                onClick={() => { setActiveTab('all'); soundEngine.playTap?.(); }}
-                className="text-xs font-black text-amber-400 hover:text-amber-300 flex items-center gap-1"
-              >
-                <span>{isRtl ? 'مشاهده همه' : 'View All'}</span>
-                <ChevronLeft size={13} className={isRtl ? '' : 'rotate-180'} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {topGames.map(game => (
-                <GameCard
-                  key={game.id}
-                  game={game}
-                  theme={theme}
-                  isRtl={isRtl}
-                  onGameClick={handleGameClick}
-                />
-              ))}
-            </div>
+        {/* View Content based on Active Category */}
+        {activeCategory === 'history' ? (
+          <div className="rounded-3xl bg-slate-900/80 border border-white/10 overflow-hidden">
+            <GameHistoryPanel />
           </div>
-        )}
-
-        {/* Tab 2: All 16 Games + Categories */}
-        {activeTab === 'all' && (
-          <div className="space-y-3.5">
-            {/* Category Filter Pills */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => { setActiveCategory(cat.id); soundEngine.playTap?.(); }}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 transition-all border shrink-0 ${
-                    activeCategory === cat.id
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-400 shadow-md shadow-purple-500/25'
-                      : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{isRtl ? cat.labelFa : cat.labelEn}</span>
-                </button>
-              ))}
-              <button
-                onClick={() => { setActiveCategory('history'); soundEngine.playTap?.(); }}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap flex items-center gap-1.5 transition-all border shrink-0 ${
-                  activeCategory === 'history'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-400 shadow-md shadow-purple-500/25'
-                    : 'bg-slate-900/80 border-white/10 text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>📜</span>
-                <span>{isRtl ? 'سابقه بازی‌ها' : 'History'}</span>
-              </button>
-            </div>
-
-            {/* Games Grid or History Panel */}
-            {activeCategory === 'history' ? (
-              <div className="rounded-3xl bg-slate-900/80 border border-white/10 overflow-hidden">
-                <GameHistoryPanel />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {filteredGames.map(game => (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    theme={theme}
-                    isRtl={isRtl}
-                    onGameClick={handleGameClick}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tab 3: Live Online Rooms */}
-        {activeTab === 'live' && (
+        ) : activeCategory === 'live' ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
@@ -1378,7 +1309,7 @@ export default function Games() {
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="text-xs font-black text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                className="text-xs font-black text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={14} /> {isRtl ? 'ساخت میز جدید' : 'Create Table'}
               </button>
@@ -1400,14 +1331,14 @@ export default function Games() {
                 <div className="flex items-center justify-center gap-2 pt-1">
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-lg shadow-emerald-500/25 active:scale-95 flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-black shadow-lg shadow-emerald-500/25 active:scale-95 flex items-center gap-1.5 cursor-pointer"
                   >
                     <Plus size={14} />
                     <span>{isRtl ? 'ساخت میز مسابقه' : 'Create Table'}</span>
                   </button>
                   <button
                     onClick={() => navigate('/games/lounge')}
-                    className="px-4 py-2.5 rounded-2xl bg-white/10 text-white text-xs font-black hover:bg-white/15 active:scale-95 flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-2xl bg-white/10 text-white text-xs font-black hover:bg-white/15 active:scale-95 flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>🎪 {isRtl ? 'ورود به سالن' : 'Enter Lounge'}</span>
                   </button>
@@ -1420,6 +1351,24 @@ export default function Games() {
                 ))}
               </div>
             )}
+          </div>
+        ) : (
+          /* Sleek 2-Column / 3-Column Games Grid */
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
+            {(activeCategory === 'top'
+              ? topGames
+              : activeCategory === 'all'
+              ? GAME_DEFS
+              : GAME_DEFS.filter(g => g.category === activeCategory)
+            ).map(game => (
+              <GameCard
+                key={game.id}
+                game={game}
+                theme={theme}
+                isRtl={isRtl}
+                onGameClick={handleGameClick}
+              />
+            ))}
           </div>
         )}
 
