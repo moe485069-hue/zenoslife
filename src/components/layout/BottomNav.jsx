@@ -44,43 +44,54 @@ export default function BottomNav() {
           <div className="max-w-md mx-auto flex items-center justify-around gap-1">
             {/* Arcade Games */}
             <NavLink
-              to="/games"
-              end
+              to="/games?tab=games"
               onClick={handleNavClick}
-              className={({ isActive }) =>
-                clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
-                  isActive ? 'text-amber-400 font-black' : 'text-slate-400 hover:text-slate-200'
-                )
-              }
+              className={() => {
+                const queryTab = new URLSearchParams(location.search).get('tab');
+                const isGamesActive = location.pathname === '/games' && queryTab !== 'rooms';
+                return clsx(
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1 cursor-pointer',
+                  isGamesActive ? 'text-amber-500 font-black' : 'text-slate-400 hover:text-slate-200'
+                );
+              }}
               title={isRtl ? 'آرکید بازی‌ها' : 'Games Arcade'}
             >
-              {({ isActive }) => (
-                <>
-                  <Gamepad2 size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'بازی‌ها' : 'Games'}</span>
-                </>
-              )}
+              {() => {
+                const queryTab = new URLSearchParams(location.search).get('tab');
+                const isGamesActive = location.pathname === '/games' && queryTab !== 'rooms';
+                return (
+                  <>
+                    <Gamepad2 size={22} strokeWidth={isGamesActive ? 2.5 : 2} />
+                    <span className="text-[10px] mt-1 font-bold">{isRtl ? 'بازی‌ها' : 'Games'}</span>
+                  </>
+                );
+              }}
             </NavLink>
 
-            {/* Live Social Lounge & Chat */}
+            {/* Live Rooms & Chat Lounge */}
             <NavLink
-              to="/games/lounge"
+              to="/games?tab=rooms"
               onClick={handleNavClick}
-              className={({ isActive }) =>
-                clsx(
-                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1',
-                  isActive ? 'text-pink-400 font-black' : 'text-slate-400 hover:text-slate-200'
-                )
-              }
-              title={isRtl ? 'سالن گفتگو و بازی' : 'Live Lounge'}
+              className={() => {
+                const queryTab = new URLSearchParams(location.search).get('tab');
+                const isRoomsActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
+                return clsx(
+                  'flex flex-col items-center justify-center py-1.5 px-2 rounded-2xl transition-all flex-1 cursor-pointer',
+                  isRoomsActive ? 'text-pink-500 font-black' : 'text-slate-400 hover:text-slate-200'
+                );
+              }}
+              title={isRtl ? 'اتاق‌ها و سالن گفتگو' : 'Rooms & Lounge'}
             >
-              {({ isActive }) => (
-                <>
-                  <MessagesSquare size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span className="text-[10px] mt-1 font-bold">{isRtl ? 'سالن زنده' : 'Lounge'}</span>
-                </>
-              )}
+              {() => {
+                const queryTab = new URLSearchParams(location.search).get('tab');
+                const isRoomsActive = (location.pathname === '/games' && queryTab === 'rooms') || location.pathname === '/games/lounge';
+                return (
+                  <>
+                    <MessagesSquare size={22} strokeWidth={isRoomsActive ? 2.5 : 2} />
+                    <span className="text-[10px] mt-1 font-bold">{isRtl ? 'اتاق‌ها و چت' : 'Rooms'}</span>
+                  </>
+                );
+              }}
             </NavLink>
 
             {/* Leaderboard & Rewards */}

@@ -127,10 +127,16 @@ function getMainReplyKeyboard(lang = 'fa') {
   const isEn = lang === 'en';
   return {
     keyboard: [
-      [{
-        text: isEn ? '🎮 Play Games (Launch Mini App) 🚀' : '🎮 ورود به بازی‌ها و مسابقات چاژا 🚀',
-        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
-      }]
+      [
+        {
+          text: isEn ? '🎮 Arcade Games 🚀' : '🎮 آرکید بازی‌ها 🚀',
+          web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games?tab=games` }
+        },
+        {
+          text: isEn ? '🎪 Rooms & Live Chat 💬' : '🎪 اتاق‌ها و سالن گفتگو 💬',
+          web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games?tab=rooms` }
+        }
+      ]
     ],
     resize_keyboard: true
   };
@@ -168,11 +174,17 @@ async function sendGamesDashboard(chatId, userId) {
       `🔥 <i>با حریفان آنلاین سراسر کشور رقابت کن، شرط ببند و استارز ببر:</i>`;
 
   const keyboard = [
-    // 1. BIG HERO PLAY BUTTON (Direct into the Games Hub)
-    [{
-      text: isEn ? '🚀 Play Now • Launch Chazha 🎮' : '🚀 شروع بازی و ورود به چاژا (Play Now) 🎮',
-      web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games` }
-    }],
+    // 1. DUAL HERO BUTTONS: Arcade Games & Online Rooms
+    [
+      {
+        text: isEn ? '🚀 Play Arcade Games 🎮' : '🚀 شروع بازی‌ها (آرکید) 🎮',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games?tab=games` }
+      },
+      {
+        text: isEn ? '🎪 Live Rooms & Chat 💬' : '🎪 اتاق‌ها و سالن گفتگو 💬',
+        web_app: { url: `${CONFIG.WEBAPP_URL}?app=chazha#/games?tab=rooms` }
+      }
+    ],
     // 2. Tournaments & Daily Lucky Chest
     [
       { text: isEn ? '🏆 Tournaments & Cups 👑' : '🏆 جام‌ها و لیگ‌های هفتگی 👑', callback_data: 'menu_tournaments' },

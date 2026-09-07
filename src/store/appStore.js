@@ -335,6 +335,23 @@ const useAppStore = create((set, get) => ({
 
   setTheme: (theme) => {
     localStorage.setItem('theme', theme);
+    localStorage.setItem('lifeos_theme', theme);
+    const isLight = theme === 'light' || theme === 'dawn' || theme === 'mint';
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (isLight) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      }
+    }
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      if (tg.setHeaderColor) tg.setHeaderColor(isLight ? '#ffffff' : '#0d071b');
+      if (tg.setBackgroundColor) tg.setBackgroundColor(isLight ? '#f8fafc' : '#090412');
+    }
     set({ theme });
   },
 

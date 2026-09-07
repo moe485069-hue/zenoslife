@@ -21,15 +21,40 @@ export const initTelegramMiniApp = (appStore) => {
     tg.ready();
     tg.expand();
 
-    // 2. Set Header & Background Color to match Life-OS cosmic theme
-    if (tg.setHeaderColor) {
-      tg.setHeaderColor('#0d071b');
-    }
-    if (tg.setBackgroundColor) {
-      tg.setBackgroundColor('#090412');
+    // 2. Dynamic Theme Sync with Telegram client (Light / Dark)
+    const tgScheme = tg.colorScheme; // 'light' | 'dark'
+    const savedTheme = localStorage.getItem('lifeos_theme');
+    const effectiveTheme = savedTheme || (tgScheme === 'light' ? 'light' : 'cosmic');
+    if (!savedTheme && tgScheme && appStore?.setTheme) {
+      appStore.setTheme(effectiveTheme);
     }
 
-        // Auto sync language with Bot / Telegram
+    const applyThemeColors = (isLightTheme) => {
+      if (tg.setHeaderColor) {
+        tg.setHeaderColor(isLightTheme ? '#ffffff' : '#0d071b');
+      }
+      if (tg.setBackgroundColor) {
+        tg.setBackgroundColor(isLightTheme ? '#f8fafc' : '#090412');
+      }
+    };
+
+    applyThemeColors(effectiveTheme === 'light');
+
+    if (tg.onEvent) {
+      tg.onEvent('themeChanged', () => {
+        const newScheme = tg.colorScheme;
+        if (!localStorage.getItem('lifeos_theme') && appStore?.setTheme) {
+          const next = newScheme === 'light' ? 'light' : 'cosmic';
+          appStore.setTheme(next);
+          applyThemeColors(newScheme === 'light');
+        }
+      });
+    }
+
+    // 3. User profile & Language
+    const tgUser = tg.initDataUnsafe?.user;
+
+    // Auto sync language with Bot / Telegram
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const queryLang = urlParams.get('lang');
@@ -43,8 +68,6 @@ export const initTelegramMiniApp = (appStore) => {
       }
     } catch (_) {}
 
-    // 3. Auto sync Telegram User Profile if available
-    const tgUser = tg.initDataUnsafe?.user;
     if (tgUser && appStore?.setUserProfile) {
       const currentProfile = appStore.userProfile || {};
       
