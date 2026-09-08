@@ -11,8 +11,9 @@ import {
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
-import SnookerSetupModal, { TABLE_THEMES } from '../../components/games/SnookerSetupModal';
-import SnookerCueStoreModal, { SNOOKER_CUES } from '../../components/games/SnookerCueStoreModal';
+import SnookerSetupModal from '../../components/games/SnookerSetupModal';
+import SnookerCueStoreModal from '../../components/games/SnookerCueStoreModal';
+import { TABLE_THEMES, SNOOKER_CUES, DEFAULT_TABLE_THEME, DEFAULT_SNOOKER_CUE } from '../../components/games/snookerConstants';
 import SnookerSpinModal from '../../components/games/SnookerSpinModal';
 import SnookerRulesModal from '../../components/games/SnookerRulesModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
@@ -170,7 +171,7 @@ export default function Snooker() {
   const [matchFrames, setMatchFrames] = useState(1); // Best of 1, 3, 5
   const [currentFrame, setCurrentFrame] = useState(1);
   const [botDifficulty, setBotDifficulty] = useState('medium');
-  const [selectedTheme, setSelectedTheme] = useState(TABLE_THEMES[0]);
+  const [selectedTheme, setSelectedTheme] = useState(DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]);
   const [setupModalOpen, setSetupModalOpen] = useState(false);
   const [cueStoreOpen, setCueStoreOpen] = useState(false);
   const [spinModalOpen, setSpinModalOpen] = useState(false);
@@ -179,7 +180,7 @@ export default function Snooker() {
   const [soundMuted, setSoundMuted] = useState(false);
 
   // Equipped Cue Stick
-  const [selectedCueId, setSelectedCueId] = useState('ash_classic');
+  const [selectedCueId, setSelectedCueId] = useState(DEFAULT_SNOOKER_CUE?.id || 'ash_classic');
 
   // Match Scoring & Frames
   const [scoreP1, setScoreP1] = useState(0);
@@ -257,12 +258,12 @@ export default function Snooker() {
   useEffect(() => {
     try {
       const savedCue = localStorage.getItem('snooker_equipped_cue');
-      if (savedCue && SNOOKER_CUES.some(c => c.id === savedCue)) {
+      if (savedCue && SNOOKER_CUES?.some(c => c.id === savedCue)) {
         setSelectedCueId(savedCue);
       }
       const savedTheme = localStorage.getItem('snooker_equipped_theme');
       if (savedTheme) {
-        const foundTheme = TABLE_THEMES.find(t => t.id === savedTheme);
+        const foundTheme = TABLE_THEMES?.find(t => t.id === savedTheme);
         if (foundTheme) setSelectedTheme(foundTheme);
       }
     } catch (_) {}
@@ -276,7 +277,7 @@ export default function Snooker() {
   };
 
   const handleSelectTheme = (themeId) => {
-    const foundTheme = TABLE_THEMES.find(t => t.id === themeId);
+    const foundTheme = TABLE_THEMES?.find(t => t.id === themeId);
     if (foundTheme) {
       setSelectedTheme(foundTheme);
       try {
@@ -286,7 +287,7 @@ export default function Snooker() {
   };
 
   // Reset match
-  const handleStartGame = ({ mode = 'bot', frames = 1, theme = TABLE_THEMES[0] }) => {
+  const handleStartGame = ({ mode = 'bot', frames = 1, theme = (DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]) }) => {
     setGameMode(mode);
     setMatchFrames(frames);
     setSelectedTheme(theme);
@@ -766,7 +767,7 @@ export default function Snooker() {
     if (stateRef.current.isMoving || isShooting) return;
     const white = stateRef.current.balls.find(b => b.type === 'white');
     if (!white) return;
-    const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
+    const activeCue = SNOOKER_CUES?.find(c => c.id === selectedCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
     const powerValue = overridePower !== undefined ? overridePower : (shotPowerRef.current || shotPower);
 
     if (!soundMuted) (soundEngine?.playSnookerStrike || soundEngine?.playTap)?.(powerValue / 100);
@@ -1230,7 +1231,7 @@ export default function Snooker() {
 
       // ── 8. Draw Cue Stick & Aiming Guideline (Always ready when balls still) ──
       const white = balls.find(b => b.type === 'white');
-      const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
+      const activeCue = SNOOKER_CUES?.find(c => c.id === selectedCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
 
       if (white && !white.potted && !stateRef.current.isMoving && !isShooting) {
         const rad = (aimAngleRef.current * Math.PI) / 180;
