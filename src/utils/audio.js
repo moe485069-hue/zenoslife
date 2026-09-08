@@ -75,6 +75,173 @@ class SoundEngine {
     } catch (_) {}
   }
 
+  // Realistic Aramith Resin Ball-to-Ball Collision Sound
+  playBallCollision(speed = 1) {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const vol = Math.min(1.0, Math.max(0.08, (speed || 1) * 0.45));
+
+      // 1. Primary high-frequency resonant click (sharp Aramith phenolic resin contact)
+      const osc1 = this.ctx.createOscillator();
+      const gain1 = this.ctx.createGain();
+      osc1.type = 'sine';
+      const baseFreq = 3400 + Math.random() * 400;
+      osc1.frequency.setValueAtTime(baseFreq, t);
+      osc1.frequency.exponentialRampToValueAtTime(1800, t + 0.022);
+      gain1.gain.setValueAtTime(vol * 0.5, t);
+      gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+      osc1.connect(gain1);
+      gain1.connect(this.ctx.destination);
+      osc1.start(t);
+      osc1.stop(t + 0.028);
+
+      // 2. Secondary glass-like overtone ring
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(baseFreq * 1.58, t);
+      osc2.frequency.exponentialRampToValueAtTime(2600, t + 0.035);
+      gain2.gain.setValueAtTime(vol * 0.25, t);
+      gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(t);
+      osc2.stop(t + 0.038);
+
+      // 3. Transient micro-crack / surface impact snap (Noise burst)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.008);
+      if (bufferSize > 0) {
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+        }
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(2200, t);
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(vol * 0.4, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.008);
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start(t);
+        noise.stop(t + 0.01);
+      }
+    } catch (_) {}
+  }
+
+  playBallHitBall(speed = 1) {
+    this.playBallCollision(speed);
+  }
+
+  // Snooker Cue Stick striking Cue Ball (Leather tip + Ash wood shaft thump)
+  playSnookerStrike(power = 0.5) {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const p = Math.min(1.0, Math.max(0.1, power || 0.5));
+
+      // 1. Low solid wood body impact thump
+      const oscLow = this.ctx.createOscillator();
+      const gainLow = this.ctx.createGain();
+      oscLow.type = 'sine';
+      oscLow.frequency.setValueAtTime(220, t);
+      oscLow.frequency.exponentialRampToValueAtTime(80, t + 0.06);
+      gainLow.gain.setValueAtTime(0.4 * p, t);
+      gainLow.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      oscLow.connect(gainLow);
+      gainLow.connect(this.ctx.destination);
+      oscLow.start(t);
+      oscLow.stop(t + 0.08);
+
+      // 2. Crisp chalked leather tip tap
+      const oscHigh = this.ctx.createOscillator();
+      const gainHigh = this.ctx.createGain();
+      oscHigh.type = 'triangle';
+      oscHigh.frequency.setValueAtTime(2900, t);
+      oscHigh.frequency.exponentialRampToValueAtTime(900, t + 0.03);
+      gainHigh.gain.setValueAtTime(0.35 * p, t);
+      gainHigh.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+      oscHigh.connect(gainHigh);
+      gainHigh.connect(this.ctx.destination);
+      oscHigh.start(t);
+      oscHigh.stop(t + 0.04);
+    } catch (_) {}
+  }
+
+  playCueStrike(power = 0.5) {
+    this.playSnookerStrike(power);
+  }
+
+  // Ball drops into leather/net snooker pocket
+  playPocketSink() {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.16);
+
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(90, t + 0.06);
+      osc2.frequency.exponentialRampToValueAtTime(45, t + 0.22);
+      gain2.gain.setValueAtTime(0.18, t + 0.06);
+      gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc2.connect(gain2);
+      gain2.connect(this.ctx.destination);
+      osc2.start(t + 0.06);
+      osc2.stop(t + 0.26);
+    } catch (_) {}
+  }
+
+  playPocketDrop() {
+    this.playPocketSink();
+  }
+
+  // Ball bounces off rubber cushion
+  playCushionBounce(speed = 1) {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const vol = Math.min(0.5, Math.max(0.05, (speed || 1) * 0.25));
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(75, t + 0.05);
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.07);
+    } catch (_) {}
+  }
+
   playCheckmark() {
     if (this.isMuted) return;
     try {
