@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Check, Lock, Zap, Shield, Award, Flame, Star, ChevronRight } from 'lucide-react';
+import { X, Sparkles, Check, Lock, Zap, Shield, Award, Flame, Star, ChevronRight, Palette } from 'lucide-react';
 import useAppStore from '../../store/appStore';
 import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
+import { TABLE_THEMES } from './SnookerSetupModal';
 
 export const SNOOKER_CUES = [
   {
@@ -93,25 +94,50 @@ export default function SnookerCueStoreModal({
   onClose,
   selectedCueId = 'ash_classic',
   onSelectCue,
+  selectedThemeId = 'championship_green',
+  onSelectTheme,
   isRtl = true
 }) {
-  const { userCoins = 1000, addCoins, spendCoins, isVip } = useAppStore();
+  const { coins = 0, spendCoins, isVip } = useAppStore();
+  const [activeTab, setActiveTab] = useState('cues'); // 'cues' | 'themes'
+  
+  // Cues state
   const [unlockedCues, setUnlockedCues] = useState(['ash_classic']);
   const [previewCue, setPreviewCue] = useState(selectedCueId);
+  
+  // Themes state
+  const [unlockedThemes, setUnlockedThemes] = useState(['championship_green']);
+  const [previewTheme, setPreviewTheme] = useState(selectedThemeId);
+
   const [purchaseSuccessMsg, setPurchaseSuccessMsg] = useState(null);
 
-  // Load unlocked cues from localStorage
+  // Load unlocked cues and themes from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('snooker_unlocked_cues');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const savedCues = localStorage.getItem('snooker_unlocked_cues');
+      if (savedCues) {
+        const parsed = JSON.parse(savedCues);
         if (Array.isArray(parsed)) {
           setUnlockedCues(Array.from(new Set(['ash_classic', ...parsed])));
         }
       }
+      const savedThemes = localStorage.getItem('snooker_unlocked_themes');
+      if (savedThemes) {
+        const parsedT = JSON.parse(savedThemes);
+        if (Array.isArray(parsedT)) {
+          setUnlockedThemes(Array.from(new Set(['championship_green', ...parsedT])));
+        }
+      }
     } catch (_) {}
   }, []);
+
+  useEffect(() => {
+    if (selectedCueId) setPreviewCue(selectedCueId);
+  }, [selectedCueId]);
+
+  useEffect(() => {
+    if (selectedThemeId) setPreviewTheme(selectedThemeId);
+  }, [selectedThemeId]);
 
   const saveUnlockedCues = (list) => {
     setUnlockedCues(list);
@@ -120,11 +146,18 @@ export default function SnookerCueStoreModal({
     } catch (_) {}
   };
 
-  const handleBuy = (cue) => {
+  const saveUnlockedThemes = (list) => {
+    setUnlockedThemes(list);
+    try {
+      localStorage.setItem('snooker_unlocked_themes', JSON.stringify(list));
+    } catch (_) {}
+  };
+
+  const handleBuyCue = (cue) => {
     soundEngine?.playTap?.();
     haptics?.impact?.('medium');
 
-    const currentBalance = userCoins || 0;
+    const currentBalance = coins || 0;
     if (currentBalance < cue.price && !isVip) {
       soundEngine?.playError?.();
       haptics?.error?.();
@@ -133,7 +166,11 @@ export default function SnookerCueStoreModal({
     }
 
     if (!isVip && spendCoins) {
-      spendCoins(cue.price);
+      const success = spendCoins(cue.price);
+      if (!success) {
+        alert(isRtl ? '⚠️ خطا در کسر سکه!' : 'Payment failed!');
+        return;
+      }
     }
 
     const nextList = [...unlockedCues, cue.id];
@@ -143,20 +180,62 @@ export default function SnookerCueStoreModal({
     soundEngine?.playLevelUp?.();
     haptics?.success?.();
 
-    setPurchaseSuccessMsg(isRtl ? `🎉 تبریک! چوب ${cue.nameFa} آزاد و تجهیز شد!` : `🎉 ${cue.nameEn} equipped!`);
+    setPurchaseSuccessMsg(isRtl ? `🎉 چوب «${cue.nameFa}» با موفقیت خریداری و فعال شد!` : `🎉 ${cue.nameEn} equipped!`);
     setTimeout(() => setPurchaseSuccessMsg(null), 3500);
   };
 
-  const handleEquip = (cueId) => {
+  const handleEquipCue = (cueId) => {
     soundEngine?.playTap?.();
     haptics?.tap?.();
     onSelectCue(cueId);
     setPreviewCue(cueId);
   };
 
+  const handleBuyTheme = (theme) => {
+    soundEngine?.playTap?.();
+    haptics?.impact?.('medium');
+
+    const currentBalance = coins || 0;
+    if (currentBalance < theme.price && !isVip) {
+      soundEngine?.playError?.();
+      haptics?.error?.();
+      alert(isRtl ? '⚠️ موجودی سکه شما برای خرید این تم کافی نیست!' : 'Insufficient coins!');
+      return;
+    }
+
+    if (!isVip && spendCoins) {
+      const success = spendCoins(theme.price);
+      if (!success) {
+        alert(isRtl ? '⚠️ خطا در کسر سکه!' : 'Payment failed!');
+        return;
+      }
+    }
+
+    const nextList = [...unlockedThemes, theme.id];
+    saveUnlockedThemes(nextList);
+    if (onSelectTheme) onSelectTheme(theme.id);
+    setPreviewTheme(theme.id);
+    soundEngine?.playLevelUp?.();
+    haptics?.success?.();
+
+    setPurchaseSuccessMsg(isRtl ? `🎉 تم «${theme.nameFa}» با موفقیت خریداری و روی میز فعال شد!` : `🎉 ${theme.nameEn} equipped!`);
+    setTimeout(() => setPurchaseSuccessMsg(null), 3500);
+  };
+
+  const handleEquipTheme = (themeId) => {
+    soundEngine?.playTap?.();
+    haptics?.tap?.();
+    if (onSelectTheme) onSelectTheme(themeId);
+    setPreviewTheme(themeId);
+  };
+
   const activeCueObj = SNOOKER_CUES.find(c => c.id === previewCue) || SNOOKER_CUES[0];
-  const isUnlocked = unlockedCues.includes(activeCueObj.id) || activeCueObj.isFree;
-  const isEquipped = selectedCueId === activeCueObj.id;
+  const isCueUnlocked = unlockedCues.includes(activeCueObj.id) || activeCueObj.isFree;
+  const isCueEquipped = selectedCueId === activeCueObj.id;
+
+  const activeThemeObj = TABLE_THEMES.find(t => t.id === previewTheme) || TABLE_THEMES[0];
+  const isThemeUnlocked = unlockedThemes.includes(activeThemeObj.id) || activeThemeObj.isFree;
+  const isThemeEquipped = selectedThemeId === activeThemeObj.id;
 
   if (!isOpen) return null;
 
@@ -173,20 +252,20 @@ export default function SnookerCueStoreModal({
           initial={{ scale: 0.9, y: 20 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.9, y: 20 }}
-          className="relative w-full max-w-lg bg-gradient-to-b from-slate-900 via-slate-950 to-black border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-amber-500/10 max-h-[90vh] flex flex-col overflow-hidden"
+          className="relative w-full max-w-lg bg-gradient-to-b from-slate-900 via-slate-950 to-black border border-amber-500/30 rounded-3xl p-4 sm:p-6 shadow-2xl shadow-amber-500/10 max-h-[92vh] flex flex-col overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center justify-between pb-3 border-b border-white/10">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-xl">
-                🎱
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-xl shadow-inner">
+                🛍️
               </div>
               <div>
-                <h3 className="text-lg font-black text-white">
-                  {isRtl ? 'فروشگاه چوب‌های اسنوکر' : 'Snooker Cues Master Store'}
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  {isRtl ? 'فروشگاه اختصاصی اسنوکر' : 'Snooker Master Boutique'}
                 </h3>
-                <p className="text-xs text-amber-300 font-medium">
-                  {isRtl ? 'چوب‌های قهرمانی با فیزیک و دقت اختصاصی' : 'Custom Cues with Unique Stats'}
+                <p className="text-[11px] text-amber-300 font-medium">
+                  {isRtl ? 'خرید چوب‌های قهرمانی و تم‌های جذاب میز با سکه' : 'Luxury cues & table themes with coins'}
                 </p>
               </div>
             </div>
@@ -201,21 +280,57 @@ export default function SnookerCueStoreModal({
             </button>
           </div>
 
-          {/* User Coin Balance */}
-          <div className="mt-3 py-2 px-3.5 rounded-2xl bg-black/60 border border-amber-500/30 flex items-center justify-between">
-            <span className="text-xs text-slate-300 font-medium">
-              {isRtl ? 'موجودی سکه شما:' : 'Your Coin Balance:'}
-            </span>
-            <div className="flex items-center gap-1.5 font-mono font-black text-amber-400 text-sm">
-              <span>🪙</span>
-              <span>{(userCoins || 0).toLocaleString()}</span>
+          {/* User Coin Balance & Tab Switcher */}
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="py-2 px-3.5 rounded-2xl bg-black/60 border border-amber-500/30 flex items-center justify-between shadow-inner">
+              <span className="text-xs text-slate-300 font-medium">
+                {isRtl ? 'موجودی سکه شما:' : 'Your Coin Balance:'}
+              </span>
+              <div className="flex items-center gap-1.5 font-mono font-black text-amber-400 text-sm">
+                <span>🪙</span>
+                <span>{(coins || 0).toLocaleString()}</span>
+                <span className="text-[10px] text-amber-500 font-bold">{isRtl ? 'سکه' : 'coins'}</span>
+              </div>
+            </div>
+
+            {/* Tabs: Cues vs Table Themes */}
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-950/80 border border-white/10">
+              <button
+                onClick={() => {
+                  soundEngine?.playTap?.();
+                  setActiveTab('cues');
+                }}
+                className={`py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'cues'
+                    ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>🪄</span>
+                <span>{isRtl ? 'چوب‌های اسنوکر' : 'Snooker Cues'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  soundEngine?.playTap?.();
+                  setActiveTab('themes');
+                }}
+                className={`py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'themes'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>🟢</span>
+                <span>{isRtl ? 'تم و ماهوت میز' : 'Table Themes'}</span>
+              </button>
             </div>
           </div>
 
           {/* Success Banner */}
           {purchaseSuccessMsg && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-2 p-2 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold text-center"
             >
@@ -223,178 +338,344 @@ export default function SnookerCueStoreModal({
             </motion.div>
           )}
 
-          {/* Active Preview Card */}
-          <div className="mt-4 p-4 rounded-2xl bg-slate-800/60 border border-white/10 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 font-bold">
-                {activeCueObj.badge}
-              </span>
-              {isEquipped && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black flex items-center gap-1">
-                  <Check size={12} /> {isRtl ? 'در حال استفاده' : 'Equipped'}
-                </span>
-              )}
-            </div>
-
-            {/* Cue Stick Visual Simulation */}
-            <div className="py-4 flex flex-col items-center justify-center">
-              <div 
-                className="w-full h-4 rounded-full shadow-lg relative overflow-hidden"
-                style={{
-                  background: `linear-gradient(90deg, #332010 0%, ${activeCueObj.tipColor} 95%, #ffffff 100%)`,
-                  boxShadow: `0 0 20px ${activeCueObj.glowColor}`
-                }}
-              >
-                <div className="absolute inset-0 bg-white/15 opacity-50 animate-pulse" />
-              </div>
-              <p className="mt-2 text-sm font-black text-white">{isRtl ? activeCueObj.nameFa : activeCueObj.nameEn}</p>
-              <p className="text-[11px] text-slate-400 text-center mt-0.5">{isRtl ? activeCueObj.descFa : activeCueObj.descEn}</p>
-            </div>
-
-            {/* Stats Bars */}
-            <div className="space-y-2 mt-2 pt-2 border-t border-white/10">
-              <div>
-                <div className="flex justify-between text-[10px] text-slate-300 mb-1">
-                  <span>⚡ {isRtl ? 'قدرت ضربه (Power)' : 'Shot Power'}</span>
-                  <span className="font-bold text-amber-400">{activeCueObj.power}%</span>
+          {/* TAB 1: Cues Store */}
+          {activeTab === 'cues' && (
+            <div className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 custom-scrollbar">
+              {/* Active Preview Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-white/10 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 font-bold">
+                    {activeCueObj.badge}
+                  </span>
+                  {isCueEquipped && (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black flex items-center gap-1">
+                      <Check size={12} /> {isRtl ? 'چوب فعال' : 'Equipped'}
+                    </span>
+                  )}
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${activeCueObj.power}%` }}
-                    className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <div className="flex justify-between text-[10px] text-slate-300 mb-1">
-                  <span>🎯 {isRtl ? 'طول خط راهنما (Aim Guide)' : 'Aim Guide'}</span>
-                  <span className="font-bold text-cyan-400">{activeCueObj.aimLength}%</span>
+                {/* Cue Stick Visual Simulation */}
+                <div className="py-3 flex flex-col items-center justify-center">
+                  <div 
+                    className="w-full h-4 rounded-full shadow-lg relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(90deg, #332010 0%, ${activeCueObj.tipColor} 95%, #ffffff 100%)`,
+                      boxShadow: `0 0 20px ${activeCueObj.glowColor}`
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-white/15 opacity-50 animate-pulse" />
+                  </div>
+                  <p className="mt-2 text-sm font-black text-white">{isRtl ? activeCueObj.nameFa : activeCueObj.nameEn}</p>
+                  <p className="text-[11px] text-slate-400 text-center mt-0.5">{isRtl ? activeCueObj.descFa : activeCueObj.descEn}</p>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${activeCueObj.aimLength}%` }}
-                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <div className="flex justify-between text-[10px] text-slate-300 mb-1">
-                  <span>🌀 {isRtl ? 'کنترل کات و پیچ (Spin Control)' : 'Spin Control'}</span>
-                  <span className="font-bold text-pink-400">{activeCueObj.spinControl}%</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${activeCueObj.spinControl}%` }}
-                    className="h-full bg-gradient-to-r from-pink-500 to-purple-400 rounded-full"
-                  />
-                </div>
-              </div>
-            </div>
+                {/* Stats Bars */}
+                <div className="space-y-1.5 mt-2 pt-2 border-t border-white/10">
+                  <div>
+                    <div className="flex justify-between text-[10px] text-slate-300 mb-0.5">
+                      <span>⚡ {isRtl ? 'قدرت شلیک (Power)' : 'Power'}</span>
+                      <span className="font-bold text-amber-400">{activeCueObj.power}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${activeCueObj.power}%` }}
+                        className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full"
+                      />
+                    </div>
+                  </div>
 
-            {/* Action for Active Previewed Cue */}
-            <div className="mt-4">
-              {isUnlocked ? (
-                <button
-                  onClick={() => handleEquip(activeCueObj.id)}
-                  disabled={isEquipped}
-                  className={`w-full py-2.5 rounded-2xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${
-                    isEquipped
-                      ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-400/40 cursor-default'
-                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/25 active:scale-95'
-                  }`}
-                >
-                  <Check size={16} />
-                  <span>{isEquipped ? (isRtl ? 'چوب فعال شما' : 'Currently Equipped') : (isRtl ? 'انتخاب و استفاده از چوب' : 'Equip This Cue')}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleBuy(activeCueObj)}
-                  className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <Sparkles size={16} />
-                  <span>{isRtl ? `خرید و آزادسازی (${activeCueObj.price.toLocaleString()} سکه 🪙)` : `Unlock (${activeCueObj.price.toLocaleString()} Coins)`}</span>
-                </button>
-              )}
-            </div>
-          </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] text-slate-300 mb-0.5">
+                      <span>🎯 {isRtl ? 'طول خط راهنما (Aim Length)' : 'Aim Guide'}</span>
+                      <span className="font-bold text-cyan-400">{activeCueObj.aimLength}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${activeCueObj.aimLength}%` }}
+                        className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
+                      />
+                    </div>
+                  </div>
 
-          {/* List of all Cues */}
-          <div className="mt-4 overflow-y-auto flex-1 space-y-2 pr-1 custom-scrollbar">
-            <p className="text-xs text-slate-400 font-bold mb-1">
-              {isRtl ? 'مجموعه تمام چوب‌های اسنوکر:' : 'All Snooker Cues Collection:'}
-            </p>
-            {SNOOKER_CUES.map(cue => {
-              const cueUnlocked = unlockedCues.includes(cue.id) || cue.isFree;
-              const isSelected = previewCue === cue.id;
-              return (
-                <div
-                  key={cue.id}
-                  onClick={() => {
-                    soundEngine?.playTap?.();
-                    setPreviewCue(cue.id);
-                  }}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    isSelected
-                      ? 'bg-amber-500/15 border-amber-400/70 shadow-md'
-                      : 'bg-slate-900/50 border-white/5 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-white/10"
-                      style={{ background: cue.glowColor }}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-slate-300 mb-0.5">
+                      <span>🌀 {isRtl ? 'کنترل کات و افه (Spin Control)' : 'Spin Control'}</span>
+                      <span className="font-bold text-pink-400">{activeCueObj.spinControl}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-black/50 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${activeCueObj.spinControl}%` }}
+                        className="h-full bg-gradient-to-r from-pink-500 to-purple-400 rounded-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="mt-3">
+                  {isCueUnlocked ? (
+                    <button
+                      onClick={() => handleEquipCue(activeCueObj.id)}
+                      disabled={isCueEquipped}
+                      className={`w-full py-2.5 rounded-xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 ${
+                        isCueEquipped
+                          ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-400/40 cursor-default'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/25 active:scale-95'
+                      }`}
                     >
-                      {cue.id === 'ash_classic' ? '🪵' : cue.id === 'faravahar_dragon' ? '🦅' : cue.id === 'royal_gold' ? '👑' : cue.id === 'cyber_plasma' ? '⚡' : '💎'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-white">{isRtl ? cue.nameFa : cue.nameEn}</span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-medium">
-                          {cue.badge}
-                        </span>
+                      <Check size={15} />
+                      <span>{isCueEquipped ? (isRtl ? 'چوب فعال شما' : 'Currently Equipped') : (isRtl ? 'انتخاب و استفاده از چوب' : 'Equip This Cue')}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleBuyCue(activeCueObj)}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles size={15} />
+                      <span>{isRtl ? `خرید با سکه (${activeCueObj.price.toLocaleString()} 🪙)` : `Unlock (${activeCueObj.price.toLocaleString()} Coins)`}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* List of Cues */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-slate-400 font-bold mb-1">
+                  {isRtl ? 'تمام چوب‌های مسابقات:' : 'All Snooker Cues:'}
+                </p>
+                {SNOOKER_CUES.map(cue => {
+                  const unlocked = unlockedCues.includes(cue.id) || cue.isFree;
+                  const isSelected = previewCue === cue.id;
+                  return (
+                    <div
+                      key={cue.id}
+                      onClick={() => {
+                        soundEngine?.playTap?.();
+                        setPreviewCue(cue.id);
+                      }}
+                      className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                        isSelected
+                          ? 'bg-amber-500/15 border-amber-400/70 shadow-md'
+                          : 'bg-slate-900/50 border-white/5 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div 
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-base border border-white/10 shrink-0"
+                          style={{ background: cue.glowColor }}
+                        >
+                          {cue.id === 'ash_classic' ? '🪵' : cue.id === 'faravahar_dragon' ? '🦅' : cue.id === 'royal_gold' ? '👑' : cue.id === 'cyber_plasma' ? '⚡' : '💎'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-white">{isRtl ? cue.nameFa : cue.nameEn}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/10 text-slate-300 font-medium">
+                              {cue.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400">
+                            {isRtl ? `قدرت: ${cue.power}٪ | دقت: ${cue.aimLength}٪` : `Power: ${cue.power}% | Aim: ${cue.aimLength}%`}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-slate-400">
-                        {isRtl ? `قدرت: ${cue.power}٪ | دقت: ${cue.aimLength}٪` : `Power: ${cue.power}% | Aim: ${cue.aimLength}%`}
-                      </p>
+
+                      <div className="flex items-center gap-2">
+                        {unlocked ? (
+                          selectedCueId === cue.id ? (
+                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-xl">
+                              {isRtl ? 'فعال' : 'Active'}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-1 rounded-xl">
+                              {isRtl ? 'آزاد' : 'Unlocked'}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2 py-1 rounded-xl flex items-center gap-1">
+                            <Lock size={10} /> {cue.price.toLocaleString()} 🪙
+                          </span>
+                        )}
+                        <ChevronRight size={14} className="text-slate-500" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: Table Themes Store */}
+          {activeTab === 'themes' && (
+            <div className="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 custom-scrollbar">
+              {/* Active Theme Preview Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-white/10 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-bold">
+                    {activeThemeObj.badge}
+                  </span>
+                  {isThemeEquipped && (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 font-black flex items-center gap-1">
+                      <Check size={12} /> {isRtl ? 'تم فعال میز' : 'Equipped'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Table Simulation Canvas Preview */}
+                <div className="py-2 flex flex-col items-center justify-center">
+                  <div 
+                    className="w-full h-28 rounded-2xl p-2.5 relative overflow-hidden flex items-center justify-center border-2 border-amber-900/60 shadow-xl"
+                    style={{
+                      backgroundColor: activeThemeObj.borderColor,
+                      boxShadow: `0 0 25px ${activeThemeObj.accentColor}33`
+                    }}
+                  >
+                    {/* Inner Cloth */}
+                    <div 
+                      className="w-full h-full rounded-xl relative flex items-center justify-center border border-white/10 overflow-hidden"
+                      style={{ backgroundColor: activeThemeObj.clothColor }}
+                    >
+                      {/* Spotlight */}
+                      <div 
+                        className="absolute inset-0 opacity-40 pointer-events-none"
+                        style={{
+                          background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2) 0%, transparent 70%)`
+                        }}
+                      />
+
+                      {/* Cushions */}
+                      <div 
+                        className="absolute inset-x-0 top-0 h-1.5 opacity-80"
+                        style={{ backgroundColor: activeThemeObj.cushionColor }}
+                      />
+                      <div 
+                        className="absolute inset-x-0 bottom-0 h-1.5 opacity-80"
+                        style={{ backgroundColor: activeThemeObj.cushionColor }}
+                      />
+
+                      {/* Pocket Castings in corners */}
+                      <div className="absolute top-1 left-1 w-3 h-3 rounded-full bg-amber-400/90 border border-amber-600 shadow" />
+                      <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-400/90 border border-amber-600 shadow" />
+                      <div className="absolute bottom-1 left-1 w-3 h-3 rounded-full bg-amber-400/90 border border-amber-600 shadow" />
+                      <div className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-amber-400/90 border border-amber-600 shadow" />
+
+                      {/* Baulk Line and 3 Simulation Balls */}
+                      <div className="absolute left-8 inset-y-0 w-0.5 bg-white/30" />
+                      <div className="flex items-center gap-3 z-10">
+                        <div className="w-4 h-4 rounded-full bg-white shadow-md border border-slate-300" />
+                        <div className="w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-800" />
+                        <div className="w-4 h-4 rounded-full bg-amber-400 shadow-md border border-amber-600" />
+                        <div className="w-4 h-4 rounded-full bg-blue-600 shadow-md border border-blue-800" />
+                        <div className="w-4 h-4 rounded-full bg-black shadow-md border border-zinc-700" />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {cueUnlocked ? (
-                      selectedCueId === cue.id ? (
-                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-xl">
-                          {isRtl ? 'فعال' : 'Active'}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-1 rounded-xl">
-                          {isRtl ? 'آزاد' : 'Unlocked'}
-                        </span>
-                      )
-                    ) : (
-                      <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2 py-1 rounded-xl flex items-center gap-1">
-                        <Lock size={10} /> {cue.price.toLocaleString()} 🪙
-                      </span>
-                    )}
-                    <ChevronRight size={14} className="text-slate-500" />
-                  </div>
+                  <p className="mt-2.5 text-sm font-black text-white">{isRtl ? activeThemeObj.nameFa : activeThemeObj.nameEn}</p>
+                  <p className="text-[11px] text-slate-400 text-center mt-0.5">{isRtl ? activeThemeObj.desc : activeThemeObj.nameEn}</p>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Action Button */}
+                <div className="mt-2">
+                  {isThemeUnlocked ? (
+                    <button
+                      onClick={() => handleEquipTheme(activeThemeObj.id)}
+                      disabled={isThemeEquipped}
+                      className={`w-full py-2.5 rounded-xl font-black text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 ${
+                        isThemeEquipped
+                          ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-400/40 cursor-default'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/25 active:scale-95'
+                      }`}
+                    >
+                      <Check size={15} />
+                      <span>{isThemeEquipped ? (isRtl ? 'تم فعال میز شما' : 'Currently Active') : (isRtl ? 'انتخاب و فعال‌سازی این تم' : 'Equip This Theme')}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleBuyTheme(activeThemeObj)}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles size={15} />
+                      <span>{isRtl ? `خرید با سکه (${activeThemeObj.price.toLocaleString()} 🪙)` : `Unlock (${activeThemeObj.price.toLocaleString()} Coins)`}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid of Table Themes */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-slate-400 font-bold mb-1">
+                  {isRtl ? 'مجموعه تمام ماهوت‌های حرفه‌ای:' : 'All Table Themes:'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {TABLE_THEMES.map(theme => {
+                    const unlocked = unlockedThemes.includes(theme.id) || theme.isFree;
+                    const isSelected = previewTheme === theme.id;
+                    return (
+                      <div
+                        key={theme.id}
+                        onClick={() => {
+                          soundEngine?.playTap?.();
+                          setPreviewTheme(theme.id);
+                        }}
+                        className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-emerald-500/15 border-emerald-400/70 shadow-md'
+                            : 'bg-slate-900/50 border-white/5 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div 
+                            className="w-8 h-8 rounded-xl border border-white/20 shrink-0 shadow-inner flex items-center justify-center"
+                            style={{ backgroundColor: theme.clothColor }}
+                          >
+                            <span className="text-xs">🎱</span>
+                          </div>
+                          <div className="truncate">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-black text-white truncate">{isRtl ? theme.nameFa : theme.nameEn}</span>
+                            </div>
+                            <span className="text-[9px] text-slate-400 block truncate">
+                              {theme.badge}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {unlocked ? (
+                            selectedThemeId === theme.id ? (
+                              <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-lg">
+                                {isRtl ? 'فعال' : 'Active'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg">
+                                {isRtl ? 'آزاد' : 'Unlocked'}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-lg flex items-center gap-0.5">
+                              <Lock size={9} /> {theme.price.toLocaleString()} 🪙
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Footer Close */}
-          <div className="pt-3 mt-2 border-t border-white/10">
+          <div className="pt-2.5 mt-2 border-t border-white/10">
             <button
               onClick={() => {
                 soundEngine?.playTap?.();
                 onClose();
               }}
-              className="w-full py-2.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs active:scale-95 transition-all"
+              className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs active:scale-95 transition-all"
             >
               {isRtl ? 'بستن فروشگاه' : 'Close Store'}
             </button>

@@ -40,8 +40,8 @@ const FRICTION = 0.989;
 const MIN_VEL = 0.05;
 
 // Pocket coordinates on vertical portrait table with genuine curved jaws
-const POCKET_CORNER_R = 17;
-const POCKET_MID_R = 15;
+const POCKET_CORNER_R = 12.5;
+const POCKET_MID_R = 11.5;
 const POCKETS = [
   { id: 'TL', x: CUSHION_X + 2, y: CUSHION_Y + 2, r: POCKET_CORNER_R },
   { id: 'TR', x: W - CUSHION_X - 2, y: CUSHION_Y + 2, r: POCKET_CORNER_R },
@@ -209,6 +209,12 @@ export default function Snooker() {
   const [spinOffset, setSpinOffset] = useState({ x: 0, y: 0 }); // -1 to 1 (x = english, y = screw/follow)
   const [showAimLaser, setShowAimLaser] = useState(true);
 
+  // Performance refs for butter-smooth 60/120fps touch drag aiming without re-render stutter
+  const aimAngleRef = useRef(-90);
+  const shotPowerRef = useRef(35);
+  const isAimingRef = useRef(false);
+  const draggingBallRef = useRef(false);
+
   // Modals & Chat
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -247,12 +253,17 @@ export default function Snooker() {
     stateRef.current.gameMode = gameMode;
   }, [turn, targetBallType, activeSequenceIndex, currentBreak, scoreP1, scoreP2, gameMode]);
 
-  // Load saved equipped cue
+  // Load saved equipped cue & table theme
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('snooker_equipped_cue');
-      if (saved && SNOOKER_CUES.some(c => c.id === saved)) {
-        setSelectedCueId(saved);
+      const savedCue = localStorage.getItem('snooker_equipped_cue');
+      if (savedCue && SNOOKER_CUES.some(c => c.id === savedCue)) {
+        setSelectedCueId(savedCue);
+      }
+      const savedTheme = localStorage.getItem('snooker_equipped_theme');
+      if (savedTheme) {
+        const foundTheme = TABLE_THEMES.find(t => t.id === savedTheme);
+        if (foundTheme) setSelectedTheme(foundTheme);
       }
     } catch (_) {}
   }, []);
@@ -262,6 +273,16 @@ export default function Snooker() {
     try {
       localStorage.setItem('snooker_equipped_cue', cueId);
     } catch (_) {}
+  };
+
+  const handleSelectTheme = (themeId) => {
+    const foundTheme = TABLE_THEMES.find(t => t.id === themeId);
+    if (foundTheme) {
+      setSelectedTheme(foundTheme);
+      try {
+        localStorage.setItem('snooker_equipped_theme', themeId);
+      } catch (_) {}
+    }
   };
 
   // Reset match
@@ -287,6 +308,8 @@ export default function Snooker() {
     setAnnouncementMsg(null);
     setAimAngle(-90);
     setShotPower(35);
+    aimAngleRef.current = -90;
+    shotPowerRef.current = 35;
     setSpinOffset({ x: 0, y: 0 });
 
     stateRef.current.balls = createInitialSnookerBalls();
@@ -744,7 +767,7 @@ export default function Snooker() {
     const white = stateRef.current.balls.find(b => b.type === 'white');
     if (!white) return;
     const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
-    const powerValue = overridePower !== undefined ? overridePower : shotPower;
+    const powerValue = overridePower !== undefined ? overridePower : (shotPowerRef.current || shotPower);
 
     if (!soundMuted) (soundEngine?.playSnookerStrike || soundEngine?.playTap)?.(powerValue / 100);
     haptics?.snookerHit?.(powerValue / 100);
@@ -752,7 +775,8 @@ export default function Snooker() {
     setIsBallsRolling(true);
     const powerMult = (powerValue / 100) * (activeCue.power / 75) * 19.5;
 
-    const rad = (aimAngle * Math.PI) / 180;
+    const currentAim = aimAngleRef.current;
+    const rad = (currentAim * Math.PI) / 180;
     white.vx = Math.cos(rad) * powerMult;
     white.vy = Math.sin(rad) * powerMult;
 
@@ -769,10 +793,14 @@ export default function Snooker() {
   // Fine Angle continuous adjustment helpers
   const startFineAdjust = (delta) => {
     if (!soundMuted) soundEngine?.playTap?.();
-    setAimAngle(prev => (prev + delta + 360) % 360);
+    const next = (aimAngleRef.current + delta + 360) % 360;
+    aimAngleRef.current = next;
+    setAimAngle(next);
     clearInterval(fineIntervalRef.current);
     fineIntervalRef.current = setInterval(() => {
-      setAimAngle(prev => (prev + delta + 360) % 360);
+      const nextLoop = (aimAngleRef.current + delta + 360) % 360;
+      aimAngleRef.current = nextLoop;
+      setAimAngle(nextLoop);
     }, 50);
   };
 
@@ -1205,7 +1233,7 @@ export default function Snooker() {
       const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
 
       if (white && !white.potted && !stateRef.current.isMoving && !isShooting) {
-        const rad = (aimAngle * Math.PI) / 180;
+        const rad = (aimAngleRef.current * Math.PI) / 180;
         const dirX = Math.cos(rad);
         const dirY = Math.sin(rad);
 
@@ -1282,7 +1310,7 @@ export default function Snooker() {
 
         // Full-Size Snooker Cue Stick
         const cueLength = 420;
-        const pullBack = (shotPower / 100) * 65;
+        const pullBack = ((shotPowerRef.current || shotPower) / 100) * 65;
         const cueTipDist = BALL_R + 8 + pullBack;
 
         const cueStartX = white.x - dirX * cueTipDist;
@@ -1353,9 +1381,9 @@ export default function Snooker() {
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [aimAngle, shotPower, selectedCueId, selectedTheme, isShooting, isBallsRolling, showAimLaser, soundMuted, ballInHand]);
+  }, [selectedCueId, selectedTheme, isShooting, isBallsRolling, showAimLaser, soundMuted, ballInHand]);
 
-  // Touch & Drag to Aim or Move Ball in Hand (No double-click needed!)
+  // Touch & Drag to Aim or Move Ball in Hand (Silky smooth 60/120Hz decoupled tracking)
   const handleCanvasPointerDown = (e) => {
     if (stateRef.current.isMoving || isShooting || (gameMode === 'bot' && turn === 'p2')) return;
     const canvas = canvasRef.current;
@@ -1369,19 +1397,21 @@ export default function Snooker() {
     const white = stateRef.current.balls.find(b => b.type === 'white');
     if (!white) return;
 
-    // Check if user is touching the white cue ball directly
+    // Check if user is touching the white cue ball directly in hand
     const distFromWhite = Math.hypot(clickX - white.x, clickY - white.y);
-    if (distFromWhite < BALL_R * 3.5) {
-      if (ballInHand) {
-        setDraggingBall(true);
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
-        return;
-      }
+    if (distFromWhite < BALL_R * 3.5 && ballInHand) {
+      draggingBallRef.current = true;
+      setDraggingBall(true);
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+      return;
     }
 
-    // Otherwise, tap anywhere on the baize to re-aim cue stick
+    // Otherwise, start drag aiming immediately across the entire table
+    isAimingRef.current = true;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
     const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
-    setAimAngle((angleRad * 180) / Math.PI);
+    const deg = (angleRad * 180) / Math.PI;
+    aimAngleRef.current = deg;
   };
 
   const handleCanvasPointerMove = (e) => {
@@ -1394,7 +1424,7 @@ export default function Snooker() {
     const clickX = (e.clientX - rect.left) * scaleX - OFFSET_X;
     const clickY = (e.clientY - rect.top) * scaleY - OFFSET_Y;
 
-    if (draggingBall && ballInHand) {
+    if (draggingBallRef.current && ballInHand) {
       let newX = clickX;
       let newY = clickY;
 
@@ -1414,12 +1444,37 @@ export default function Snooker() {
       }
       return;
     }
+
+    if (isAimingRef.current) {
+      const white = stateRef.current.balls.find(b => b.type === 'white');
+      if (!white) return;
+      const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
+      const deg = (angleRad * 180) / Math.PI;
+      aimAngleRef.current = deg;
+    }
   };
 
   const handleCanvasPointerUp = (e) => {
-    if (draggingBall) {
+    if (isAimingRef.current) {
+      isAimingRef.current = false;
+      setAimAngle(aimAngleRef.current);
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (draggingBallRef.current) {
+      draggingBallRef.current = false;
       setDraggingBall(false);
       try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+  };
+
+  const handleCanvasPointerCancel = (e) => {
+    if (isAimingRef.current) {
+      isAimingRef.current = false;
+      setAimAngle(aimAngleRef.current);
+    }
+    if (draggingBallRef.current) {
+      draggingBallRef.current = false;
+      setDraggingBall(false);
     }
   };
 
@@ -1454,179 +1509,126 @@ export default function Snooker() {
         backgroundSize: '100% 100%, 24px 24px'
       }}
     >
-      {/* ── 1. Top Bar: App Navigation & Scorecards ── */}
-      <header className="w-full max-w-lg px-3 pt-2.5 z-30 flex flex-col gap-1.5 shrink-0">
-        <div className="flex items-center justify-between">
+      {/* ── 1. Top Bar: Master Minimalist HUD (Clean, Elegant & Compact) ── */}
+      <header className="w-full max-w-xl px-2.5 pt-2 z-30 shrink-0 flex flex-col gap-1">
+        <div className="w-full h-11 px-2.5 rounded-2xl bg-slate-900/85 border border-white/10 backdrop-blur-xl flex items-center justify-between shadow-xl">
+          {/* Left: Navigation, Sound, Rules & Boutique Store */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => navigate('/games')}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center transition-colors"
+              className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white transition-colors"
+              title={isRtl ? 'بازگشت' : 'Back'}
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
-            <span className="font-black text-sm tracking-tight text-white flex items-center gap-1">
-              <span>ChaZha</span>
-              <span className="text-amber-400">🎱</span>
-              <span className="text-xs text-slate-300 font-bold">{isRtl ? 'اسنوکر' : 'Snooker'}</span>
-            </span>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {/* Prominent Direct Rules & Guide Button */}
+            <button
+              onClick={() => setSoundMuted(prev => !prev)}
+              className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-slate-300 transition-colors"
+              title={isRtl ? 'صدا' : 'Sound'}
+            >
+              {soundMuted ? <VolumeX size={14} className="text-rose-400" /> : <Volume2 size={14} className="text-emerald-400" />}
+            </button>
+
+            {/* Direct Rules Modal Button */}
             <button
               onClick={() => {
                 if (!soundMuted) soundEngine?.playTap?.();
                 setRulesModalOpen(true);
               }}
-              className="px-2.5 py-1 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-200 font-bold text-[11px] flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
-              title={isRtl ? 'راهنمای بازی و قوانین' : 'Rules & Guide'}
+              className="h-7 px-2 rounded-xl bg-indigo-600/25 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-200 text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+              title={isRtl ? 'راهنمای قوانین اسنوکر' : 'Snooker Rules'}
             >
               <BookOpen size={13} className="text-amber-400" />
-              <span>{isRtl ? 'راهنما' : 'Guide'}</span>
+              <span className="hidden xs:inline">{isRtl ? 'راهنما' : 'Rules'}</span>
             </button>
 
-            {/* Sound Mute */}
+            {/* Direct Boutique Store Button */}
             <button
-              onClick={() => setSoundMuted(prev => !prev)}
-              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300"
+              onClick={() => {
+                if (!soundMuted) soundEngine?.playTap?.();
+                setCueStoreOpen(true);
+              }}
+              className="h-7 px-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-yellow-500/25 hover:from-amber-500/40 hover:to-yellow-500/40 border border-amber-500/40 text-amber-200 text-xs font-black flex items-center gap-1 transition-all active:scale-95 shadow-sm"
+              title={isRtl ? 'فروشگاه چوب و تم' : 'Store'}
             >
-              {soundMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+              <ShoppingBag size={13} className="text-amber-400" />
+              <span>{isRtl ? 'فروشگاه' : 'Store'}</span>
             </button>
-
-            {/* More Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setMoreMenuOpen(prev => !prev)}
-                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300"
-              >
-                <MoreVertical size={16} />
-              </button>
-
-              <AnimatePresence>
-                {moreMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 5 }}
-                    className="absolute left-0 mt-1.5 w-44 rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl p-1.5 z-50 space-y-1 text-right"
-                  >
-                    <button
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        setSetupModalOpen(true);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-right text-xs font-bold text-slate-200 hover:bg-white/10 flex items-center gap-2 transition-colors"
-                    >
-                      <RotateCcw size={14} className="text-emerald-400" />
-                      <span>{isRtl ? 'شروع مجدد / تنظیمات' : 'New Match / Setup'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        setCueStoreOpen(true);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-right text-xs font-bold text-slate-200 hover:bg-white/10 flex items-center gap-2 transition-colors"
-                    >
-                      <ShoppingBag size={14} className="text-amber-400" />
-                      <span>{isRtl ? 'فروشگاه چوب اسنوکر' : 'Cue Store'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        setRulesModalOpen(true);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-right text-xs font-bold text-slate-200 hover:bg-white/10 flex items-center gap-2 transition-colors"
-                    >
-                      <Info size={14} className="text-sky-400" />
-                      <span>{isRtl ? 'قوانین و آموزش بازی' : 'Official Rules'}</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
-        </div>
 
-        {/* Player 1 vs Player 2 Scorecards */}
-        <div className="grid grid-cols-2 gap-2 bg-slate-900/60 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
-          {/* P1: Me */}
-          <div className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all ${
-            turn === 'p1' ? 'bg-indigo-600/30 border border-indigo-500/50 shadow-md' : 'opacity-75'
-          }`}>
-            <div className="relative">
-              {myAvatar ? (
-                <img src={myAvatar} alt={myUserName} className="w-7 h-7 rounded-full object-cover border border-white/20" />
+          {/* Center: Target Ball & Break Badge */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-xl bg-black/40 border border-white/5">
+            <div className="flex items-center gap-1 text-[11px] font-bold">
+              {targetBallType === 'red' ? (
+                <span className="flex items-center gap-1 text-rose-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shadow-[0_0_8px_rgba(225,29,72,0.8)] inline-block animate-pulse" />
+                  <span className="text-[11px] font-black">{isRtl ? 'قرمز' : 'Red'}</span>
+                </span>
+              ) : targetBallType === 'colour' ? (
+                <span className="flex items-center gap-1 text-amber-300">
+                  <Sparkles size={12} className="text-amber-400 animate-spin" />
+                  <span className="text-[11px] font-black">{isRtl ? 'رنگی' : 'Colour'}</span>
+                </span>
               ) : (
-                <div className="w-7 h-7 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center">
-                  {myUserName.charAt(0)}
-                </div>
+                <span className="flex items-center gap-1 text-sky-300">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full inline-block shadow-sm"
+                    style={{ backgroundColor: SPOTS[SEQUENCE_ORDER[activeSequenceIndex]]?.color || '#000' }}
+                  />
+                  <span className="text-[11px] font-black">{SPOTS[SEQUENCE_ORDER[activeSequenceIndex]]?.nameFa || 'مشکی'}</span>
+                </span>
               )}
-              {turn === 'p1' && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />}
             </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[11px] font-bold text-slate-200 block truncate">{myUserName}</span>
-              <span className="text-[9px] text-slate-400 block font-mono">{isRtl ? 'امتیاز' : 'Score'}</span>
-            </div>
-            <span className="text-base font-mono font-black text-emerald-400">{scoreP1}</span>
-          </div>
 
-          {/* P2: Opponent / Bot */}
-          <div className={`flex items-center gap-2 px-2.5 py-1 rounded-xl transition-all ${
-            turn === 'p2' ? 'bg-cyan-600/30 border border-cyan-500/50 shadow-md' : 'opacity-75'
-          }`}>
-            <span className="text-base font-mono font-black text-cyan-400">{scoreP2}</span>
-            <div className="flex-1 min-w-0 text-left">
-              <span className="text-[11px] font-bold text-slate-200 block truncate">
-                {gameMode === 'bot' ? (isRtl ? 'ربات چاژا' : 'ChaZha Bot') : (isRtl ? 'حریف' : 'Opponent')}
-              </span>
-              <span className="text-[9px] text-slate-400 block font-mono">{isRtl ? 'امتیاز' : 'Score'}</span>
-            </div>
-            <div className="relative">
-              <div className="w-7 h-7 rounded-full bg-cyan-700 text-white font-black text-xs flex items-center justify-center">
-                {gameMode === 'bot' ? <Bot size={15} /> : <Users size={15} />}
-              </div>
-              {turn === 'p2' && <span className="absolute -bottom-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />}
-            </div>
-          </div>
-        </div>
-
-        {/* Target Indicator & Break Banner */}
-        <div className="py-1 px-3 rounded-full bg-slate-900/80 border border-white/10 flex items-center justify-between shadow-lg text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <Target size={12} className="text-amber-400" />
-            <span className="font-bold text-slate-200">
-              {targetBallType === 'red' 
-                ? (isRtl ? 'هدف: توپ قرمز 🔴' : 'Target: Red 🔴') 
-                : targetBallType === 'colour' 
-                  ? (isRtl ? 'هدف: رنگی دلخواه ⭐' : 'Target: Any Colour ⭐')
-                  : (isRtl ? `ترتیبی: ${SPOTS[SEQUENCE_ORDER[activeSequenceIndex]]?.nameFa || 'مشکی'}` : `Seq: ${SEQUENCE_ORDER[activeSequenceIndex]}`)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
             {currentBreak > 0 && (
-              <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {isRtl ? `بریک: ${currentBreak}` : `Break: ${currentBreak}`}
+              <span className="text-[10px] font-mono font-black px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                +{currentBreak}
               </span>
             )}
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              turn === 'p1' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-cyan-500/20 text-cyan-300'
+          </div>
+
+          {/* Right: Players & Scores Pill + Settings */}
+          <div className="flex items-center gap-1.5">
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg transition-colors ${
+              turn === 'p1' ? 'bg-indigo-600/30 text-emerald-300 border border-indigo-500/40' : 'text-slate-400'
             }`}>
-              {turn === 'p1' ? (isRtl ? 'نوبت شما' : 'Your Turn') : (isRtl ? 'نوبت حریف' : 'Opponent')}
-            </span>
+              <span className="text-[11px] font-bold truncate max-w-[48px]">{myUserName}</span>
+              <span className="font-mono font-black text-xs text-white bg-slate-800/80 px-1 rounded">{scoreP1}</span>
+              {turn === 'p1' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
+            </div>
+
+            <span className="text-[10px] text-slate-500 font-bold">:</span>
+
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg transition-colors ${
+              turn === 'p2' ? 'bg-cyan-600/30 text-cyan-300 border border-cyan-500/40' : 'text-slate-400'
+            }`}>
+              {turn === 'p2' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />}
+              <span className="font-mono font-black text-xs text-white bg-slate-800/80 px-1 rounded">{scoreP2}</span>
+              <span className="text-[11px] font-bold truncate max-w-[48px]">
+                {gameMode === 'bot' ? (isRtl ? 'ربات' : 'Bot') : (isRtl ? 'حریف' : 'Opp')}
+              </span>
+            </div>
+
+            {/* Restart / Setup */}
+            <button
+              onClick={() => setSetupModalOpen(true)}
+              className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-slate-300 transition-colors"
+              title={isRtl ? 'تنظیمات و شروع مجدد' : 'Settings'}
+            >
+              <RotateCcw size={13} />
+            </button>
           </div>
         </div>
 
-        {/* Foul / Announcements */}
+        {/* Floating Announcement / Foul Toasts (Non-disruptive overlay) */}
         <AnimatePresence>
           {foulMessage && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="py-1 px-3 rounded-xl bg-rose-600/30 border border-rose-500/50 text-rose-300 font-bold text-[11px] text-center shadow-lg"
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              className="py-1 px-3 rounded-xl bg-rose-600/90 text-white font-bold text-xs text-center shadow-lg border border-rose-400/50"
             >
               ⚠️ {foulMessage}
             </motion.div>
@@ -1634,10 +1636,10 @@ export default function Snooker() {
 
           {announcementMsg && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="py-1 px-3 rounded-xl bg-amber-500/25 border border-amber-400/50 text-amber-300 font-bold text-[11px] text-center shadow-lg"
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              className="py-1 px-3 rounded-xl bg-amber-500/90 text-slate-950 font-black text-xs text-center shadow-lg border border-amber-300/50"
             >
               {announcementMsg}
             </motion.div>
@@ -1646,9 +1648,9 @@ export default function Snooker() {
       </header>
 
       {/* ── 2. Main Gaming Stage: Genuine Elongated 2:1 Snooker Table ── */}
-      <main className="flex-1 w-full max-w-lg flex items-center justify-center relative px-2 py-1 min-h-0 overflow-hidden">
-        {/* Table Canvas Viewport - Exact 1:2 Aspect Ratio */}
-        <div className="relative h-full max-h-[76vh] aspect-[1/2] flex items-center justify-center mx-auto">
+      <main className="flex-1 w-full max-w-lg flex items-center justify-center relative px-2 py-0.5 min-h-0 overflow-hidden">
+        {/* Table Canvas Viewport - Maximized to 86vh while strictly preserving 1:2 portrait ratio */}
+        <div className="relative h-full max-h-[85vh] sm:max-h-[87vh] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
           <canvas
             ref={canvasRef}
             width={CANVAS_W}
@@ -1656,6 +1658,7 @@ export default function Snooker() {
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
+            onPointerCancel={handleCanvasPointerCancel}
             className="w-full h-full object-contain touch-none cursor-crosshair drop-shadow-[0_15px_35px_rgba(0,0,0,0.85)]"
           />
         </div>
@@ -1734,50 +1737,45 @@ export default function Snooker() {
         </aside>
       </main>
 
-      {/* ── 3. Floating Strike Dock (Matching media_1788885506109.png - strictly when it's your turn) ── */}
+      {/* ── 3. Floating Compact Strike Dock (Only when active player can shoot) ── */}
       <AnimatePresence>
         {canShoot && (
           <motion.div
-            initial={{ opacity: 0, y: 55, scale: 0.93 }}
+            initial={{ opacity: 0, y: 35, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 45, scale: 0.93 }}
+            exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-            className="fixed bottom-3 sm:bottom-4 inset-x-3 sm:max-w-md sm:mx-auto z-50 bg-white/95 text-slate-900 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-indigo-100 backdrop-blur-2xl select-none"
+            className="fixed bottom-2.5 sm:bottom-3 inset-x-3 sm:max-w-sm sm:mx-auto z-50 bg-white/95 text-slate-900 rounded-2xl px-3.5 py-2 shadow-[0_15px_35px_rgba(0,0,0,0.5)] border border-indigo-100 backdrop-blur-2xl select-none"
             dir={isRtl ? 'rtl' : 'ltr'}
           >
-            <div className="flex items-center justify-between gap-4">
-              {/* Right Column in RTL: Label, Percentage, Slider */}
+            <div className="flex items-center justify-between gap-3">
+              {/* Power display & slim slider */}
               <div className="flex-1 flex flex-col items-start gap-1">
-                <span className="font-extrabold text-slate-900 text-sm tracking-tight">
-                  {isRtl ? 'قدرت ضربه:' : 'Shot Power:'}
-                </span>
-                <span className="font-black text-slate-800 text-sm">
-                  {isRtl ? `${toPersianDigits(shotPower)}٪` : `${shotPower}%`}
-                </span>
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
+                  <span className="text-slate-500 font-bold">{isRtl ? 'قدرت ضربه:' : 'Power:'}</span>
+                  <span className="text-indigo-600 font-mono text-sm font-black">
+                    {isRtl ? `${toPersianDigits(shotPower)}٪` : `${shotPower}%`}
+                  </span>
+                </div>
 
-                {/* RTL Horizontal Interactive Slider */}
-                <div className="relative w-full max-w-[200px] h-4 rounded-full bg-[#ede9fe] flex items-center">
-                  {/* Purple Filled Track (Fills from Right in RTL, from Left in LTR) */}
+                {/* Slim Horizontal Track */}
+                <div className="relative w-full h-2.5 rounded-full bg-[#ede9fe] flex items-center">
                   <div
-                    className="absolute top-0 bottom-0 rounded-full bg-[#4f46e5]"
+                    className="absolute top-0 bottom-0 rounded-full bg-[#4f46e5] transition-all duration-75"
                     style={
                       isRtl
                         ? { width: `${shotPower}%`, right: 0 }
                         : { width: `${shotPower}%`, left: 0 }
                     }
                   />
-
-                  {/* Circular Thumb Knob */}
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#f8fafc] border-2 border-[#4f46e5] shadow-md pointer-events-none transition-all duration-75"
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#4f46e5] shadow pointer-events-none transition-all duration-75"
                     style={
                       isRtl
-                        ? { right: `calc(${shotPower}% - 10px)` }
-                        : { left: `calc(${shotPower}% - 10px)` }
+                        ? { right: `calc(${shotPower}% - 8px)` }
+                        : { left: `calc(${shotPower}% - 8px)` }
                     }
                   />
-
-                  {/* Range Input for Smooth Drag & Tap Handling */}
                   <input
                     type="range"
                     dir={isRtl ? 'rtl' : 'ltr'}
@@ -1786,6 +1784,7 @@ export default function Snooker() {
                     value={shotPower}
                     onChange={(e) => {
                       const val = Number(e.target.value);
+                      shotPowerRef.current = val;
                       setShotPower(val);
                       haptics?.selection?.();
                     }}
@@ -1797,10 +1796,10 @@ export default function Snooker() {
               {/* Action Button: ضربه بزن ↗ */}
               <button
                 onClick={() => handleExecuteShot(shotPower)}
-                className="flex-shrink-0 bg-[#4732e6] hover:bg-[#3724c9] active:scale-95 text-white font-black text-sm px-6 py-3.5 rounded-2xl shadow-lg shadow-indigo-600/35 flex items-center justify-center gap-1.5 transition-all"
+                className="flex-shrink-0 bg-[#4732e6] hover:bg-[#3724c9] active:scale-95 text-white font-black text-xs px-4 py-2 rounded-xl shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1 transition-all"
               >
                 <span>{isRtl ? 'ضربه بزن' : 'Strike'}</span>
-                <span className="text-base font-bold">↗</span>
+                <span className="text-sm font-bold">↗</span>
               </button>
             </div>
           </motion.div>
@@ -1814,6 +1813,7 @@ export default function Snooker() {
         onClose={() => setSetupModalOpen(false)}
         onStartGame={handleStartGame}
         selectedCueId={selectedCueId}
+        selectedThemeId={selectedTheme?.id}
         onOpenCueStore={() => {
           setSetupModalOpen(false);
           setCueStoreOpen(true);
@@ -1821,12 +1821,14 @@ export default function Snooker() {
         isRtl={isRtl}
       />
 
-      {/* Cue Store Modal */}
+      {/* Cue & Table Theme Boutique Store Modal */}
       <SnookerCueStoreModal
         isOpen={cueStoreOpen}
         onClose={() => setCueStoreOpen(false)}
         selectedCueId={selectedCueId}
         onSelectCue={handleSelectCue}
+        selectedThemeId={selectedTheme?.id}
+        onSelectTheme={handleSelectTheme}
         isRtl={isRtl}
       />
 

@@ -11,13 +11,16 @@ import { SNOOKER_CUES } from './SnookerCueStoreModal';
 export const TABLE_THEMES = [
   {
     id: 'championship_green',
-    nameFa: 'سبز مسابقات جهانی',
-    nameEn: 'Championship Green',
+    nameFa: 'سبز مسابقات جهانی کروسیبل',
+    nameEn: 'Crucible Championship Green',
     clothColor: '#0b532c',
     cushionColor: '#073d1f',
     borderColor: '#382212',
     accentColor: '#10b981',
-    desc: 'ماهوت استاندارد استرابون تور حرفه‌ای'
+    price: 0,
+    isFree: true,
+    badge: 'استاندارد 🏆',
+    desc: 'ماهوت رسمی استرابون ۱۰۰ تور جهانی شفیلد انگلستان'
   },
   {
     id: 'royal_blue',
@@ -27,27 +30,62 @@ export const TABLE_THEMES = [
     cushionColor: '#132842',
     borderColor: '#241b14',
     accentColor: '#38bdf8',
-    desc: 'دید عالی با کنتراست فوق‌العاده توپ‌ها'
-  },
-  {
-    id: 'obsidian_dark',
-    nameFa: 'مشکی آبسیدین',
-    nameEn: 'Obsidian Black',
-    clothColor: '#1c1c22',
-    cushionColor: '#121216',
-    borderColor: '#2d1a24',
-    accentColor: '#f43f5e',
-    desc: 'طراحی نئونی و مینیمال سایبر'
+    price: 3000,
+    isFree: false,
+    badge: 'محبوب 👑',
+    desc: 'دید عالی با کنتراست فوق‌العاده بالا و تفکیک دقیق توپ‌ها'
   },
   {
     id: 'imperial_red',
-    nameFa: 'قرمز زرشکی امپریال',
-    nameEn: 'Imperial Crimson Red',
+    nameFa: 'قرمز لعل امپریال',
+    nameEn: 'Imperial Ruby Crimson',
     clothColor: '#631726',
     cushionColor: '#450f1a',
     borderColor: '#2b1d0c',
     accentColor: '#fbbf24',
-    desc: 'شکوه و اشرافیت تالارهای درباری'
+    price: 6000,
+    isFree: false,
+    badge: 'اشرافی 🍷',
+    desc: 'شکوه و اشرافیت بافت مخملی ابریشمین تالارهای درباری'
+  },
+  {
+    id: 'obsidian_dark',
+    nameFa: 'مشکی آبسیدین سایبر',
+    nameEn: 'Cyber Neon Obsidian',
+    clothColor: '#1c1c24',
+    cushionColor: '#111118',
+    borderColor: '#2d1a24',
+    accentColor: '#f43f5e',
+    price: 10000,
+    isFree: false,
+    badge: 'نئونی ⚡',
+    desc: 'ماهوت مات با درخشش سایبرپانکی و خطوط نئونی خیره‌کننده'
+  },
+  {
+    id: 'persian_emerald',
+    nameFa: 'زمرد کهن پرشیا',
+    nameEn: 'Ancient Persian Emerald',
+    clothColor: '#064e3b',
+    cushionColor: '#022c22',
+    borderColor: '#451a03',
+    accentColor: '#34d399',
+    price: 15000,
+    isFree: false,
+    badge: 'باستانی 🦅',
+    desc: 'تزئین شده با خطوط زرین کاخ پاسارگاد و نگین‌های زمردین'
+  },
+  {
+    id: 'amethyst_royalty',
+    nameFa: 'یاقوت ارغوانی امیتیست',
+    nameEn: 'Amethyst Royalty',
+    clothColor: '#3b124d',
+    cushionColor: '#260833',
+    borderColor: '#1e0c24',
+    accentColor: '#c084fc',
+    price: 22000,
+    isFree: false,
+    badge: 'افسانه‌ای 💎',
+    desc: 'شاهکار بصری با جلای کریستالی امیتیست و حاشیه‌های لوکس'
   }
 ];
 
@@ -56,14 +94,19 @@ export default function SnookerSetupModal({
   onClose,
   onStartGame,
   selectedCueId = 'ash_classic',
+  selectedThemeId = 'championship_green',
   onOpenCueStore,
   isRtl = true
 }) {
   const [mode, setMode] = useState('bot'); // 'bot' | 'matchmaking' | 'online' | 'practice'
   const [botDifficulty, setBotDifficulty] = useState('medium'); // 'easy' | 'medium' | 'hard'
   const [frames, setFrames] = useState(1); // 1 | 3 | 5
-  const [themeId, setThemeId] = useState('championship_green');
+  const [themeId, setThemeId] = useState(selectedThemeId || 'championship_green');
   const [roomCode, setRoomCode] = useState('');
+
+  useEffect(() => {
+    if (selectedThemeId) setThemeId(selectedThemeId);
+  }, [selectedThemeId]);
 
   if (!isOpen) return null;
 
