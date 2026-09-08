@@ -9,7 +9,7 @@ import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
 
 export const CHAZHA_STORE_ITEMS = [
-  // 1. Profile Banners (تا ۵ بنر قابل تجهیز)
+  // 1. Profile Banners (بنرهای تصویری و سینمایی پروفایل گیمر)
   {
     id: 'banner_persepolis',
     type: 'banner',
@@ -18,8 +18,10 @@ export const CHAZHA_STORE_ITEMS = [
     category: 'banners',
     price: 350,
     icon: '🏛️',
+    tag: '🏛️ هخامنشی',
+    imageUrl: 'https://images.unsplash.com/photo-1569288052389-dac9b01c9c05?auto=format&fit=crop&w=1200&q=80',
     previewBg: 'from-amber-700 via-orange-600 to-amber-950',
-    description: 'غروب با شکوه تخت جمشید باستان با نقوش هخامنشی',
+    description: 'شکوه و عظمت ستون‌های تخت جمشید و آرامگاه کوروش با نور طلایی غروب',
     gradient: 'linear-gradient(135deg, #78350f 0%, #d97706 50%, #451a03 100%)'
   },
   {
@@ -30,8 +32,10 @@ export const CHAZHA_STORE_ITEMS = [
     category: 'banners',
     price: 500,
     icon: '👑',
+    tag: '👑 سلطنتی',
+    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
     previewBg: 'from-yellow-600 via-amber-400 to-yellow-900',
-    description: 'طرح لوکس طلای خالص و ساتن مشکی پادشاهان باستان',
+    description: 'طرح لوکس طلای ۲۴ عیار و ذرات درخشان پادشاهان باستان بر مخمل تیره',
     gradient: 'linear-gradient(135deg, #854d0e 0%, #facc15 50%, #713f12 100%)'
   },
   {
@@ -42,8 +46,10 @@ export const CHAZHA_STORE_ITEMS = [
     category: 'banners',
     price: 400,
     icon: '⚡',
+    tag: '⚡ سایبرپانک',
+    imageUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
     previewBg: 'from-fuchsia-600 via-purple-700 to-cyan-500',
-    description: 'نورهای نئونی سایبرپانک با خطوط لیزری آینده‌نگرانه',
+    description: 'نورهای نئونی ارغوانی و فیروزه‌ای شهر سایبری با لیزرهای گیمینگ آینده‌نگر',
     gradient: 'linear-gradient(135deg, #c026d3 0%, #6d28d9 50%, #06b6d4 100%)'
   },
   {
@@ -54,21 +60,81 @@ export const CHAZHA_STORE_ITEMS = [
     category: 'banners',
     price: 450,
     icon: '🌌',
+    tag: '🌌 کیهان',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1200&q=80',
     previewBg: 'from-indigo-900 via-purple-900 to-slate-950',
-    description: 'کهکشان‌های ناشناخته و ستارگان درخشان کیهانی',
+    description: 'کهکشان‌های بی‌انتها، غبار کیهانی بنفش و ستارگان درخشان ژرفای فضا',
     gradient: 'linear-gradient(135deg, #312e81 0%, #581c87 50%, #030712 100%)'
   },
   {
     id: 'banner_dragon',
     type: 'banner',
-    nameFa: 'بنر اژدهای شاهنامه',
-    nameEn: 'Mythical Dragon Banner',
+    nameFa: 'بنر اژدهای شاهنامه و آتش',
+    nameEn: 'Mythical Dragon Flame Banner',
     category: 'banners',
     price: 600,
     icon: '🐉',
+    tag: '🐉 حماسی',
+    imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80',
     previewBg: 'from-red-700 via-rose-600 to-neutral-950',
-    description: 'طرح حماسی اژدهای هفت‌خوان شاهنامه با شعله‌های سرخ',
+    description: 'شعله‌های سرخ آتشین میدان نبرد اساطیری برای مبارزان بی‌باک چاژا',
     gradient: 'linear-gradient(135deg, #991b1b 0%, #e11d48 50%, #0a0a0a 100%)'
+  },
+  {
+    id: 'banner_casino',
+    type: 'banner',
+    nameFa: 'بنر کازینو و کارت‌های شاهانه',
+    nameEn: 'Royal Vegas Casino Banner',
+    category: 'banners',
+    price: 450,
+    icon: '🃏',
+    tag: '🃏 شاهانه',
+    imageUrl: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80',
+    previewBg: 'from-emerald-900 via-green-800 to-slate-950',
+    description: 'میز سبز مخمل سلطنتی با کارت‌های بازی و ژتون‌های طلایی مسابقات سنگین',
+    gradient: 'linear-gradient(135deg, #14532d 0%, #15803d 50%, #052e16 100%)'
+  },
+  {
+    id: 'banner_mountain_aurora',
+    type: 'banner',
+    nameFa: 'بنر قله دماوند و شفق قطبی',
+    nameEn: 'Damavand Peak Aurora Banner',
+    category: 'banners',
+    price: 380,
+    icon: '🏔️',
+    tag: '🏔️ شفق قطبی',
+    imageUrl: 'https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1200&q=80',
+    previewBg: 'from-cyan-900 via-slate-800 to-slate-950',
+    description: 'قله‌های برفی استوار در زیر رقص نورهای زمردین و آرامش‌بخش شفق قطبی',
+    gradient: 'linear-gradient(135deg, #0f172a 0%, #0e7490 50%, #0284c7 100%)'
+  },
+  {
+    id: 'banner_chess_grandmaster',
+    type: 'banner',
+    nameFa: 'بنر شطرنج گرندمستر',
+    nameEn: 'Grandmaster Chess Banner',
+    category: 'banners',
+    price: 420,
+    icon: '♟️',
+    tag: '♟️ شطرنج',
+    imageUrl: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=1200&q=80',
+    previewBg: 'from-zinc-800 via-stone-800 to-black',
+    description: 'شاه و وزیر چوبی دست‌ساز با نورپردازی سینمایی روی صفحه چوبی فاخر',
+    gradient: 'linear-gradient(135deg, #27272a 0%, #71717a 50%, #18181b 100%)'
+  },
+  {
+    id: 'banner_arcade_retro',
+    type: 'banner',
+    nameFa: 'بنر معبد آرکید و گیمینگ',
+    nameEn: 'Retro Arcade Sanctuary Banner',
+    category: 'banners',
+    price: 390,
+    icon: '🕹️',
+    tag: '🕹️ آرکید',
+    imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    previewBg: 'from-purple-900 via-pink-900 to-slate-950',
+    description: 'فضای نوستالژیک دستگاه‌های سکه‌ای آرکید با نورپردازی نئونی هیجان‌انگیز',
+    gradient: 'linear-gradient(135deg, #581c87 0%, #be185d 50%, #1e1b4b 100%)'
   },
 
   // 2. Avatar Frames (قاب‌های دور عکس پروفایل)
@@ -207,12 +273,26 @@ export default function ChazhaStoreModal({ isOpen, onClose }) {
 
     if (isOwned) {
       setEquippedItem(item.type, item.id);
+      if (item.type === 'banner' && item.imageUrl) {
+        const { setUserProfile } = useAppStore.getState();
+        if (setUserProfile) {
+          setUserProfile({ banner: item.imageUrl, bannerId: item.id });
+          localStorage.setItem('life_os_user_banner', item.imageUrl);
+        }
+      }
       showToast(isRtl ? `«${item.nameFa}» با موفقیت تجهیز و فعال شد! ✅` : `"${item.nameEn}" equipped successfully! ✅`);
       soundEngine.playCheckmark?.();
     } else {
       const res = buyStoreItem(item);
       if (res.success) {
         setEquippedItem(item.type, item.id);
+        if (item.type === 'banner' && item.imageUrl) {
+          const { setUserProfile } = useAppStore.getState();
+          if (setUserProfile) {
+            setUserProfile({ banner: item.imageUrl, bannerId: item.id });
+            localStorage.setItem('life_os_user_banner', item.imageUrl);
+          }
+        }
         showToast(isRtl ? `🎉 مبارکه! «${item.nameFa}» خریداری و فوراً فعال شد.` : `Purchased & equipped! 🎉`);
         soundEngine.playLevelUp?.();
         haptics.notification?.('success');
@@ -480,8 +560,28 @@ export default function ChazhaStoreModal({ isOpen, onClose }) {
                       {item.description}
                     </p>
 
-                    {/* Banner Mini Strip Preview if banner */}
-                    {item.gradient && (
+                    {/* Banner Panoramic Image Preview if item is a banner */}
+                    {item.type === 'banner' && item.imageUrl && (
+                      <div className="h-28 w-full rounded-2xl overflow-hidden relative mt-1 border border-white/15 shadow-inner group-hover:border-amber-400/50 transition-all bg-slate-950">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.nameFa} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex items-end justify-between p-2.5">
+                          <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1 bg-black/60 px-2 py-0.5 rounded-lg backdrop-blur-sm border border-amber-400/20">
+                            <Sparkles size={11} className="text-amber-400" />
+                            <span>{item.tag || item.nameFa}</span>
+                          </span>
+                          <span className="text-[9px] font-mono font-bold text-white/90 bg-black/60 px-2 py-0.5 rounded-lg backdrop-blur-sm border border-white/10">
+                            HD Wallpaper
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Banner Mini Strip Preview if banner without image */}
+                    {item.type === 'banner' && !item.imageUrl && item.gradient && (
                       <div 
                         className="h-3 w-full rounded-md mt-0.5 border border-white/10" 
                         style={{ background: item.gradient }}

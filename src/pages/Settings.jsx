@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sun, Moon, Sparkles, Volume2, VolumeX, Globe, Download, Upload, Smartphone, Tv, Laptop,
   Award, Shield, Check, CheckCircle, Info, Lock, Key, Cloud, Bell, Send, AlertTriangle,
-  User, Camera, Edit3, Image, Copy, CheckCircle2, Coins, Crown, Flame, Zap, Share2, Palette
+  User, Camera, Edit3, Image, Copy, CheckCircle2, Coins, Crown, Flame, Zap, Share2, Palette,
+  X, ShoppingBag
 } from 'lucide-react';
 import useAppStore, { BADGES_LIST, FONTS_LIST } from '../store/appStore';
 import { exportAllDataJSON, importAllDataJSON } from '../db/database';
@@ -15,6 +16,8 @@ import InstallGuideModal from '../components/ui/InstallGuideModal';
 import CloudAuthModal from '../components/ui/CloudAuthModal';
 import cloudAuthSync from '../services/cloudAuthSync';
 import CoinShopModal from '../components/shop/CoinShopModal';
+import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
+import { PRESET_BANNERS } from '../components/games/OpponentProfileModal';
 import { getTelegramWebApp } from '../utils/telegram';
 
 // Preset Avatars Gallery for Gamer Profile
@@ -73,7 +76,7 @@ export default function Settings() {
     soundEnabled, setSoundEnabled,
     xp, level, streak, badges, getLevelTitle, deferredPrompt,
     aiKey, setAiKey, userProfile, setUserProfile, coins, isVip,
-    invitedCount, referralEarnings
+    invitedCount, referralEarnings, gameStats
   } = useAppStore();
 
   const isRtl = language === 'fa';
@@ -95,8 +98,13 @@ export default function Settings() {
   const [avatarUrl, setAvatarUrl] = useState(() => {
     return userProfile?.avatar || localStorage.getItem('life_os_user_avatar') || '👑';
   });
+  const [currentBannerUrl, setCurrentBannerUrl] = useState(() => {
+    return userProfile?.banner || localStorage.getItem('life_os_user_banner') || PRESET_BANNERS[0]?.imageUrl;
+  });
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showBannerModal, setShowBannerModal] = useState(false);
+  const [isChazhaStoreOpen, setIsChazhaStoreOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [isShopModalOpen, setIsShopModalOpen] = useState(false);
@@ -196,17 +204,31 @@ export default function Settings() {
       fullName: cleanName,
       username: cleanUsername,
       bio: cleanBio,
-      avatar: avatarUrl
+      avatar: avatarUrl,
+      banner: currentBannerUrl
     });
 
     localStorage.setItem('life_os_user_name', cleanName);
     localStorage.setItem('life_os_user_username', cleanUsername);
     localStorage.setItem('life_os_user_bio', cleanBio);
     localStorage.setItem('life_os_user_avatar', avatarUrl);
+    localStorage.setItem('life_os_user_banner', currentBannerUrl);
 
     haptics.success?.();
     soundEngine.playCheckmark?.();
     setSaveMessage(isRtl ? '✓ پروفایل با موفقیت ذخیره شد!' : '✓ Profile saved successfully!');
+    setTimeout(() => setSaveMessage(''), 3000);
+  };
+
+  // Select Banner from gallery
+  const handleSelectBanner = (banner) => {
+    setCurrentBannerUrl(banner.imageUrl);
+    setUserProfile({ banner: banner.imageUrl, bannerId: banner.id });
+    localStorage.setItem('life_os_user_banner', banner.imageUrl);
+    soundEngine.playLevelUp?.();
+    haptics.success?.();
+    setShowBannerModal(false);
+    setSaveMessage(isRtl ? `✓ بنر «${banner.title}» با موفقیت فعال شد!` : `✓ Banner "${banner.title}" equipped!`);
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
@@ -454,64 +476,178 @@ export default function Settings() {
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeTab === 'profile' && (
         <div className="space-y-4">
-          {/* Avatar & Identity Hero Card */}
-          <div className={`p-5 rounded-3xl border shadow-sm transition-all ${
-            isLight ? 'bg-white border-slate-200 shadow-slate-200/60' : 'bg-slate-900/80 border-white/10 backdrop-blur-xl'
+          {/* Elite Gamer Identity Showcase Card */}
+          <div className={`rounded-3xl border shadow-xl transition-all overflow-hidden relative ${
+            isLight ? 'bg-white border-slate-200/90 shadow-slate-200/60' : 'bg-slate-900/90 border-white/10 backdrop-blur-2xl shadow-black/40'
           }`}>
-            <div className="flex flex-col sm:flex-row items-center gap-4 pb-5 border-b border-inherit">
-              {/* Avatar with Edit Overlay */}
-              <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
-                <SafeAvatar avatar={avatarUrl} size="w-20 h-20 text-4xl" ringColor="border-amber-400" />
-                <div className="absolute inset-0 rounded-3xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
-                  <Camera size={22} />
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowAvatarModal(true); }}
-                  className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-amber-500 text-slate-950 shadow-md hover:bg-amber-400 active:scale-90 transition-transform"
-                  title={isRtl ? 'تغییر تصویر' : 'Change Avatar'}
-                >
-                  <Edit3 size={13} />
-                </button>
-              </div>
+            {/* Top Panoramic Cover Banner */}
+            <div className="relative w-full h-32 sm:h-44 overflow-hidden select-none bg-slate-950 group">
+              <img 
+                src={currentBannerUrl} 
+                alt="Profile Banner" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
-              {/* Name & Quick Badges */}
-              <div className="text-center sm:text-start flex-1 min-w-0">
-                <div className="flex items-center justify-center sm:justify-start gap-2">
-                  <h2 className={`text-lg font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    {displayName || (isRtl ? 'کاربر چاژا' : 'Chazha Player')}
-                  </h2>
+              {/* Top Banner Controls */}
+              <div className="absolute top-3 inset-x-3 flex items-center justify-between z-10">
+                <div className="flex items-center gap-1.5">
                   {isVip && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold border border-amber-500/40">
-                      VIP 👑
+                    <span className="text-[10px] px-2.5 py-1 rounded-full bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/30 flex items-center gap-1">
+                      <Crown size={12} className="fill-slate-950" />
+                      <span>VIP KING</span>
                     </span>
                   )}
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 font-bold border border-purple-500/30">
-                    Lvl {level}
+                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-purple-600/90 text-white font-black shadow-lg shadow-purple-600/30 flex items-center gap-1">
+                    <Zap size={12} />
+                    <span>{isRtl ? `سطح ${level}` : `LVL ${level}`}</span>
                   </span>
                 </div>
 
-                <p className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {userUsername ? `@${userUsername}` : (isRtl ? 'شناسه گیمر تلگرام' : 'Telegram Gamer ID')} • {levelTitle}
-                </p>
+                <button
+                  onClick={() => setShowBannerModal(true)}
+                  className="px-2.5 py-1 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer"
+                >
+                  <Palette size={13} className="text-amber-400" />
+                  <span>{isRtl ? 'تغییر بنر' : 'Change Banner'}</span>
+                </button>
+              </div>
+            </div>
 
-                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
+            {/* Avatar & Main Profile Header */}
+            <div className="px-4 sm:px-6 pb-5 relative">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 -mt-12 sm:-mt-14 mb-4">
+                {/* Overlapping Avatar */}
+                <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+                  <div className="p-1 rounded-3xl bg-slate-900 border-4 border-slate-900 shadow-2xl">
+                    <SafeAvatar avatar={avatarUrl} size="w-20 h-20 sm:w-24 sm:h-24 text-4xl" ringColor="border-amber-400/80" />
+                  </div>
+                  <span className="absolute bottom-2 right-2 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full animate-pulse shadow-sm" />
+                  <div className="absolute inset-1 rounded-3xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                    <Camera size={22} />
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowAvatarModal(true); }}
+                    className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-amber-500 text-slate-950 shadow-lg hover:bg-amber-400 active:scale-90 transition-transform"
+                    title={isRtl ? 'تغییر عکس' : 'Change Photo'}
+                  >
+                    <Edit3 size={13} />
+                  </button>
+                </div>
+
+                {/* Quick Profile Actions Bar */}
+                <div className="flex items-center gap-2 flex-wrap justify-center">
                   <button
                     onClick={() => setShowAvatarModal(true)}
-                    className={`px-3 py-1 rounded-xl text-xs font-bold border active:scale-95 transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1 ${
                       isLight 
                         ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200' 
-                        : 'bg-white/10 border-white/15 text-white hover:bg-white/20'
+                        : 'bg-white/10 border-white/15 text-white hover:bg-white/15'
                     }`}
                   >
-                    🖼️ {isRtl ? 'انتخاب آواتار' : 'Change Avatar'}
+                    <Image size={13} />
+                    <span>{isRtl ? 'انتخاب آواتار' : 'Avatar'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowBannerModal(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 hover:bg-amber-500/25 transition-all active:scale-95 flex items-center gap-1"
+                  >
+                    <Palette size={13} />
+                    <span>{isRtl ? 'گالری بنرها' : 'Banners'}</span>
                   </button>
 
                   <button
                     onClick={handleSyncTelegramProfile}
-                    className="px-3 py-1 rounded-xl text-xs font-bold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300 hover:bg-sky-500/25 active:scale-95 transition-all"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/15 border border-sky-500/30 text-sky-600 dark:text-sky-300 hover:bg-sky-500/25 active:scale-95 transition-all flex items-center gap-1"
                   >
-                    🔄 {isRtl ? 'همگام با تلگرام' : 'Sync Telegram'}
+                    <span>🔄</span>
+                    <span>{isRtl ? 'همگام تلگرام' : 'Telegram Sync'}</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Name, Username & Bio */}
+              <div className="text-center sm:text-start space-y-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <h2 className={`text-lg sm:text-xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {displayName || (isRtl ? 'کاربر چاژا' : 'Chazha Player')}
+                  </h2>
+                  <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] shadow-sm" title="کاربر تایید شده">
+                    ✓
+                  </span>
+                </div>
+
+                <p className={`text-xs font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {userUsername ? `@${userUsername}` : (isRtl ? 'شناسه کاربری رسمی' : 'Official User ID')} • {levelTitle}
+                </p>
+
+                {/* Level & XP Progress Bar */}
+                <div className="pt-2 pb-1 max-w-md">
+                  <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                    <span className="text-amber-500">{isRtl ? `پیشرفت سطح ${level}` : `Level ${level} Progress`}</span>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>{xp || 45} / 100 XP</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(15, xp || 45))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Bio text */}
+                <div className={`mt-2 p-3 rounded-2xl border text-xs leading-relaxed ${
+                  isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-white/[0.04] border-white/[0.08] text-slate-300'
+                }`}>
+                  <p className="italic">«{bioText || (isRtl ? 'قهرمان مسابقات آنلاین چاژا' : 'Chazha Player')}»</p>
+                </div>
+              </div>
+
+              {/* Gamer Stats Grid */}
+              <div className="grid grid-cols-4 gap-2 mt-3.5">
+                <div className={`p-2.5 rounded-2xl border text-center ${
+                  isLight ? 'bg-amber-50/80 border-amber-200' : 'bg-amber-500/10 border-amber-500/20'
+                }`}>
+                  <span className="text-base sm:text-lg font-black text-amber-500 block font-mono">
+                    {coins.toLocaleString()}
+                  </span>
+                  <span className={`text-[10px] font-bold ${isLight ? 'text-amber-900' : 'text-amber-300'}`}>
+                    {isRtl ? '🪙 سکه' : 'Coins'}
+                  </span>
+                </div>
+
+                <div className={`p-2.5 rounded-2xl border text-center ${
+                  isLight ? 'bg-purple-50/80 border-purple-200' : 'bg-purple-500/10 border-purple-500/20'
+                }`}>
+                  <span className="text-base sm:text-lg font-black text-purple-600 dark:text-purple-400 block font-mono">
+                    {gameStats?.totalGames || 12}
+                  </span>
+                  <span className={`text-[10px] font-bold ${isLight ? 'text-purple-900' : 'text-purple-300'}`}>
+                    {isRtl ? '🎮 بازی' : 'Games'}
+                  </span>
+                </div>
+
+                <div className={`p-2.5 rounded-2xl border text-center ${
+                  isLight ? 'bg-emerald-50/80 border-emerald-200' : 'bg-emerald-500/10 border-emerald-500/20'
+                }`}>
+                  <span className="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400 block font-mono">
+                    {gameStats?.totalWins || 8}
+                  </span>
+                  <span className={`text-[10px] font-bold ${isLight ? 'text-emerald-900' : 'text-emerald-300'}`}>
+                    {isRtl ? '🏆 برد' : 'Wins'}
+                  </span>
+                </div>
+
+                <div className={`p-2.5 rounded-2xl border text-center ${
+                  isLight ? 'bg-rose-50/80 border-rose-200' : 'bg-rose-500/10 border-rose-500/20'
+                }`}>
+                  <span className="text-base sm:text-lg font-black text-rose-500 block font-mono">
+                    {gameStats?.currentWinStreak || 3}🔥
+                  </span>
+                  <span className={`text-[10px] font-bold ${isLight ? 'text-rose-900' : 'text-rose-300'}`}>
+                    {isRtl ? 'استریک' : 'Streak'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -608,6 +744,19 @@ export default function Settings() {
               >
                 <Check size={16} />
                 <span>{isRtl ? 'ذخیره تغییرات پروفایل' : 'Save Profile Changes'}</span>
+              </button>
+
+              {/* Chazha Store Quick Access Button */}
+              <button
+                onClick={() => setIsChazhaStoreOpen(true)}
+                className={`w-full py-3 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2 mt-2 ${
+                  isLight 
+                    ? 'bg-amber-50 hover:bg-amber-100/80 text-amber-900 border-amber-300 shadow-sm' 
+                    : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30 shadow-sm shadow-amber-500/10'
+                }`}
+              >
+                <ShoppingBag size={16} className="text-amber-500" />
+                <span>{isRtl ? '🛍️ ورود به فروشگاه بنرها و عناوین گیمری' : '🛍️ Enter Gamer Banners & Items Store'}</span>
               </button>
             </div>
           </div>
@@ -1147,12 +1296,133 @@ export default function Settings() {
             </motion.div>
           </div>
         )}
+
+        {/* Banner Select Gallery Modal */}
+        {showBannerModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className={`w-full max-w-md p-5 rounded-3xl border shadow-2xl space-y-4 max-h-[85vh] flex flex-col ${
+                isLight ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-900 text-white border-white/15'
+              }`}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between shrink-0">
+                <h3 className="text-sm font-black flex items-center gap-2">
+                  <Palette size={18} className="text-amber-500" />
+                  <span>{isRtl ? 'انتخاب والپیپر و بنر پروفایل' : 'Choose Profile Banner Wallpaper'}</span>
+                </h3>
+                <button
+                  onClick={() => setShowBannerModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Quick Info & Store Access */}
+              <div className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-2 shrink-0 ${
+                isLight ? 'bg-amber-50/80 border-amber-200 text-amber-950' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={16} className="text-amber-500 shrink-0" />
+                  <span className="text-[11px] font-bold">
+                    {isRtl ? 'بنرهای خاص و متحرک می‌خواهید؟ سری به فروشگاه بزنید!' : 'Want exclusive banners? Visit the store!'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowBannerModal(false);
+                    setIsChazhaStoreOpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] shadow-sm shrink-0 transition-transform active:scale-95 cursor-pointer"
+                >
+                  {isRtl ? 'فروشگاه' : 'Store'}
+                </button>
+              </div>
+
+              {/* Banners Scrollable List */}
+              <div className="overflow-y-auto space-y-2.5 pr-1 flex-1">
+                {PRESET_BANNERS.map(banner => {
+                  const isSelected = currentBannerUrl === banner.imageUrl;
+                  return (
+                    <div
+                      key={banner.id}
+                      onClick={() => handleSelectBanner(banner)}
+                      className={`relative h-24 sm:h-28 rounded-2xl overflow-hidden border-2 cursor-pointer transition-all active:scale-98 group ${
+                        isSelected
+                          ? 'border-amber-400 ring-4 ring-amber-400/40 shadow-xl'
+                          : (isLight ? 'border-slate-200 hover:border-amber-400/60' : 'border-white/10 hover:border-amber-400/60')
+                      }`}
+                    >
+                      <img
+                        src={banner.imageUrl}
+                        alt={banner.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+
+                      {/* Info Overlay */}
+                      <div className="absolute inset-x-3 bottom-2 flex items-end justify-between z-10">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">{banner.icon}</span>
+                            <span className="text-xs font-black text-white drop-shadow-md">
+                              {banner.title}
+                            </span>
+                            {banner.tag && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/80 text-slate-950 font-black">
+                                {banner.tag}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {isSelected ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-emerald-500 text-white font-black text-[10px] shadow flex items-center gap-1">
+                            <Check size={10} />
+                            <span>{isRtl ? 'فعال' : 'Active'}</span>
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-lg bg-black/50 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isRtl ? 'انتخاب' : 'Select'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowBannerModal(false)}
+                className={`w-full py-2.5 rounded-2xl border text-xs font-bold transition-all shrink-0 ${
+                  isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-white/10 text-slate-300 hover:bg-white/10'
+                }`}
+              >
+                {isRtl ? 'انصراف و بستن' : 'Cancel'}
+              </button>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Coin Shop Modal */}
       <CoinShopModal
         isOpen={isShopModalOpen}
         onClose={() => setIsShopModalOpen(false)}
+      />
+
+      {/* Chazha Store Modal */}
+      <ChazhaStoreModal
+        isOpen={isChazhaStoreOpen}
+        onClose={() => setIsChazhaStoreOpen(false)}
+        isRtl={isRtl}
+        colorMode={isLight ? 'light' : 'dark'}
       />
 
       {/* Install Guide Modal */}

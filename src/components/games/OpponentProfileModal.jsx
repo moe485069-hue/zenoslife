@@ -14,6 +14,7 @@ export const PRESET_BANNERS = [
   {
     id: 'banner_persepolis',
     title: 'تخت جمشید باستان',
+    imageUrl: 'https://images.unsplash.com/photo-1569288052389-dac9b01c9c05?auto=format&fit=crop&w=1200&q=80',
     bg: 'linear-gradient(135deg, #78350f 0%, #d97706 50%, #451a03 100%)',
     tag: '🏛️ هخامنشی',
     icon: '🏛️'
@@ -21,6 +22,7 @@ export const PRESET_BANNERS = [
   {
     id: 'banner_royal_gold',
     title: 'طلای سلطنتی ۲۴ عیار',
+    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
     bg: 'linear-gradient(135deg, #854d0e 0%, #facc15 50%, #713f12 100%)',
     tag: '👑 سلطنتی',
     icon: '👑'
@@ -28,6 +30,7 @@ export const PRESET_BANNERS = [
   {
     id: 'banner_cyber_neon',
     title: 'سایبرپانک ۲۰۷۷',
+    imageUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
     bg: 'linear-gradient(135deg, #c026d3 0%, #6d28d9 50%, #06b6d4 100%)',
     tag: '⚡ سایبر',
     icon: '⚡'
@@ -35,16 +38,50 @@ export const PRESET_BANNERS = [
   {
     id: 'banner_cosmic',
     title: 'سحابی کیهانی ژرف',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1200&q=80',
     bg: 'linear-gradient(135deg, #312e81 0%, #581c87 50%, #030712 100%)',
     tag: '🌌 کیهان',
     icon: '🌌'
   },
   {
     id: 'banner_dragon',
-    title: 'اژدهای شاهنامه',
+    title: 'اژدهای شاهنامه و آتش',
+    imageUrl: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1200&q=80',
     bg: 'linear-gradient(135deg, #991b1b 0%, #e11d48 50%, #0a0a0a 100%)',
     tag: '🐉 حماسی',
     icon: '🐉'
+  },
+  {
+    id: 'banner_casino',
+    title: 'میز پوکر و کارت‌های شاهانه',
+    imageUrl: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1200&q=80',
+    bg: 'linear-gradient(135deg, #14532d 0%, #15803d 50%, #052e16 100%)',
+    tag: '🃏 شاهانه',
+    icon: '🃏'
+  },
+  {
+    id: 'banner_mountain_aurora',
+    title: 'قله دماوند و شفق قطبی',
+    imageUrl: 'https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1200&q=80',
+    bg: 'linear-gradient(135deg, #0f172a 0%, #0e7490 50%, #0284c7 100%)',
+    tag: '🏔️ شفق قطبی',
+    icon: '🏔️'
+  },
+  {
+    id: 'banner_chess_grandmaster',
+    title: 'شطرنج گرندمستر',
+    imageUrl: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=1200&q=80',
+    bg: 'linear-gradient(135deg, #27272a 0%, #71717a 50%, #18181b 100%)',
+    tag: '♟️ گرندمستر',
+    icon: '♟️'
+  },
+  {
+    id: 'banner_arcade_retro',
+    title: 'معبد گیمینگ و آرکید',
+    imageUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+    bg: 'linear-gradient(135deg, #581c87 0%, #be185d 50%, #1e1b4b 100%)',
+    tag: '🕹️ آرکید',
+    icon: '🕹️'
   }
 ];
 
@@ -235,8 +272,17 @@ export default function OpponentProfileModal({
                   backgroundSize: 'cover'
                 }}
               >
+                {/* Real Photographic Banner Image */}
+                {currentBanner.imageUrl && (
+                  <img 
+                    src={currentBanner.imageUrl} 
+                    alt={currentBanner.title} 
+                    className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 hover:scale-105"
+                  />
+                )}
+
                 {/* Banner ambient overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-black/30 to-transparent pointer-events-none z-[1]" />
 
                 {/* Banner Badge */}
                 <div className="relative z-10 flex items-center justify-between">
