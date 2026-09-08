@@ -46,9 +46,9 @@ export const FONTS_LIST = [
 ];
 
 const useAppStore = create((set, get) => ({
-  theme: 'cosmic', // 'cosmic' | 'dark' | 'light'
-  language: 'fa', // 'fa' | 'en'
-  isRtl: true,
+  theme: (typeof window !== 'undefined' && (localStorage.getItem('lifeos_theme') || localStorage.getItem('theme'))) || 'cosmic',
+  language: (typeof window !== 'undefined' && (localStorage.getItem('lifeos_language') || localStorage.getItem('language'))) || 'fa',
+  isRtl: ((typeof window !== 'undefined' && (localStorage.getItem('lifeos_language') || localStorage.getItem('language'))) || 'fa') === 'fa',
   aiKey: localStorage.getItem('lifeos_ai_key') || '',
   fontFamily: localStorage.getItem('lifeos_font_family') || 'vazirmatn',
   fontScale: 'large', // 'normal' (100%) | 'large' (115%) | 'xlarge' (130%)
@@ -357,6 +357,11 @@ const useAppStore = create((set, get) => ({
 
   setLanguage: (language) => {
     localStorage.setItem('language', language);
+    localStorage.setItem('lifeos_language', language);
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('lang', language);
+      document.documentElement.setAttribute('dir', language === 'fa' ? 'rtl' : 'ltr');
+    }
     set({ language, isRtl: language === 'fa' });
   },
 
@@ -532,8 +537,8 @@ const useAppStore = create((set, get) => ({
   },
 
   loadFromStorage: () => {
-    const savedTheme = localStorage.getItem('theme') || 'cosmic';
-    const savedLang = localStorage.getItem('language') || 'fa';
+    const savedTheme = localStorage.getItem('lifeos_theme') || localStorage.getItem('theme') || 'cosmic';
+    const savedLang = localStorage.getItem('lifeos_language') || localStorage.getItem('language') || 'fa';
     const savedFont = localStorage.getItem('lifeos_font_family') || 'vazirmatn';
     const savedFontScale = localStorage.getItem('fontScale') || 'large';
     const savedAiKey = localStorage.getItem('lifeos_ai_key') || '';
@@ -551,6 +556,8 @@ const useAppStore = create((set, get) => ({
     document.documentElement.setAttribute('data-font', savedFont);
     document.body.setAttribute('data-font', savedFont);
     document.documentElement.setAttribute('data-font-scale', savedFontScale);
+    document.documentElement.setAttribute('lang', savedLang);
+    document.documentElement.setAttribute('dir', savedLang === 'fa' ? 'rtl' : 'ltr');
 
     set({
       theme: savedTheme,

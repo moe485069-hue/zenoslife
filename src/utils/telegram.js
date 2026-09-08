@@ -54,17 +54,16 @@ export const initTelegramMiniApp = (appStore) => {
     // 3. User profile & Language
     const tgUser = tg.initDataUnsafe?.user;
 
-    // Auto sync language with Bot / Telegram
+    // Auto sync language with Bot / Telegram (respect user's saved choice)
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const queryLang = urlParams.get('lang');
+      const savedLang = localStorage.getItem('lifeos_language') || localStorage.getItem('language');
       if (queryLang && ['fa', 'en'].includes(queryLang) && appStore?.setLanguage) {
         appStore.setLanguage(queryLang);
-      } else if (tgUser?.language_code && appStore?.setLanguage) {
-        const defaultLang = tgUser.language_code.startsWith('fa') ? 'fa' : 'en';
-        if (!localStorage.getItem('lifeos_language')) {
-          appStore.setLanguage(defaultLang);
-        }
+      } else if (!savedLang && appStore?.setLanguage) {
+        // Default to Persian if no previous choice exists
+        appStore.setLanguage('fa');
       }
     } catch (_) {}
 

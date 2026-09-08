@@ -492,23 +492,65 @@ export const QUICK_CHAT_PHRASES = [
   '⚔️ کی ادعای بازی داره؟ دوئل!'
 ];
 
-// Live Room Card (Dynamic Light & Dark Modes)
-function LiveRoomCard({ room, onJoin, isRtl, isLight }) {
+// Realistic, gaming-focused initial lobby chat messages with playable join buttons
+export const DEFAULT_LOUNGE_MESSAGES = [
+  {
+    id: 'lounge_m1',
+    userId: 'bot_arsham',
+    userName: 'آرشام_تاس‌باز',
+    userAvatar: '🦁',
+    userRole: '👑 قهرمان تخته‌نرد',
+    roomId: 'lounge',
+    text: 'تخته نرد شرطی ۲۰۰ سکه کسی حریف هست؟ میز BACK-7721 منتظره!',
+    gameId: 'backgammon',
+    roomIdToJoin: 'BACK-7721',
+    timestamp: new Date(Date.now() - 120000).toISOString()
+  },
+  {
+    id: 'lounge_m2',
+    userId: 'bot_soltan',
+    userName: 'سلطان_پاسور',
+    userAvatar: '👑',
+    userRole: '🃏 استاد حکم ۴ نفره',
+    roomId: 'lounge',
+    text: 'حکم ۴ نفره شاهانه، ۱ نفر نیاز داریم. سریع بیاین شروع کنیم.',
+    gameId: 'hokm',
+    roomIdToJoin: 'HOKM-9102',
+    timestamp: new Date(Date.now() - 75000).toISOString()
+  },
+  {
+    id: 'lounge_m3',
+    userId: 'bot_negin',
+    userName: 'نگین_تک‌خال',
+    userAvatar: '💎',
+    userRole: '⚡ لیگ ستارگان',
+    roomId: 'lounge',
+    text: 'پاسور چهاربرگ شرطی ۲۵۰ سکه آماده‌ام. کی ادعای بازی داره؟ دوئل!',
+    gameId: 'pasur',
+    roomIdToJoin: 'PASS-3319',
+    timestamp: new Date(Date.now() - 30000).toISOString()
+  }
+];
+
+// Live Room Card (Dynamic Light & Dark Modes + Real Host Support)
+function LiveRoomCard({ room, onJoin, onShare, myUserId, isRtl, isLight }) {
   const game = GAME_DEFS.find(g => g.id === (room.gameType || room.gameId));
-  const timeAgo = Math.max(0, Math.round((Date.now() - (room.createdAt || Date.now())) / 60000));
   const currentCount = room.currentPlayers || room.players || 1;
   const maxCount = room.maxPlayers || 2;
   const isFull = currentCount >= maxCount;
   const isWaiting = room.status === 'waiting' || !room.status;
+  const isMyRoom = (room.hostId && myUserId && room.hostId === myUserId);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border transition-all shadow-md space-y-2.5 sm:space-y-3 ${
-        isLight
-          ? 'bg-white border-slate-200/90 hover:border-purple-400 shadow-slate-200/60'
-          : 'bg-slate-900/90 border-purple-500/30 hover:border-purple-400/60 backdrop-blur-xl shadow-xl'
+        isMyRoom
+          ? (isLight ? 'bg-amber-50/80 border-amber-300 ring-1 ring-amber-300/60 shadow-amber-200/50' : 'bg-amber-950/20 border-amber-500/40 ring-1 ring-amber-500/30')
+          : (isLight
+              ? 'bg-white border-slate-200/90 hover:border-purple-400 shadow-slate-200/60'
+              : 'bg-slate-900/90 border-purple-500/30 hover:border-purple-400/60 backdrop-blur-xl shadow-xl')
       }`}
     >
       <div className="flex items-center justify-between gap-3">
@@ -519,7 +561,7 @@ function LiveRoomCard({ room, onJoin, isRtl, isLight }) {
             {game?.icon || room.gameIcon || '🎮'}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h4 className={`text-xs sm:text-sm font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {isRtl ? (game?.titleFa || room.gameTitleFa || room.gameType) : (game?.titleEn || room.gameTitleEn || room.gameType)}
               </h4>
@@ -529,13 +571,18 @@ function LiveRoomCard({ room, onJoin, isRtl, isLight }) {
                   : (isLight ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-amber-500/15 border-amber-500/40 text-amber-300')
               }`}>
                 {isWaiting && !isFull 
-                  ? (isRtl ? 'آماده بازی' : 'Waiting') 
+                  ? (isRtl ? 'آماده مسابقه' : 'Waiting') 
                   : isFull 
                   ? (isRtl ? 'تکمیل' : 'Full') 
                   : (isRtl ? 'در جریان' : 'Playing')}
               </span>
+              {isMyRoom && (
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/40">
+                  {isRtl ? 'میز شما 👑' : 'Your Table 👑'}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-[11px]">
+            <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-[11px] flex-wrap">
               <span className="flex items-center gap-1">
                 <SafeAvatar avatar={room.hostAvatar} size="w-4 h-4 text-[10px]" />
                 <span className={`truncate max-w-[90px] font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
@@ -555,22 +602,36 @@ function LiveRoomCard({ room, onJoin, isRtl, isLight }) {
                 </>
               )}
               <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>·</span>
-              <span className={`flex items-center gap-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                <Clock size={11} /> {timeAgo < 1 ? (isRtl ? 'همین الان' : 'Just now') : (isRtl ? `${timeAgo}د پیش` : `${timeAgo}m`)}
+              <span className={`flex items-center gap-1 font-mono text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {room.roomId}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Join Action Button */}
-        <button
-          onClick={() => onJoin(room)}
-          disabled={!isWaiting || isFull}
-          className="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 hover:brightness-110 text-white text-xs font-black disabled:opacity-35 active:scale-95 shadow-md shadow-purple-500/25 transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <Play size={12} />
-          <span>{isRtl ? 'پیوستن' : 'Join'}</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isMyRoom && (
+            <button
+              onClick={() => onShare ? onShare(room) : onJoin(room)}
+              className="px-2.5 sm:px-3 py-2 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:brightness-110 text-white text-xs font-black active:scale-95 shadow-md shadow-sky-500/25 transition-all flex items-center gap-1 cursor-pointer"
+              title={isRtl ? 'ارسال دعوت به دوستان در تلگرام' : 'Invite Telegram Friends'}
+            >
+              <Share2 size={12} />
+              <span className="hidden xs:inline">{isRtl ? 'دعوت' : 'Invite'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onJoin(room)}
+            disabled={!isWaiting || isFull}
+            className="shrink-0 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-fuchsia-600 hover:brightness-110 text-white text-xs font-black disabled:opacity-35 active:scale-95 shadow-md shadow-purple-500/25 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Play size={12} />
+            <span>{isRtl ? 'پیوستن' : 'Join'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Players Progress Indicators */}
@@ -1301,13 +1362,86 @@ export default function Games() {
     if (!text) return;
     soundEngine.playTap?.();
     haptics.impact?.('light');
-    if (typeof sendGlobalMessage === 'function') {
-      sendGlobalMessage(text, 'lounge');
+
+    // Auto-detect game mentioned in challenge
+    let detectedGame = null;
+    let autoRoomCode = null;
+    if (text.includes('تخته') || text.includes('نرد')) {
+      detectedGame = 'backgammon';
+      autoRoomCode = 'BACK-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    } else if (text.includes('حکم')) {
+      detectedGame = 'hokm';
+      autoRoomCode = 'HOKM-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    } else if (text.includes('منچ')) {
+      detectedGame = 'ludo';
+      autoRoomCode = 'LUDO-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    } else if (text.includes('پاسور')) {
+      detectedGame = 'pasur';
+      autoRoomCode = 'PASS-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    } else if (text.includes('هاکی')) {
+      detectedGame = 'air_hockey';
+      autoRoomCode = 'AIRH-' + Math.random().toString(36).substring(2, 6).toUpperCase();
     }
+
+    // If game detected, publish real room
+    if (detectedGame && autoRoomCode) {
+      gameRoomsService.publishRoom({
+        roomId: autoRoomCode,
+        gameType: detectedGame,
+        gameTitleFa: GAME_DEFS.find(g => g.id === detectedGame)?.titleFa || detectedGame,
+        hostId: localStorage.getItem('life_os_user_id') || 'me',
+        hostName: currentDisplayName,
+        hostAvatar: currentAvatar,
+        maxPlayers: GAME_DEFS.find(g => g.id === detectedGame)?.maxPlayers || 2,
+        isPrivate: false
+      });
+    }
+
+    if (typeof sendGlobalMessage === 'function') {
+      sendGlobalMessage(text, 'lounge', false, {
+        gameId: detectedGame,
+        roomIdToJoin: autoRoomCode
+      });
+    }
+
     setChatInput('');
     setTimeout(() => {
       chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
+
+    // If user sent a challenge, active online player in lounge responds after 1.5s!
+    if (detectedGame && autoRoomCode) {
+      setTimeout(() => {
+        const responders = [
+          { name: 'آرشام_تاس‌باز', avatar: '🦁', role: '👑 قهرمان تخته' },
+          { name: 'نگین_تک‌خال', avatar: '💎', role: '⚡ لیگ ستارگان' },
+          { name: 'سام_سرعتی', avatar: '⚡', role: '🔥 رنک برتر' }
+        ];
+        const responder = responders[Math.floor(Math.random() * responders.length)];
+        const replyText = `من حریفم! میز ${autoRoomCode} رو باز کن اومدم ⚔️`;
+        useMultiplayerStore.setState(state => ({
+          globalChat: [
+            ...state.globalChat,
+            {
+              id: 'reply_' + Date.now(),
+              userId: 'bot_' + responder.name,
+              userName: responder.name,
+              userAvatar: responder.avatar,
+              userRole: responder.role,
+              roomId: 'lounge',
+              text: replyText,
+              gameId: detectedGame,
+              roomIdToJoin: autoRoomCode,
+              timestamp: new Date().toISOString()
+            }
+          ]
+        }));
+        soundEngine.playMessageChime?.();
+        setTimeout(() => {
+          chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }, 1600);
+    }
   };
 
   // Combined list of active rooms (live from server + active seed rooms)
@@ -1323,8 +1457,9 @@ export default function Games() {
   }, [allActiveRooms, roomsFilter]);
 
   const loungeMessages = React.useMemo(() => {
-    if (!Array.isArray(globalChat)) return [];
-    return globalChat.filter(m => m.roomId === 'lounge' || m.roomId === 'general').slice(-50);
+    if (!Array.isArray(globalChat)) return DEFAULT_LOUNGE_MESSAGES;
+    const loungeOnly = globalChat.filter(m => m.roomId === 'lounge');
+    return loungeOnly.length > 0 ? loungeOnly.slice(-60) : DEFAULT_LOUNGE_MESSAGES;
   }, [globalChat]);
 
   const topGames = GAME_DEFS.filter(g => TOP_GAME_IDS.includes(g.id));
@@ -1698,6 +1833,47 @@ export default function Games() {
             {/* Sub-view 1: Active Tables List */}
             {roomsSubTab === 'tables' && (
               <div className="space-y-3">
+                {/* Instant Quick Match Banner */}
+                <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 shadow-md transition-all ${
+                  isLight
+                    ? 'bg-gradient-to-r from-purple-50 via-pink-50 to-amber-50 border-purple-200'
+                    : 'bg-gradient-to-r from-purple-950/60 via-indigo-950/60 to-slate-900/90 border-purple-500/30 backdrop-blur-xl'
+                }`}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-xl text-white shadow-md shrink-0">
+                      ⚡
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        <h4 className={`text-xs font-black truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {isRtl ? 'اتصال سریع به نزدیک‌ترین میز آماده' : 'Quick Match to Available Table'}
+                        </h4>
+                      </div>
+                      <p className={`text-[10px] truncate ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        {isRtl ? 'بدون معطلی وارد بازی آنلاین با حریف زنده شوید' : 'Jump into live game without waiting'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      soundEngine.playDiceRoll?.();
+                      haptics.impact?.('heavy');
+                      const available = filteredRooms.find(r => (r.currentPlayers || 1) < (r.maxPlayers || 2)) || allActiveRooms[0];
+                      if (available) {
+                        handleJoinRoom(available);
+                      } else {
+                        const defaultGame = GAME_DEFS[0];
+                        navigate(`${defaultGame.path}?mode=online&matchmaking=true`);
+                      }
+                    }}
+                    className="shrink-0 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 text-xs font-black flex items-center gap-1 shadow-md shadow-amber-500/25 active:scale-95 hover:brightness-110 transition-all cursor-pointer"
+                  >
+                    <Zap size={13} className="fill-slate-950" />
+                    <span>{isRtl ? 'ورود سریع' : 'Fast Join'}</span>
+                  </button>
+                </div>
+
                 {/* Game filter pills */}
                 <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                   <button
@@ -1760,6 +1936,13 @@ export default function Games() {
                         key={room.roomId || room.id}
                         room={room}
                         onJoin={handleJoinRoom}
+                        onShare={(r) => {
+                          const shareText = isRtl
+                            ? `🎮 من در چاژا یک میز ${r.gameTitleFa || 'بازی'} ساختم! کد میز: ${r.roomId}. برای بازی بیا:`
+                            : `🎮 I created a ${r.gameTitleEn || 'game'} table on Chazha! Room: ${r.roomId}. Join now:`;
+                          shareToTelegram(`https://t.me/chazha_bot/play?startapp=${r.roomId}`, shareText);
+                        }}
+                        myUserId={localStorage.getItem('life_os_user_id') || 'me'}
                         isRtl={isRtl}
                         isLight={isLight}
                       />
@@ -1782,8 +1965,9 @@ export default function Games() {
                       {isRtl ? 'سالن گفتگوی عمومی چاژا (چت زنده و دعوت به بازی)' : 'Live Public Game Lounge'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-purple-600 dark:text-purple-300 font-bold">
-                    {isRtl ? 'بلادرنگ ⚡' : 'Real-time ⚡'}
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>{isRtl ? '۲۸ بازیکن آنلاین' : '28 online'}</span>
                   </span>
                 </div>
 
@@ -1826,9 +2010,9 @@ export default function Games() {
                           className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : ''}`}
                         >
                           <SafeAvatar avatar={msg.userAvatar} size="w-7 h-7 text-xs" />
-                          <div className={`max-w-[80%] rounded-2xl p-2.5 text-xs ${
+                          <div className={`max-w-[85%] rounded-2xl p-2.5 text-xs ${
                             isMe
-                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-none'
+                              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-none shadow-md shadow-purple-500/20'
                               : (isLight ? 'bg-white border border-slate-200 text-slate-900 rounded-bl-none shadow-sm' : 'bg-slate-800/90 border border-white/10 text-slate-100 rounded-bl-none')
                           }`}>
                             <div className="flex items-center gap-1.5 text-[10px] opacity-75 mb-0.5">
@@ -1836,6 +2020,23 @@ export default function Games() {
                               {msg.userRole && <span className="text-[9px] opacity-90">• {msg.userRole}</span>}
                             </div>
                             <p className="font-medium leading-relaxed break-words">{msg.text}</p>
+
+                            {/* Interactive Direct Match Action Button */}
+                            {(msg.roomIdToJoin || msg.gameId) && (
+                              <button
+                                onClick={() => {
+                                  soundEngine.playTap?.();
+                                  haptics.impact?.('medium');
+                                  const gameType = msg.gameId || (msg.roomIdToJoin?.startsWith('BACK') ? 'backgammon' : msg.roomIdToJoin?.startsWith('HOKM') ? 'hokm' : msg.roomIdToJoin?.startsWith('LUDO') ? 'ludo' : 'pasur');
+                                  const game = GAME_DEFS.find(g => g.id === gameType) || GAME_DEFS[0];
+                                  navigate(`${game.path}?mode=online&room=${msg.roomIdToJoin}&role=black`);
+                                }}
+                                className="mt-2 w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 font-black text-[11px] flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/25 active:scale-95 transition-all hover:brightness-110 cursor-pointer"
+                              >
+                                <Swords size={12} />
+                                <span>{isRtl ? `⚔️ ورود به میز مسابقه (${msg.roomIdToJoin || 'شروع'})` : `Join Table (${msg.roomIdToJoin || 'Play'})`}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

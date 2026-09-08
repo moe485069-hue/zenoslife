@@ -596,7 +596,9 @@ const useMultiplayerStore = create((set, get) => {
         isWhisper: extra.isWhisper || false,
         whisperTargetId: extra.whisperTargetId || null,
         whisperTargetName: extra.whisperTargetName || null,
-        replyTo: extra.replyTo || null
+        replyTo: extra.replyTo || null,
+        gameId: extra.gameId || null,
+        roomIdToJoin: extra.roomIdToJoin || null
       };
 
       set(state => ({ globalChat: [...state.globalChat, msg] }));

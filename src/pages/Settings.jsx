@@ -833,9 +833,15 @@ export default function Settings() {
                     : (isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5')
                 }`}
               >
-                <span className="text-2xl">🇮🇷</span>
-                <span className="text-xs font-black">فارسی (RTL)</span>
-                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>چیدمان راست‌به‌چپ</span>
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-base transition-all ${
+                  language === 'fa'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                    : (isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-slate-300')
+                }`}>
+                  فا
+                </div>
+                <span className="text-xs font-black">فارسی</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>راست‌به‌چپ (RTL)</span>
               </button>
 
               <button
@@ -846,9 +852,15 @@ export default function Settings() {
                     : (isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5')
                 }`}
               >
-                <span className="text-2xl">🇬🇧</span>
-                <span className="text-xs font-black">English (LTR)</span>
-                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Left-to-Right layout</span>
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm tracking-wider transition-all ${
+                  language === 'en'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                    : (isLight ? 'bg-slate-200 text-slate-700' : 'bg-white/10 text-slate-300')
+                }`}>
+                  EN
+                </div>
+                <span className="text-xs font-black">English</span>
+                <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Left-to-Right (LTR)</span>
               </button>
             </div>
           </div>
