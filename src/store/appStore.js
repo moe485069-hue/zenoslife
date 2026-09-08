@@ -63,6 +63,9 @@ const useAppStore = create((set, get) => ({
   equippedNameColor: localStorage.getItem('lifeos_equipped_name_color') || 'default',
   equippedBubble: localStorage.getItem('lifeos_equipped_bubble') || 'default',
   equippedPieceSkin: localStorage.getItem('lifeos_equipped_piece_skin') || 'faravahar',
+  equippedBoardTheme: localStorage.getItem('lifeos_equipped_board_theme') || 'wood',
+  equippedDiceSkin: localStorage.getItem('lifeos_equipped_dice_skin') || 'default',
+  equippedTitle: localStorage.getItem('lifeos_equipped_title') || 'none',
   equippedBanners: JSON.parse(localStorage.getItem('lifeos_equipped_banners') || '["banner_persepolis", "banner_royal_gold", "banner_cyber_neon"]'),
   badges: ['first_step', 'streak_3'],
   todayScore: 65,
@@ -420,6 +423,15 @@ const useAppStore = create((set, get) => ({
     } else if (type === 'pieceSkin') {
       localStorage.setItem('lifeos_equipped_piece_skin', id);
       set({ equippedPieceSkin: id });
+    } else if (type === 'boardTheme') {
+      localStorage.setItem('lifeos_equipped_board_theme', id);
+      set({ equippedBoardTheme: id });
+    } else if (type === 'diceSkin') {
+      localStorage.setItem('lifeos_equipped_dice_skin', id);
+      set({ equippedDiceSkin: id });
+    } else if (type === 'title') {
+      localStorage.setItem('lifeos_equipped_title', id);
+      set({ equippedTitle: id });
     } else if (type === 'banner') {
       const current = get().equippedBanners || [];
       let updated;
@@ -435,6 +447,35 @@ const useAppStore = create((set, get) => ({
       }
       localStorage.setItem('lifeos_equipped_banners', JSON.stringify(updated));
       set({ equippedBanners: updated });
+    }
+    soundEngine.playTap?.();
+  },
+
+  unequipItem: (type, id) => {
+    if (type === 'frame') {
+      localStorage.setItem('lifeos_equipped_frame', 'none');
+      set({ equippedFrame: 'none' });
+    } else if (type === 'bubble') {
+      localStorage.setItem('lifeos_equipped_bubble', 'default');
+      set({ equippedBubble: 'default' });
+    } else if (type === 'pieceSkin') {
+      localStorage.setItem('lifeos_equipped_piece_skin', 'faravahar');
+      set({ equippedPieceSkin: 'faravahar' });
+    } else if (type === 'boardTheme') {
+      localStorage.setItem('lifeos_equipped_board_theme', 'wood');
+      set({ equippedBoardTheme: 'wood' });
+    } else if (type === 'diceSkin') {
+      localStorage.setItem('lifeos_equipped_dice_skin', 'default');
+      set({ equippedDiceSkin: 'default' });
+    } else if (type === 'title') {
+      localStorage.setItem('lifeos_equipped_title', 'none');
+      set({ equippedTitle: 'none' });
+    } else if (type === 'banner' && id) {
+      const current = get().equippedBanners || [];
+      const updated = current.filter((b) => b !== id);
+      const finalBanners = updated.length > 0 ? updated : ['banner_persepolis'];
+      localStorage.setItem('lifeos_equipped_banners', JSON.stringify(finalBanners));
+      set({ equippedBanners: finalBanners });
     }
     soundEngine.playTap?.();
   },

@@ -263,6 +263,47 @@ const THEMES = {
     accentColor: '#a855f7',
     borderDesign: 'border-[#8b5cf6] shadow-[0_0_35px_rgba(168,85,247,0.4)]',
     faravaharBg: '✨ کیهان بی‌پایان • مدار کهکشانی'
+  },
+  casino: {
+    id: 'casino',
+    nameFa: 'کازینو رویال و مخمل سبز',
+    nameEn: 'Vegas Royale Emerald',
+    icon: '🃏',
+    boardBg: 'bg-[#064e3b] border-[#10b981]',
+    innerBg: 'bg-[#022c22]',
+    barBg: 'bg-[#011a14]',
+    triLight: 'border-b-[#10b981]',
+    triDark: 'border-b-[#047857]',
+    triLightTop: 'border-t-[#10b981]',
+    triDarkTop: 'border-t-[#047857]',
+    triLightHex: '#10b981',
+    triDarkHex: '#047857',
+    checkerWhite: 'bg-gradient-to-b from-[#fef08a] via-[#facc15] to-[#ca8a04] border-[#fde047] text-slate-950 shadow-yellow-500/40',
+    checkerBlack: 'bg-gradient-to-b from-[#18181b] via-[#09090b] to-[#000000] border-[#34d399] text-[#34d399] shadow-emerald-500/30',
+    accentColor: '#10b981',
+    borderDesign: 'border-[#10b981] shadow-[0_0_30px_rgba(16,185,129,0.3)]',
+    faravaharBg: '🃏 میز مسابقات کازینو رویال وگاس'
+  },
+  marble: {
+    id: 'marble',
+    isLight: true,
+    nameFa: 'سنگ مرمر کارارا و طلا',
+    nameEn: 'Carrara Marble & Gold',
+    icon: '🏛️',
+    boardBg: 'bg-[#f1f5f9] border-[#e2e8f0]',
+    innerBg: 'bg-[#f8fafc]',
+    barBg: 'bg-[#cbd5e1]',
+    triLight: 'border-b-[#fed7aa]',
+    triDark: 'border-b-[#94a3b8]',
+    triLightTop: 'border-t-[#fed7aa]',
+    triDarkTop: 'border-t-[#94a3b8]',
+    triLightHex: '#fed7aa',
+    triDarkHex: '#94a3b8',
+    checkerWhite: 'bg-gradient-to-b from-[#ffffff] via-[#fef08a] to-[#f59e0b] border-[#d97706] text-[#78350f] shadow-md',
+    checkerBlack: 'bg-gradient-to-b from-[#334155] via-[#1e293b] to-[#0f172a] border-[#020617] text-[#f8fafc] shadow-md',
+    accentColor: '#f59e0b',
+    borderDesign: 'border-[#f59e0b] shadow-xl',
+    faravaharBg: '🏛️ سنگ مرمر سفید صیقلی با رگه‌های زرین'
   }
 };
 
@@ -289,7 +330,7 @@ export default function Backgammon() {
   const [searchParams] = useSearchParams();
   const { 
     language, addXP, addCoins, recordGameResult, incrementGameStat,
-    equippedPieceSkin = 'faravahar', equippedFrame, equippedBanners, userProfile 
+    equippedPieceSkin = 'faravahar', equippedBoardTheme = 'wood', equippedDiceSkin = 'default', equippedFrame, equippedBanners, userProfile 
   } = useAppStore();
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const gameStartTimeRef = useRef(Date.now());
@@ -309,7 +350,11 @@ export default function Backgammon() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode && !paramAutostart && !isRandomMatchmaking);
   const [gameMode, setGameMode] = useState(initialMode); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
-  const [boardTheme, setBoardTheme] = useState(paramTheme && THEMES[paramTheme] ? paramTheme : 'wood');
+  const [boardTheme, setBoardTheme] = useState(() => {
+    if (paramTheme && THEMES[paramTheme]) return paramTheme;
+    if (equippedBoardTheme && THEMES[equippedBoardTheme]) return equippedBoardTheme;
+    return 'wood';
+  });
   // Personalized Player Themes:
   // whiteTheme = Theme of Player 1 (White / User). Applied to White checkers & Die 1
   // blackTheme = Theme of Player 2 (Black / Opponent). Applied to Black checkers & Die 2
@@ -319,6 +364,8 @@ export default function Backgammon() {
       if (stored && THEMES[stored]) return stored;
       if (equippedPieceSkin === 'lion_sun') return 'luxury_gold';
       if (equippedPieceSkin === 'crystal') return 'cosmic';
+      if (equippedPieceSkin === 'dragon_fire') return 'persia';
+      if (equippedBoardTheme && THEMES[equippedBoardTheme]) return equippedBoardTheme;
       return 'persia';
     } catch (_) {
       return 'persia';
