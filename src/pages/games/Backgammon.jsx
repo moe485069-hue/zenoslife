@@ -20,8 +20,8 @@ import InGameReactions from '../../components/games/InGameReactions';
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegram';
 
-// 3D Telegram-Style Dice Face Renderer — Multi-axis tumbling, fast cycling pips & dynamic floor shadow
-const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) => {
+// 3D Telegram-Style Dice Face Renderer with Individual Theme Customization
+const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false, themeKey = 'wood', ownerBadge = '', ownerLabel = '' }) => {
   const [rollFace, setRollFace] = useState(value || 1);
 
   useEffect(() => {
@@ -53,6 +53,34 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
     );
   }
 
+  // Individual Die Theme Styling
+  let diceSurfaceClass = 'bg-gradient-to-br from-[#ffffff] via-[#fdfbf7] to-[#f5eedc] border-[#a85a1a]/70';
+  let pipClass = 'bg-gradient-to-br from-[#1c0d02] via-[#3d1a04] to-[#78350f] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.35)]';
+  let shadowStyle = 'shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_2px_1px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(168,90,26,0.25)]';
+  let badgeClass = 'text-amber-900 bg-amber-200/90 border-amber-700/40';
+
+  if (themeKey === 'persia') {
+    diceSurfaceClass = 'bg-gradient-to-br from-[#0891b2] via-[#0e7490] to-[#155e75] border-[#fde047]';
+    pipClass = 'bg-gradient-to-br from-[#fef08a] via-[#facc15] to-[#ca8a04] shadow-[0_0_5px_rgba(250,204,21,0.95),inset_0_1px_1px_rgba(255,255,255,0.9)]';
+    shadowStyle = 'shadow-[0_0_18px_rgba(6,182,212,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.7)]';
+    badgeClass = 'text-cyan-950 bg-cyan-200/95 border-cyan-500/50';
+  } else if (themeKey === 'luxury_gold') {
+    diceSurfaceClass = 'bg-gradient-to-br from-[#27272a] via-[#18181b] to-[#09090b] border-[#fbbf24]';
+    pipClass = 'bg-gradient-to-br from-[#fef08a] via-[#f59e0b] to-[#d97706] shadow-[0_0_6px_rgba(245,158,11,1),inset_0_1px_1px_rgba(255,255,255,0.9)]';
+    shadowStyle = 'shadow-[0_0_20px_rgba(245,158,11,0.55),inset_0_1.5px_1px_rgba(255,255,255,0.4)]';
+    badgeClass = 'text-amber-950 bg-amber-300/95 border-amber-500/50';
+  } else if (themeKey === 'cosmic') {
+    diceSurfaceClass = 'bg-gradient-to-br from-[#3b0764] via-[#581c87] to-[#1e1b4b] border-[#c084fc]';
+    pipClass = 'bg-gradient-to-br from-[#67e8f9] via-[#38bdf8] to-[#818cf8] shadow-[0_0_6px_rgba(56,189,248,1),inset_0_1px_1px_rgba(255,255,255,0.9)]';
+    shadowStyle = 'shadow-[0_0_20px_rgba(192,132,252,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.4)]';
+    badgeClass = 'text-purple-950 bg-purple-200/95 border-purple-400/50';
+  } else if (themeKey === 'ivory') {
+    diceSurfaceClass = 'bg-gradient-to-br from-[#ffffff] via-[#fffbeb] to-[#fef08a] border-[#b45309]';
+    pipClass = 'bg-gradient-to-br from-[#78350f] via-[#92400e] to-[#b45309] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.6)]';
+    shadowStyle = 'shadow-[0_5px_15px_rgba(180,83,9,0.35),inset_0_2px_1px_rgba(255,255,255,0.9)]';
+    badgeClass = 'text-amber-900 bg-amber-100/95 border-amber-400/50';
+  }
+
   return (
     <div className="relative inline-flex items-center justify-center">
       {/* Dynamic 3D Floor Shadow */}
@@ -72,7 +100,7 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
 
       {/* 3D Multi-Axis Tumbling Cube */}
       <motion.div
-        key={isRolling ? 'rolling' : `face-${value}`}
+        key={isRolling ? 'rolling' : `face-${value}-${themeKey}`}
         initial={isRolling ? {} : { scale: 0.8, rotateX: 60, rotateY: -45, y: -20 }}
         animate={
           isRolling
@@ -97,20 +125,30 @@ const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false }) =
             : { type: 'spring', damping: 12, stiffness: 220, mass: 0.8 }
         }
         style={{ perspective: '800px', transformStyle: 'preserve-3d' }}
-        className={`${sizeClasses} rounded-2xl bg-gradient-to-br from-[#ffffff] via-[#fdfbf7] to-[#f5eedc] border-2 ${
+        className={`${sizeClasses} rounded-2xl ${diceSurfaceClass} border-2 ${
           isSelected
             ? 'border-amber-400 ring-4 ring-cyan-400/90 shadow-[0_8px_25px_rgba(34,211,238,0.7)]'
-            : 'border-[#a85a1a]/70 shadow-[0_6px_18px_rgba(0,0,0,0.55),inset_0_2px_1px_rgba(255,255,255,0.9),inset_0_-2px_4px_rgba(168,90,26,0.25)]'
+            : shadowStyle
         } p-1.5 flex flex-col justify-between items-center relative select-none shrink-0 overflow-hidden`}
+        title={ownerLabel || ''}
       >
         {/* Specular Highlight Sheen */}
         <div className="absolute inset-x-1 top-0.5 h-1/3 bg-gradient-to-b from-white/80 to-transparent rounded-t-xl pointer-events-none" />
+
+        {/* Small Player Owner Badge in corner */}
+        {ownerBadge && !isRolling && (
+          <div className="absolute top-0.5 right-1 pointer-events-none z-20">
+            <span className={`text-[7px] font-black leading-none px-1 py-0.2 rounded-full border shadow-sm ${badgeClass}`}>
+              {ownerBadge}
+            </span>
+          </div>
+        )}
 
         <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-0.5 p-0.5 items-center justify-items-center relative z-10">
           {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(idx => (
             <div key={idx} className="w-full h-full flex items-center justify-center">
               {pips.includes(idx) && (
-                <span className={`${dotSize} rounded-full bg-gradient-to-br from-[#1c0d02] via-[#3d1a04] to-[#78350f] shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.8),0_1px_0_rgba(255,255,255,0.35)]`} />
+                <span className={`${dotSize} rounded-full ${pipClass}`} />
               )}
             </div>
           ))}
@@ -270,8 +308,31 @@ export default function Backgammon() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(!paramRoom && !paramMode && !paramAutostart && !isRandomMatchmaking);
   const [gameMode, setGameMode] = useState(initialMode); // 'bot' | 'local' | 'online'
   const [matchSets, setMatchSets] = useState(3);
-  const [botDifficulty, setBotDifficulty] = useState(paramDiff || 'medium');
   const [boardTheme, setBoardTheme] = useState(paramTheme && THEMES[paramTheme] ? paramTheme : 'wood');
+  // Personalized Player Themes:
+  // whiteTheme = Theme of Player 1 (White / User). Applied to White checkers & Die 1
+  // blackTheme = Theme of Player 2 (Black / Opponent). Applied to Black checkers & Die 2
+  const [whiteTheme, setWhiteTheme] = useState(() => {
+    try {
+      const stored = localStorage.getItem('life_os_backgammon_theme_white') || localStorage.getItem('life_os_backgammon_theme');
+      if (stored && THEMES[stored]) return stored;
+      if (equippedPieceSkin === 'lion_sun') return 'luxury_gold';
+      if (equippedPieceSkin === 'crystal') return 'cosmic';
+      return 'persia';
+    } catch (_) {
+      return 'persia';
+    }
+  });
+
+  const [blackTheme, setBlackTheme] = useState(() => {
+    try {
+      const stored = localStorage.getItem('life_os_backgammon_theme_black');
+      if (stored && THEMES[stored]) return stored;
+      return 'wood'; // Default: standard classic walnut without custom theme
+    } catch (_) {
+      return 'wood';
+    }
+  });
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // UI Color Mode ('dark' | 'light')
@@ -969,6 +1030,59 @@ export default function Backgammon() {
   };
 
   // ----------------------------------------------------
+  // SMART AUTOMATIC BEARING OFF (1-Tap Fast Bear-Off)
+  // ----------------------------------------------------
+  const handleAutoBearOff = (playerRole = turn) => {
+    if (isRolling || remainingMoves.length === 0) return;
+    if (gameMode === 'bot' && turn === 'black') return;
+    if (gameMode === 'online' && turn !== myOnlineRole) return;
+    if (!isHomeBoardReady(playerRole, points, bar)) {
+      setLastMoveMsg(isRtl ? 'ابتدا باید تمام مهره‌ها وارد خانه شوند.' : 'All checkers must be in the home board first.');
+      playSfx(soundEngine.playTap);
+      return;
+    }
+
+    // 1. If user previously selected a specific home point, bear that off directly:
+    if (selectedPoint !== null && selectedPoint !== 'bar') {
+      const moves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, playerRole);
+      const offMove = moves.find(m => m.target === 'off');
+      if (offMove) {
+        executeMove(selectedPoint, 'off', offMove.dieUsed);
+        setSelectedPoint(null);
+        return;
+      }
+    }
+
+    // 2. Exact match search across occupied home points
+    const homeRange = playerRole === 'white' ? [1, 2, 3, 4, 5, 6] : [24, 23, 22, 21, 20, 19];
+    for (const p of homeRange) {
+      if (points[p].player === playerRole && points[p].count > 0) {
+        const moves = getValidMovesForPoint(p, points, bar, remainingMoves, playerRole);
+        const exactMove = moves.find(m => m.target === 'off' && (playerRole === 'white' ? p === m.dieUsed : (25 - p) === m.dieUsed));
+        if (exactMove) {
+          executeMove(p, 'off', exactMove.dieUsed);
+          setSelectedPoint(null);
+          return;
+        }
+      }
+    }
+
+    // 3. Furthest occupied point that can bear off with higher die
+    const sortedHomeRange = playerRole === 'white' ? [6, 5, 4, 3, 2, 1] : [19, 20, 21, 22, 23, 24];
+    for (const p of sortedHomeRange) {
+      if (points[p].player === playerRole && points[p].count > 0) {
+        const moves = getValidMovesForPoint(p, points, bar, remainingMoves, playerRole);
+        const offMove = moves.find(m => m.target === 'off');
+        if (offMove) {
+          executeMove(p, 'off', offMove.dieUsed);
+          setSelectedPoint(null);
+          return;
+        }
+      }
+    }
+  };
+
+  // ----------------------------------------------------
   // POINT & MOVE HANDLER
   // ----------------------------------------------------
   const handlePointClick = (pointIdx) => {
@@ -1029,16 +1143,37 @@ export default function Backgammon() {
         return;
       }
 
+      // 1-TAP SMART BEAR OFF:
+      // When in home board, tapping ANY checker that has a valid bearing off move immediately bears it off!
+      if (isHomeBoardReady(turn, points, bar)) {
+        const offMoves = moves.filter(m => m.target === 'off');
+        if (offMoves.length > 0) {
+          const exactOff = offMoves.find(m => (turn === 'white' ? pointIdx === m.dieUsed : (25 - pointIdx) === m.dieUsed));
+          const chosenMove = (selectedDie && offMoves.find(m => m.dieUsed === selectedDie)) ||
+            exactOff ||
+            offMoves.sort((a, b) => a.dieUsed - b.dieUsed)[0];
+
+          executeMove(pointIdx, 'off', chosenMove.dieUsed);
+          setSelectedPoint(null);
+          return;
+        }
+      }
+
+      // 1-TAP SMART MOVE: If checker has only 1 legal destination on the board
       if (moves.length === 1) {
         executeMove(pointIdx, moves[0].target, moves[0].dieUsed);
+        setSelectedPoint(null);
         return;
       }
 
-      // Prioritize exact bearing off match when clicking home checkers
-      const exactOffMove = moves.find(m => m.target === 'off' && (turn === 'white' ? pointIdx === m.dieUsed : (25 - pointIdx) === m.dieUsed));
-      if (exactOffMove && isHomeBoardReady(turn, points, bar)) {
-        executeMove(pointIdx, 'off', exactOffMove.dieUsed);
-        return;
+      // 1-TAP MOVE: If user already tapped a die, execute that die's move
+      if (selectedDie !== null) {
+        const dieMove = moves.find(m => m.dieUsed === selectedDie);
+        if (dieMove) {
+          executeMove(pointIdx, dieMove.target, dieMove.dieUsed);
+          setSelectedPoint(null);
+          return;
+        }
       }
 
       setSelectedPoint(pointIdx);
@@ -1434,12 +1569,76 @@ export default function Backgammon() {
     ? getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn).map(m => m.target)
     : [];
 
+  // Get Checker Style based on each player's individual equipped theme
+  const getCheckerStyle = (player) => {
+    const isWhite = player === 'white';
+    const themeKey = isWhite ? whiteTheme : blackTheme;
+    const cfg = THEMES[themeKey] || THEMES.wood;
+    return isWhite ? cfg.checkerWhite : cfg.checkerBlack;
+  };
+
+  // Render Checker Engraved Emblem based on each player's theme
+  const renderCheckerEmblem = (player, count, isTopChecker) => {
+    const isWhite = player === 'white';
+    const themeKey = isWhite ? whiteTheme : blackTheme;
+
+    let emblem = null;
+    if (themeKey === 'persia' || (isWhite && equippedPieceSkin === 'faravahar')) {
+      emblem = (
+        <svg viewBox="0 0 100 64" className="w-[86%] h-[86%] opacity-80 fill-current drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.7)] pointer-events-none">
+          <circle cx="50" cy="32" r="9" fill="none" stroke="currentColor" strokeWidth="2.5" />
+          <circle cx="50" cy="18" r="4" />
+          <path d="M47 13 L50 9 L53 13 Z" />
+          <path d="M46 23 C46 21 54 21 54 23 L56 31 L44 31 Z" />
+          <path d="M40 28 C26 21, 10 20, 2 24 C14 28, 28 32, 40 32 Z" />
+          <path d="M38 33 C26 34, 12 37, 6 41 C18 41, 28 39, 38 37 Z" />
+          <path d="M60 28 C74 21, 90 20, 98 24 C86 28, 72 32, 60 32 Z" />
+          <path d="M62 33 C74 34, 88 37, 94 41 C82 41, 72 39, 62 37 Z" />
+          <path d="M46 42 L50 58 L54 42 Z" />
+        </svg>
+      );
+    } else if (themeKey === 'luxury_gold' || (isWhite && equippedPieceSkin === 'lion_sun')) {
+      emblem = (
+        <svg viewBox="0 0 24 24" className="w-[74%] h-[74%] opacity-90 fill-current drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] pointer-events-none">
+          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+        </svg>
+      );
+    } else if (themeKey === 'cosmic' || (isWhite && equippedPieceSkin === 'crystal')) {
+      emblem = (
+        <svg viewBox="0 0 24 24" className="w-[76%] h-[76%] opacity-90 fill-current drop-shadow-[0_0_4px_rgba(56,189,248,0.9)] pointer-events-none">
+          <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+        </svg>
+      );
+    } else if (themeKey === 'ivory') {
+      emblem = (
+        <div className="w-[70%] h-[70%] rounded-full border-2 border-current/40 flex items-center justify-center pointer-events-none">
+          <div className="w-[45%] h-[45%] rounded-full border border-current/50 bg-current/15" />
+        </div>
+      );
+    } else {
+      // Classic lathe-turned walnut groove
+      emblem = (
+        <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none" />
+      );
+    }
+
+    return (
+      <div className="w-[82%] h-[82%] rounded-full flex items-center justify-center pointer-events-none relative overflow-hidden">
+        {emblem}
+        {isTopChecker && count > 5 && (
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black bg-black/70 rounded-full text-white">
+            {count}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // Checkers Stack — 3D Tactile Lathe-Turned Pieces (Plato Clean Geometry)
   const renderCheckersStack = (pt, isTop, pIdx, isSelected, isFriendlyAndMovable) => {
     if (pt.count === 0) return null;
     const maxVisible = Math.min(pt.count, 5);
-    const isWhite = pt.player === 'white';
-    const checkerStyle = isWhite ? themeConfig.checkerWhite : themeConfig.checkerBlack;
+    const checkerStyle = getCheckerStyle(pt.player);
 
     return (
       <div className={`absolute ${isTop ? 'top-0.5 flex-col' : 'bottom-0.5 flex-col-reverse'} flex items-center z-10 select-none pointer-events-none w-full`}>
@@ -1463,31 +1662,7 @@ export default function Backgammon() {
                     : 'shadow-[0_3px_5px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.4)]'
               }`}
             >
-              {/* Engraved Relief: Faravahar Ancient Winged Emblem or Classic Lathe Ring */}
-              {equippedPieceSkin === 'faravahar' ? (
-                <div className="w-[82%] h-[82%] rounded-full border border-current/30 flex items-center justify-center pointer-events-none relative overflow-hidden">
-                  <svg viewBox="0 0 100 64" className="w-[86%] h-[86%] opacity-75 fill-current drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.7)] pointer-events-none">
-                    <circle cx="50" cy="32" r="9" fill="none" stroke="currentColor" strokeWidth="2.5" />
-                    <circle cx="50" cy="18" r="4" />
-                    <path d="M47 13 L50 9 L53 13 Z" />
-                    <path d="M46 23 C46 21 54 21 54 23 L56 31 L44 31 Z" />
-                    <path d="M40 28 C26 21, 10 20, 2 24 C14 28, 28 32, 40 32 Z" />
-                    <path d="M38 33 C26 34, 12 37, 6 41 C18 41, 28 39, 38 37 Z" />
-                    <path d="M60 28 C74 21, 90 20, 98 24 C86 28, 72 32, 60 32 Z" />
-                    <path d="M62 33 C74 34, 88 37, 94 41 C82 41, 72 39, 62 37 Z" />
-                    <path d="M46 42 L50 58 L54 42 Z" />
-                  </svg>
-                  {isTopChecker && pt.count > 5 ? (
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black bg-black/60 rounded-full text-white">{pt.count}</span>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="w-[66%] h-[66%] rounded-full border border-current opacity-30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none">
-                  {isTopChecker && pt.count > 5 ? (
-                    <span className="text-[10px] font-black opacity-100">{pt.count}</span>
-                  ) : null}
-                </div>
-              )}
+              {renderCheckerEmblem(pt.player, pt.count, isTopChecker)}
             </motion.div>
           );
         })}
@@ -1555,8 +1730,8 @@ export default function Backgammon() {
     const renderSlot = (player) => {
       const count = borneOff[player] || 0;
       const isPlayerTurn = turn === player;
-      const canBearOff = isPlayerTurn && activeValidDestinations.includes('off');
-      const checkerStyle = player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack;
+      const canBearOff = isPlayerTurn && isHomeBoardReady(player, points, bar) && remainingMoves.length > 0;
+      const checkerStyle = getCheckerStyle(player);
       const label = player === 'white' ? (isRtl ? 'سفید' : 'White') : (isRtl ? 'سیاه' : 'Black');
       const discIcon = player === 'white' ? '⚪' : '⚫';
 
@@ -1565,10 +1740,8 @@ export default function Backgammon() {
           key={player}
           data-tray-groove={player}
           onClick={() => {
-            if (canBearOff) {
-              const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-              const offMove = validMoves.find(m => m.target === 'off');
-              if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+            if (isPlayerTurn && isHomeBoardReady(player, points, bar)) {
+              handleAutoBearOff(player);
             }
           }}
           className={`flex-1 w-full flex flex-col items-center justify-between p-1 rounded-xl transition-all relative select-none ${
@@ -1576,7 +1749,7 @@ export default function Backgammon() {
               ? 'ring-2 ring-emerald-400 bg-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.5)] animate-pulse cursor-pointer' 
               : 'cursor-default'
           }`}
-          title={isRtl ? `جایگاه خروج مهره‌های ${label} (${count}/15)` : `${label} Bearing Off Tray (${count}/15)`}
+          title={isRtl ? `جایگاه خروج مهره‌های ${label} (${count}/15) - کلیک برای خروج خودکار` : `${label} Bearing Off Tray (${count}/15) - Tap to auto bear-off`}
         >
           {/* Header Info */}
           <div className="flex flex-col items-center leading-tight mb-0.5">
@@ -1824,17 +1997,22 @@ export default function Backgammon() {
             className="absolute top-14 right-3 z-50 w-60 rounded-2xl bg-[#1c1612] backdrop-blur-2xl border-2 border-amber-500/40 shadow-2xl p-3 space-y-2 text-xs"
             dir={isRtl ? 'rtl' : 'ltr'}
           >
-            <div className="px-2 py-0.5 text-[11px] font-black" style={{ color: '#fbbf24' }}>
-              قالب و ظاهر تخته نرد:
+            {/* Player 1 Theme (Personal Checkers & Die 1) */}
+            <div className="px-1 py-0.5 text-[11px] font-black text-amber-300 flex items-center justify-between">
+              <span>🎲 طرح مهره‌های من (تاس ۱):</span>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 pb-2 border-b border-white/15">
+            <div className="grid grid-cols-2 gap-1.5 pb-2 border-b border-white/10">
               {Object.keys(THEMES).map(tKey => {
-                const isSelected = boardTheme === tKey;
+                const isSelected = whiteTheme === tKey;
                 return (
                   <button
                     key={tKey}
                     onClick={() => {
-                      setBoardTheme(tKey);
+                      setWhiteTheme(tKey);
+                      try {
+                        localStorage.setItem('life_os_backgammon_theme_white', tKey);
+                        localStorage.setItem('life_os_backgammon_theme', tKey);
+                      } catch (_) {}
                       soundEngine.playTap?.();
                     }}
                     style={{
@@ -1849,6 +2027,42 @@ export default function Backgammon() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Player 2 Theme (Opponent Checkers & Die 2) */}
+            <div className="px-1 py-0.5 text-[11px] font-black text-slate-300 flex items-center justify-between pt-1">
+              <span>🎲 طرح مهره‌های حریف (تاس ۲):</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 pb-2 border-b border-white/10">
+              {Object.keys(THEMES).map(tKey => {
+                const isSelected = blackTheme === tKey;
+                return (
+                  <button
+                    key={tKey}
+                    onClick={() => {
+                      setBlackTheme(tKey);
+                      try {
+                        localStorage.setItem('life_os_backgammon_theme_black', tKey);
+                      } catch (_) {}
+                      soundEngine.playTap?.();
+                    }}
+                    style={{
+                      color: isSelected ? '#020617' : '#ffffff',
+                      backgroundColor: isSelected ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)',
+                      borderColor: isSelected ? '#7dd3fc' : 'rgba(255, 255, 255, 0.1)'
+                    }}
+                    className="px-2 py-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all active:scale-95"
+                  >
+                    <span>{THEMES[tKey].icon}</span>
+                    <span>{tKey === 'wood' ? 'کلاسیک' : THEMES[tKey].nameFa.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Informative Rule Notice */}
+            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[10px] text-amber-200/90 leading-relaxed">
+              ⭐ طرح خریداری‌شده فقط روی مهره‌های فرد و یک تاس فعال می‌شود. اگر هر دو بازیکن تم داشته باشند، هر دو تم مجزا و دو تاس مجزا فعال خواهد بود.
             </div>
 
             <button
@@ -1954,7 +2168,7 @@ export default function Backgammon() {
             }}
             transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }}
             className={`absolute w-6 h-6 xs:w-[26px] xs:h-[26px] sm:w-[30px] sm:h-[30px] rounded-full border-2 z-50 pointer-events-none flex items-center justify-center ${
-              flyingChecker.player === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack
+              getCheckerStyle(flyingChecker.player)
             }`}
           >
             <div className="w-[66%] h-[66%] rounded-full border border-current opacity-40" />
@@ -1974,16 +2188,14 @@ export default function Backgammon() {
             {/* Top-Right Bearing-Off Tray (Plato Recessed Horizontal Box) */}
             <div
               onClick={() => {
-                if (turn === topPlayerRole && activeValidDestinations.includes('off')) {
-                  const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-                  const offMove = validMoves.find(m => m.target === 'off');
-                  if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                if (turn === topPlayerRole && isHomeBoardReady(topPlayerRole, points, bar)) {
+                  handleAutoBearOff(topPlayerRole);
                 }
               }}
               className={`w-28 sm:w-32 h-6 rounded-md bg-[#1d1109] border border-[#100904] shadow-[inset_0_2px_6px_rgba(0,0,0,0.9)] flex items-center px-1.5 justify-between ${
-                turn === topPlayerRole && activeValidDestinations.includes('off') ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
+                turn === topPlayerRole && isHomeBoardReady(topPlayerRole, points, bar) && remainingMoves.length > 0 ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
               }`}
-              title={`خروج مهره‌های ${topPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[topPlayerRole]}/15)`}
+              title={isRtl ? `خروج مهره‌های ${topPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[topPlayerRole]}/15) - کلیک برای خروج سریع` : `${topPlayerRole} Bearing Off Tray (${borneOff[topPlayerRole]}/15)`}
             >
               <div className="flex items-center gap-[2px] overflow-hidden flex-1 h-3 mr-1">
                 {Array.from({ length: Math.min(15, borneOff[topPlayerRole]) }).map((_, i) => (
@@ -2006,10 +2218,10 @@ export default function Backgammon() {
                 {(isFlipped ? [1, 2, 3, 4, 5, 6] : [13, 14, 15, 16, 17, 18]).map(p => renderPoint(p, true))}
               </div>
 
-              {/* Rolled Dice resting on the wooden board surface */}
+              {/* Rolled Dice resting on the wooden board surface — Die 1 with Player 1 Theme, Die 2 with Player 2 Theme */}
               {hasRolled && dice[0] && (
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 z-20 pointer-events-auto">
-                  {/* Die 1 */}
+                  {/* Die 1 (Player 1 / White Theme) */}
                   <div
                     onClick={() => {
                       if (remainingMoves.includes(dice[0])) {
@@ -2026,12 +2238,20 @@ export default function Backgammon() {
                           : 'opacity-50 grayscale'
                     }`}
                     style={{ transform: 'rotate(-10deg)' }}
-                    title={remainingMoves.includes(dice[0]) ? `انتخاب اولویت با تاس ${dice[0]}` : ''}
+                    title={remainingMoves.includes(dice[0]) ? `انتخاب اولویت با تاس ۱ (${dice[0]})` : ''}
                   >
-                    <RenderDiceFace value={dice[0]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[0]} />
+                    <RenderDiceFace 
+                      value={dice[0]} 
+                      isRolling={isRolling} 
+                      size="sm" 
+                      isSelected={selectedDie === dice[0]} 
+                      themeKey={whiteTheme}
+                      ownerBadge="⚪"
+                      ownerLabel={isRtl ? 'تاس اول (مهره سفید)' : 'Die 1 (White)'}
+                    />
                   </div>
 
-                  {/* Die 2 */}
+                  {/* Die 2 (Player 2 / Black Theme) */}
                   <div
                     onClick={() => {
                       if (remainingMoves.includes(dice[1])) {
@@ -2048,9 +2268,17 @@ export default function Backgammon() {
                           : 'opacity-50 grayscale'
                     }`}
                     style={{ transform: 'rotate(8deg)' }}
-                    title={remainingMoves.includes(dice[1]) ? `انتخاب اولویت با تاس ${dice[1]}` : ''}
+                    title={remainingMoves.includes(dice[1]) ? `انتخاب اولویت با تاس ۲ (${dice[1]})` : ''}
                   >
-                    <RenderDiceFace value={dice[1]} isRolling={isRolling} size="sm" isSelected={selectedDie === dice[1]} />
+                    <RenderDiceFace 
+                      value={dice[1]} 
+                      isRolling={isRolling} 
+                      size="sm" 
+                      isSelected={selectedDie === dice[1]} 
+                      themeKey={blackTheme}
+                      ownerBadge="⚫"
+                      ownerLabel={isRtl ? 'تاس دوم (مهره سیاه)' : 'Die 2 (Black)'}
+                    />
                   </div>
                 </div>
               )}
@@ -2075,7 +2303,7 @@ export default function Backgammon() {
                   className={`cursor-pointer flex flex-col items-center ${turn === topPlayerRole ? 'animate-pulse' : ''}`}
                   title={`${bar[topPlayerRole]} مهره خورده`}
                 >
-                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${topPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${getCheckerStyle(topPlayerRole)}`}>
                     {bar[topPlayerRole]}
                   </div>
                 </div>
@@ -2100,7 +2328,7 @@ export default function Backgammon() {
                   className={`cursor-pointer flex flex-col items-center ${isMyTurn ? 'ring-2 ring-cyan-400 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,211,238,0.8)]' : ''}`}
                   title={`${bar[bottomPlayerRole]} مهره خورده - کلیک برای ورود`}
                 >
-                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${bottomPlayerRole === 'white' ? themeConfig.checkerWhite : themeConfig.checkerBlack}`}>
+                  <div className={`w-6 h-6 xs:w-7 xs:h-7 rounded-full border-2 flex items-center justify-center font-black text-[11px] shadow-lg ${getCheckerStyle(bottomPlayerRole)}`}>
                     {bar[bottomPlayerRole]}
                   </div>
                 </div>
@@ -2158,13 +2386,6 @@ export default function Backgammon() {
                     >
                       رد نوبت ⏭️
                     </button>
-                    <button
-                      onClick={() => rollDiceAction()}
-                      className="px-1.5 py-0.5 rounded-lg bg-black/80 hover:bg-black text-cyan-300 text-[9px] font-bold border border-cyan-400/40 active:scale-95 shadow"
-                      title="پرتاب مجدد تاس"
-                    >
-                      🔄 تاس مجدد
-                    </button>
                   </div>
                 </div>
               )}
@@ -2187,16 +2408,14 @@ export default function Backgammon() {
             {/* Bottom-Right Bearing-Off Tray (Plato Recessed Horizontal Box) */}
             <div
               onClick={() => {
-                if (isMyTurn && activeValidDestinations.includes('off')) {
-                  const validMoves = getValidMovesForPoint(selectedPoint, points, bar, remainingMoves, turn);
-                  const offMove = validMoves.find(m => m.target === 'off');
-                  if (offMove) executeMove(selectedPoint, 'off', offMove.dieUsed);
+                if (isMyTurn && isHomeBoardReady(turn, points, bar)) {
+                  handleAutoBearOff(turn);
                 }
               }}
               className={`w-28 sm:w-32 h-6 rounded-md bg-[#1d1109] border border-[#100904] shadow-[inset_0_2px_6px_rgba(0,0,0,0.9)] flex items-center px-1.5 justify-between ${
-                isMyTurn && activeValidDestinations.includes('off') ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
+                isMyTurn && isHomeBoardReady(turn, points, bar) && remainingMoves.length > 0 ? 'ring-2 ring-emerald-400 bg-emerald-950/40 animate-pulse cursor-pointer' : ''
               }`}
-              title={`خروج مهره‌های ${bottomPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[bottomPlayerRole]}/15)`}
+              title={isRtl ? `خروج مهره‌های ${bottomPlayerRole === 'white' ? 'سفید' : 'سیاه'} (${borneOff[bottomPlayerRole]}/15) - کلیک برای خروج سریع` : `${bottomPlayerRole} Bearing Off Tray (${borneOff[bottomPlayerRole]}/15)`}
             >
               <div className="flex items-center gap-[2px] overflow-hidden flex-1 h-3 mr-1">
                 {Array.from({ length: Math.min(15, borneOff[bottomPlayerRole]) }).map((_, i) => (

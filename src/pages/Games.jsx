@@ -45,7 +45,7 @@ export const GAME_DEFS = [
     titleFa: 'تخته نرد ایرانی',
     titleEn: 'Persian Backgammon',
     icon: '🎲',
-    coverImage: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+    coverImage: '/images/games/backgammon.jpg',
     category: 'board',
     maxPlayers: 2,
     color: 'from-orange-600/30 via-amber-800/20 to-orange-950/50 border-orange-500/40',
