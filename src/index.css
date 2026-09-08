@@ -949,7 +949,7 @@ input[type='range']:focus { outline: none; }
    ACCESSIBILITY & ULTRA-CLEAR HIGH-CONTRAST LIGHT THEME SYSTEM
    Provides 100% sharp, readable text for users with any vision levels
    ================================================================= */
-[data-theme='light'], body:not([data-theme='dark']) {
+[data-theme='light']:not(.dark):not([data-dark-surface="true"]) {
   /* High contrast text overrides */
   .text-slate-100,
   .text-slate-200 {
@@ -1108,3 +1108,50 @@ input[type='range']:focus { outline: none; }
   }
 }
 
+/* =================================================================
+   ABSOLUTE SHIELD FOR GAMING MODALS & DARK SURFACES
+   ================================================================= */
+[data-dark-surface="true"],
+.dark[data-dark-surface="true"],
+[data-dark-surface="true"] * {
+  box-sizing: border-box;
+}
+
+[data-dark-surface="true"] .bg-black\/60,
+[data-dark-surface="true"] .bg-black\/70,
+[data-dark-surface="true"] .bg-black\/80,
+[data-dark-surface="true"] .bg-black\/90,
+[data-dark-surface="true"] .bg-black\/50,
+[data-dark-surface="true"] .bg-black\/40 {
+  background-color: rgba(12, 15, 23, 0.75) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-dark-surface="true"] .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+[data-dark-surface="true"] .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+[data-dark-surface="true"] .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+[data-dark-surface="true"] .text-amber-300 {
+  color: #fcd34d !important;
+}
+
+[data-dark-surface="true"] .text-amber-400 {
+  color: #fbbf24 !important;
+}
+
+[data-dark-surface="true"] .text-emerald-300 {
+  color: #6ee7b7 !important;
+}
+
+[data-dark-surface="true"] .text-emerald-400 {
+  color: #34d399 !important;
+}

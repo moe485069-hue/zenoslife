@@ -66,7 +66,8 @@ const useAppStore = create((set, get) => ({
   equippedBoardTheme: localStorage.getItem('lifeos_equipped_board_theme') || 'wood',
   equippedDiceSkin: localStorage.getItem('lifeos_equipped_dice_skin') || 'default',
   equippedTitle: localStorage.getItem('lifeos_equipped_title') || 'none',
-  equippedBanners: JSON.parse(localStorage.getItem('lifeos_equipped_banners') || '["banner_persepolis", "banner_royal_gold", "banner_cyber_neon"]'),
+  equippedBanner: localStorage.getItem('lifeos_equipped_banner') || 'banner_persepolis',
+  equippedBanners: [localStorage.getItem('lifeos_equipped_banner') || 'banner_persepolis'],
   badges: ['first_step', 'streak_3'],
   todayScore: 65,
   showInstallPrompt: false,
@@ -433,20 +434,9 @@ const useAppStore = create((set, get) => ({
       localStorage.setItem('lifeos_equipped_title', id);
       set({ equippedTitle: id });
     } else if (type === 'banner') {
-      const current = get().equippedBanners || [];
-      let updated;
-      if (current.includes(id)) {
-        updated = current.filter((b) => b !== id);
-        if (updated.length === 0) updated = [id];
-      } else {
-        if (current.length >= 5) {
-          updated = [...current.slice(1), id];
-        } else {
-          updated = [...current, id];
-        }
-      }
-      localStorage.setItem('lifeos_equipped_banners', JSON.stringify(updated));
-      set({ equippedBanners: updated });
+      localStorage.setItem('lifeos_equipped_banner', id);
+      localStorage.setItem('lifeos_equipped_banners', JSON.stringify([id]));
+      set({ equippedBanner: id, equippedBanners: [id] });
     }
     soundEngine.playTap?.();
   },
@@ -470,12 +460,10 @@ const useAppStore = create((set, get) => ({
     } else if (type === 'title') {
       localStorage.setItem('lifeos_equipped_title', 'none');
       set({ equippedTitle: 'none' });
-    } else if (type === 'banner' && id) {
-      const current = get().equippedBanners || [];
-      const updated = current.filter((b) => b !== id);
-      const finalBanners = updated.length > 0 ? updated : ['banner_persepolis'];
-      localStorage.setItem('lifeos_equipped_banners', JSON.stringify(finalBanners));
-      set({ equippedBanners: finalBanners });
+    } else if (type === 'banner') {
+      localStorage.setItem('lifeos_equipped_banner', 'banner_persepolis');
+      localStorage.setItem('lifeos_equipped_banners', JSON.stringify(['banner_persepolis']));
+      set({ equippedBanner: 'banner_persepolis', equippedBanners: ['banner_persepolis'] });
     }
     soundEngine.playTap?.();
   },
