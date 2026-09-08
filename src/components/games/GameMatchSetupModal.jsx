@@ -110,8 +110,12 @@ export default function GameMatchSetupModal({ isOpen, onClose, game, onStartGame
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl shadow-md">
-              {game.icon}
+            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-amber-400/60 shadow-lg shrink-0 bg-slate-800 relative">
+              {game.coverImage ? (
+                <img src={game.coverImage} alt={game.titleEn} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl bg-amber-500/20">{game.icon}</div>
+              )}
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-amber-200">

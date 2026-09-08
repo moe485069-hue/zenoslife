@@ -14,6 +14,12 @@ import haptics from '../utils/haptics';
 import OpponentProfileModal from '../components/games/OpponentProfileModal';
 import ChazhaStoreModal from '../components/games/ChazhaStoreModal';
 import { shareToTelegram } from '../utils/telegram';
+import { GAME_DEFS } from './Games';
+
+const GAME_COVERS_MAP = (GAME_DEFS || []).reduce((acc, g) => {
+  acc[g.id] = g.coverImage;
+  return acc;
+}, {});
 
 // Supported Games in the Lounge (Plato-Style Roster)
 const LOUNGE_GAMES = [
@@ -526,23 +532,30 @@ export default function GameRoomsLounge() {
 
             {/* Games Filter Chips */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-              {LOUNGE_GAMES.map(g => (
-                <button
-                  key={g.id}
-                  onClick={() => {
-                    setSelectedGameFilter(g.id);
-                    soundEngine.playTap?.();
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
-                    selectedGameFilter === g.id
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
-                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  <span>{g.icon}</span>
-                  <span>{g.titleFa}</span>
-                </button>
-              ))}
+              {LOUNGE_GAMES.map(g => {
+                const cover = GAME_COVERS_MAP[g.id];
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => {
+                      setSelectedGameFilter(g.id);
+                      soundEngine.playTap?.();
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                      selectedGameFilter === g.id
+                        ? 'bg-amber-400 text-slate-950 shadow-sm font-black'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {cover ? (
+                      <img src={cover} alt="" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span>{g.icon}</span>
+                    )}
+                    <span>{g.titleFa}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Rooms List */}
@@ -570,7 +583,9 @@ export default function GameRoomsLounge() {
                   </button>
                 </div>
               ) : (
-                filteredRooms.map(room => (
+                filteredRooms.map(room => {
+                  const cover = GAME_COVERS_MAP[room.gameId];
+                  return (
                   <motion.div
                     key={room.id}
                     initial={{ opacity: 0, y: 8 }}
@@ -579,8 +594,18 @@ export default function GameRoomsLounge() {
                   >
                     {/* Left: Game & Host Details */}
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-700/10 border border-amber-400/30 flex items-center justify-center text-2xl shadow-inner shrink-0">
-                        {room.gameIcon}
+                      <div className="w-12 h-12 rounded-2xl overflow-hidden border border-amber-400/40 shadow-md shrink-0 relative bg-slate-900">
+                        {cover ? (
+                          <img 
+                            src={cover} 
+                            alt={room.gameTitle} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 flex items-center justify-center text-xl pointer-events-none -z-0">
+                          {room.gameIcon}
+                        </div>
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
@@ -638,7 +663,8 @@ export default function GameRoomsLounge() {
                       </span>
                     </div>
                   </motion.div>
-                ))
+                );
+              })
               )}
             </div>
           </div>

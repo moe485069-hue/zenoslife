@@ -28,6 +28,7 @@ export const GAME_DEFS = [
     titleFa: 'حکم ۴ نفره شاهانه',
     titleEn: 'Royal 4-Player Hokm',
     icon: '👑',
+    coverImage: 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 4,
     color: 'from-amber-600/30 via-yellow-700/20 to-amber-950/50 border-amber-500/40',
@@ -44,6 +45,7 @@ export const GAME_DEFS = [
     titleFa: 'تخته نرد ایرانی',
     titleEn: 'Persian Backgammon',
     icon: '🎲',
+    coverImage: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-orange-600/30 via-amber-800/20 to-orange-950/50 border-orange-500/40',
@@ -60,14 +62,15 @@ export const GAME_DEFS = [
     titleFa: 'پاستور (چهاربرگ)',
     titleEn: 'Pasur (4-Cards)',
     icon: '🃏',
+    coverImage: 'https://images.unsplash.com/photo-1541278107931-e006523892df?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-emerald-600/30 via-teal-800/20 to-emerald-950/50 border-emerald-500/40',
     accentColor: 'text-emerald-300',
     descFa: 'بازی کارتی خاطره‌انگیز ایرانی. جمع کن، پاستور بزن و امتیاز بگیر!',
     descEn: 'Memorable Persian card game. Match, sweep, and score points!',
-    levelFa: 'ایرانی 🇮🇷',
-    levelEn: 'Persian 🇮🇷',
+    levelFa: 'اصیل 🃏',
+    levelEn: 'Classic 🃏',
     featured: true,
     path: '/games/pasur'
   },
@@ -76,6 +79,7 @@ export const GAME_DEFS = [
     titleFa: 'منچ کلاسیک (۲ تا ۴ نفره)',
     titleEn: 'Classic Ludo (2-4P)',
     icon: '🎯',
+    coverImage: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 4,
     color: 'from-rose-600/30 via-pink-800/20 to-rose-950/50 border-rose-500/40',
@@ -92,6 +96,7 @@ export const GAME_DEFS = [
     titleFa: 'مار و پله (۲ تا ۴ نفره)',
     titleEn: 'Snakes & Ladders',
     icon: '🐍',
+    coverImage: 'https://images.unsplash.com/photo-1585504198199-20277593b94f?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 4,
     color: 'from-emerald-600/30 via-teal-800/20 to-emerald-950/50 border-emerald-500/40',
@@ -108,6 +113,7 @@ export const GAME_DEFS = [
     titleFa: 'چهار در یک خط نئونی',
     titleEn: 'Neon Connect 4',
     icon: '🎯',
+    coverImage: 'https://images.unsplash.com/photo-1611996575749-79a3a250f948?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-blue-600/30 via-indigo-800/20 to-blue-950/50 border-blue-500/40',
@@ -124,6 +130,7 @@ export const GAME_DEFS = [
     titleFa: 'نقطه خط کیهانی',
     titleEn: 'Cosmic Dots & Boxes',
     icon: '📦',
+    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
@@ -140,6 +147,7 @@ export const GAME_DEFS = [
     titleFa: 'ایر هاکی نئونی',
     titleEn: 'Neon Air Hockey',
     icon: '🏒',
+    coverImage: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-cyan-600/30 via-sky-800/20 to-cyan-950/50 border-cyan-500/40',
@@ -156,6 +164,7 @@ export const GAME_DEFS = [
     titleFa: 'نبرد ناوها و جنگ کیهانی',
     titleEn: 'Cosmic Battleship',
     icon: '🚀',
+    coverImage: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-indigo-600/30 via-purple-800/20 to-indigo-950/50 border-indigo-500/40',
@@ -172,6 +181,7 @@ export const GAME_DEFS = [
     titleFa: 'فوتبال انگشتی و دکمه‌ای',
     titleEn: 'Finger Soccer 2D',
     icon: '⚽',
+    coverImage: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 4,
     color: 'from-green-600/30 via-emerald-800/20 to-green-950/50 border-green-500/40',
@@ -188,6 +198,7 @@ export const GAME_DEFS = [
     titleFa: 'اوچو (Uno رنگی)',
     titleEn: 'Ocho (Uno Color Match)',
     icon: '🌈',
+    coverImage: 'https://images.unsplash.com/photo-1606503153255-59d8b8b82176?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 4,
     color: 'from-purple-600/30 via-pink-800/20 to-purple-950/50 border-purple-500/40',
@@ -204,6 +215,7 @@ export const GAME_DEFS = [
     titleFa: 'مینی گلف رویال',
     titleEn: 'Royal Mini Golf',
     icon: '⛳',
+    coverImage: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-lime-600/30 via-emerald-800/20 to-lime-950/50 border-lime-500/40',
@@ -220,6 +232,7 @@ export const GAME_DEFS = [
     titleFa: 'اسنوکر شاهانه سه‌بعدی',
     titleEn: 'Royal Snooker 3D',
     icon: '🎱',
+    coverImage: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-emerald-600/30 via-teal-800/25 to-slate-950/60 border-emerald-500/50',
@@ -236,6 +249,7 @@ export const GAME_DEFS = [
     titleFa: 'بیلیارد ۸-توپی',
     titleEn: '8-Ball Billiards',
     icon: '🎱',
+    coverImage: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
@@ -251,6 +265,7 @@ export const GAME_DEFS = [
     titleFa: 'شطرنج کیهانی',
     titleEn: 'Cosmic Chess',
     icon: '♟️',
+    coverImage: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-indigo-600/30 via-blue-800/20 to-indigo-950/50 border-indigo-500/40',
@@ -266,6 +281,7 @@ export const GAME_DEFS = [
     titleFa: 'دوز نئونی (X-O)',
     titleEn: 'Neon Tic-Tac-Toe',
     icon: '⭕',
+    coverImage: 'https://images.unsplash.com/photo-1668901382969-8c73e450a1f5?auto=format&fit=crop&w=600&q=80',
     category: 'board',
     maxPlayers: 2,
     color: 'from-emerald-600/20 via-teal-900/30 to-slate-950/50 border-emerald-500/40',
@@ -281,6 +297,7 @@ export const GAME_DEFS = [
     titleFa: 'پونگ کیهانی',
     titleEn: 'Cosmic Pong',
     icon: '🏓',
+    coverImage: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-sky-600/20 via-blue-900/30 to-slate-950/50 border-sky-500/40',
@@ -296,6 +313,7 @@ export const GAME_DEFS = [
     titleFa: '۲۰۴۸ سایبری',
     titleEn: 'Cyber 2048',
     icon: '🔢',
+    coverImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-cyan-600/20 via-blue-900/30 to-slate-950/50 border-cyan-500/40',
@@ -311,6 +329,7 @@ export const GAME_DEFS = [
     titleFa: 'مار سایبری (Snake)',
     titleEn: 'Neon Snake',
     icon: '🐍',
+    coverImage: 'https://images.unsplash.com/photo-1551103782-8ab07afd45c1?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 1,
     color: 'from-purple-600/20 via-fuchsia-900/30 to-slate-950/50 border-purple-500/40',
@@ -326,6 +345,7 @@ export const GAME_DEFS = [
     titleFa: 'مدافع فضا',
     titleEn: 'Space Defender',
     icon: '🚀',
+    coverImage: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=600&q=80',
     category: 'arcade',
     maxPlayers: 1,
     color: 'from-rose-600/20 via-red-900/30 to-slate-950/50 border-rose-500/40',
@@ -341,6 +361,7 @@ export const GAME_DEFS = [
     titleFa: 'سرعت واکنش',
     titleEn: 'Reaction Speed',
     icon: '⚡',
+    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-amber-600/20 via-orange-900/30 to-slate-950/50 border-amber-500/40',
@@ -356,6 +377,7 @@ export const GAME_DEFS = [
     titleFa: 'حدس کلمه فارسی',
     titleEn: 'Persian Wordle',
     icon: '🔤',
+    coverImage: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=600&q=80',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-yellow-600/20 via-amber-900/30 to-slate-950/50 border-yellow-500/40',
@@ -371,6 +393,7 @@ export const GAME_DEFS = [
     titleFa: 'ماتریس حافظه',
     titleEn: 'Memory Matrix',
     icon: '🧠',
+    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-fuchsia-600/20 via-purple-900/30 to-slate-950/50 border-fuchsia-500/40',
@@ -656,7 +679,7 @@ function LiveRoomCard({ room, onJoin, onShare, myUserId, isRtl, isLight }) {
 
 export const TOP_GAME_IDS = ['hokm', 'backgammon', 'ludo', 'pasur', 'snooker', 'air_hockey'];
 
-// Grade-1 Premium Game Card — stable live count + glassmorphism + rich glow
+// Grade-1 Console Arcade Game Card — Real cover artwork, live indicators, coin rewards & play pill
 function GameCard({ game, isLight, isRtl, onGameClick }) {
   // Stable seed per game id — no random flicker on re-render
   const liveCount = React.useMemo(() => {
@@ -664,64 +687,85 @@ function GameCard({ game, isLight, isRtl, onGameClick }) {
     return (seed % 65) + 18;
   }, [game.id]);
 
+  const [imgError, setImgError] = useState(false);
+
   return (
     <motion.div
-      whileHover={{ y: -4, scale: 1.03 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
       onClick={() => onGameClick(game)}
-      className={`rounded-2xl sm:rounded-3xl cursor-pointer border flex flex-col aspect-[4/5] sm:aspect-square transition-all group relative overflow-hidden ${
+      className={`rounded-2xl sm:rounded-3xl cursor-pointer border flex flex-col aspect-[3.4/4] sm:aspect-[3.6/4] transition-all duration-300 group relative overflow-hidden ${
         isLight
-          ? 'bg-white border-slate-200 hover:border-purple-400/70 hover:shadow-xl hover:shadow-purple-500/10 shadow-md shadow-slate-200/80'
-          : 'bg-gradient-to-b from-slate-900/95 to-slate-950/95 border-white/[0.08] hover:border-purple-400/50 hover:shadow-2xl hover:shadow-purple-900/40 backdrop-blur-xl'
+          ? 'bg-white border-slate-200 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-500/15 shadow-md shadow-slate-200/80'
+          : 'bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black border-white/[0.08] hover:border-purple-400/60 hover:shadow-2xl hover:shadow-purple-900/50 backdrop-blur-xl'
       }`}
     >
-      {/* Radial glow from game color */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${game.color} ${isLight ? 'opacity-[0.05]' : 'opacity-[0.10]'} group-hover:opacity-[0.20] transition-opacity duration-300 pointer-events-none rounded-inherit`} />
-      <div className={`absolute -top-6 -right-6 w-16 h-16 rounded-full bg-gradient-to-br ${game.color} blur-2xl ${isLight ? 'opacity-40' : 'opacity-60'} group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
+      {/* Top Cover Image Area */}
+      <div className="relative w-full h-[58%] sm:h-[60%] overflow-hidden bg-slate-950">
+        {!imgError && game.coverImage ? (
+          <img
+            src={game.coverImage}
+            alt={game.titleEn}
+            loading="lazy"
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${game.color} flex items-center justify-center text-4xl`}>
+            {game.icon}
+          </div>
+        )}
 
-      <div className="relative z-10 flex flex-col h-full p-3 sm:p-3.5">
-        {/* Row 1: label badge + live badge */}
-        <div className="flex items-center justify-between">
-          <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full border backdrop-blur-sm truncate max-w-[68px] ${
-            isLight ? 'bg-white/80 text-slate-600 border-slate-200' : 'bg-black/50 text-slate-300 border-white/10'
-          }`}>
+        {/* Cinematic Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
+
+        {/* Top Badges (Category & Live Players Counter) */}
+        <div className="absolute top-2 inset-x-2 flex items-center justify-between z-10">
+          <span className="text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/20 shadow-sm truncate max-w-[70px]">
             {isRtl ? game.levelFa : game.levelEn}
           </span>
-          <div className={`flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full border backdrop-blur-sm ${
-            isLight ? 'bg-emerald-50/90 text-emerald-700 border-emerald-200' : 'bg-emerald-900/40 text-emerald-400 border-emerald-500/25'
-          }`}>
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
+          <div className="flex items-center gap-1 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-black/65 text-emerald-400 border border-emerald-500/40 backdrop-blur-md shadow-sm">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
             <span>{liveCount}</span>
           </div>
         </div>
 
-        {/* Row 2: Icon bubble centered */}
-        <div className="flex flex-col items-center justify-center flex-1 py-1 gap-1.5">
-          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${game.color} flex items-center justify-center text-[2rem] sm:text-[2.3rem] group-hover:scale-110 transition-transform duration-200 shadow-lg border ${
-            isLight ? 'border-white/60 shadow-slate-300/50' : 'border-white/10 shadow-black/50'
-          }`}>
-            {game.icon}
+        {/* Floating Play Overlay On Hover */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/60 scale-75 group-hover:scale-100 transition-transform duration-300">
+            <Play size={16} className="fill-white translate-x-0.5" />
           </div>
-          <h3 className={`text-[11px] sm:text-xs font-black text-center leading-tight line-clamp-2 px-0.5 transition-colors ${
-            isLight ? 'text-slate-800 group-hover:text-purple-700' : 'text-white/95 group-hover:text-amber-300'
+        </div>
+      </div>
+
+      {/* Bottom Content Area */}
+      <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 relative z-10">
+        <div>
+          <h3 className={`text-xs sm:text-[13px] font-black truncate leading-tight transition-colors ${
+            isLight ? 'text-slate-900 group-hover:text-purple-600' : 'text-white group-hover:text-amber-300'
           }`}>
             {isRtl ? game.titleFa : game.titleEn}
           </h3>
+          <p className={`text-[9px] sm:text-[10px] font-medium truncate mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            {game.maxPlayers > 1 
+              ? (isRtl ? `${game.maxPlayers} نفره آنلاین ⚡` : `${game.maxPlayers}P Online ⚡`) 
+              : (isRtl ? 'تک نفره رکوردی 🏆' : 'Solo Arcade 🏆')}
+          </p>
         </div>
 
-        {/* Row 3: players + play CTA */}
-        <div className={`flex items-center justify-between pt-2 border-t ${isLight ? 'border-slate-100' : 'border-white/[0.07]'}`}>
-          <span className={`text-[10px] font-bold flex items-center gap-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-            <Users size={10} className={isLight ? 'text-purple-500' : 'text-purple-400'} />
-            {game.maxPlayers > 1 ? (isRtl ? `${game.maxPlayers} نفره` : `${game.maxPlayers}P`) : (isRtl ? 'تک نفره' : 'Solo')}
+        <div className={`flex items-center justify-between pt-1.5 mt-1 border-t ${isLight ? 'border-slate-100' : 'border-white/[0.08]'}`}>
+          <span className={`text-[9px] sm:text-[10px] font-black flex items-center gap-1 ${isLight ? 'text-amber-600' : 'text-amber-400'}`}>
+            <Coins size={11} className="text-amber-500" />
+            <span>{isRtl ? '+۵۰ سکه' : '+50 Coins'}</span>
           </span>
-          <span className={`text-[9px] sm:text-[10px] font-black flex items-center gap-0.5 px-2 py-0.5 rounded-lg transition-all group-hover:scale-105 ${
+          <span className={`text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all group-hover:scale-105 shadow-sm ${
             isLight
-              ? 'bg-purple-600 text-white shadow-sm shadow-purple-500/30'
-              : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-sm shadow-purple-900/50'
+              ? 'bg-purple-600 text-white shadow-purple-500/25'
+              : 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-purple-900/40'
           }`}>
-            {isRtl ? 'بازی' : 'Play'}
-            <Play size={8} className="fill-white" />
+            <span>{isRtl ? 'بازی' : 'Play'}</span>
+            <Gamepad2 size={11} />
           </span>
         </div>
       </div>
@@ -824,7 +868,12 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isR
                               : (isLight ? 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100' : 'border-white/10 bg-white/5 text-slate-300 hover:border-purple-500/40 hover:bg-white/10')
                           }`}
                         >
-                          <span className="text-2xl shrink-0">{g.icon}</span>
+                          <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-white/15 relative shadow-sm bg-slate-800 flex items-center justify-center">
+                            {g.coverImage ? (
+                              <img src={g.coverImage} alt={g.titleEn} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : null}
+                            <span className="text-xl absolute">{g.icon}</span>
+                          </div>
                           <div className="min-w-0">
                             <span className={`text-xs font-black block truncate ${isSelected ? (isLight ? 'text-purple-950' : 'text-white') : (isLight ? 'text-slate-800' : 'text-slate-200')}`}>
                               {isRtl ? g.titleFa : g.titleEn}
@@ -1504,7 +1553,7 @@ export default function Games() {
             {/* Avatar with ring */}
             <div className="relative shrink-0">
               <SafeAvatar avatar={currentAvatar} size="w-10 h-10 text-lg" ringColor="border-amber-400/70" />
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -1513,9 +1562,13 @@ export default function Games() {
                 </h3>
                 {isVip && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-black border border-amber-500/40">VIP</span>}
               </div>
-              <p className={`text-[9px] font-bold mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                {isRtl ? 'چاژا گیمر 🎮' : 'Chazha Gamer 🎮'}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 font-mono">LVL 4</span>
+                <div className="w-12 sm:w-16 h-1.5 bg-slate-700/40 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full w-[65%]" />
+                </div>
+                <span className={`text-[8px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>650 XP</span>
+              </div>
             </div>
           </div>
 
@@ -1608,63 +1661,117 @@ export default function Games() {
           </button>
         </div>
 
+        {/* Live Arcade Ticker — Real-time game atmosphere */}
+        <div className={`flex items-center justify-between px-3.5 py-2 rounded-2xl border text-[11px] font-bold shadow-sm transition-all ${
+          isLight 
+            ? 'bg-purple-50/90 border-purple-200/80 text-purple-950' 
+            : 'bg-white/[0.04] border-white/[0.08] text-slate-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="font-black text-emerald-600 dark:text-emerald-400">
+              {isRtl ? '۱۲۵۰+ بازیکن هم‌اکنون در چاژا' : '1,250+ Gamers Live Online'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-lg font-mono text-[10px] font-black ${
+              isLight ? 'bg-emerald-100 text-emerald-900' : 'bg-emerald-500/20 text-emerald-300'
+            }`}>
+              PING 28ms 🟢
+            </span>
+            <span className="text-amber-500 font-black flex items-center gap-1">
+              <Coins size={12} className="text-amber-500" />
+              <span>{isRtl ? '۵۰,۰۰۰+ جایزه' : '50K+ Daily Rewards'}</span>
+            </span>
+          </div>
+        </div>
+
         {/* ================================================================ */}
         {/* TAB 1: 🎮 ARCADE GAMES                                           */}
         {/* ================================================================ */}
         {mainTab === 'games' && (
           <div className="space-y-3.5">
-            {/* Featured Hero Banner — Grade-1 */}
-            <div className={`relative overflow-hidden rounded-2xl sm:rounded-3xl p-4 border shadow-xl transition-all ${
-              isLight
-                ? 'bg-gradient-to-br from-amber-50 via-yellow-50 to-purple-50 border-amber-200/90'
-                : 'bg-gradient-to-br from-[#1c0c00] via-[#180a20] to-[#060210] border-amber-500/30 shadow-2xl'
-            }`}>
+            {/* Featured Hero Banner — Console Arcade Showcase */}
+            <div 
+              className={`group relative overflow-hidden rounded-2xl sm:rounded-3xl p-4 sm:p-5 border shadow-2xl transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-gradient-to-br from-amber-50/90 via-purple-50/60 to-white border-amber-300/80 shadow-amber-200/40'
+                  : 'bg-[#0c0817] border-amber-500/40 shadow-purple-950/50'
+              }`}
+              onClick={() => {
+                const hokmDef = GAME_DEFS.find(g => g.id === 'hokm');
+                if (hokmDef) handleGameClick(hokmDef);
+              }}
+            >
+              {/* Cover Art Backdrop with Vignette Fade */}
+              <div 
+                className="absolute inset-0 z-0 bg-cover bg-center opacity-30 mix-blend-luminosity scale-105 group-hover:scale-110 transition-transform duration-700 pointer-events-none"
+                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=1000&q=80')" }}
+              />
+              <div className={`absolute inset-0 z-0 pointer-events-none transition-colors ${
+                isLight
+                  ? 'bg-gradient-to-r from-amber-50/95 via-white/80 to-transparent'
+                  : 'bg-gradient-to-r from-[#0c0817]/95 via-[#0c0817]/80 to-transparent'
+              }`} />
+
               {/* Glowing orbs */}
-              <div className="absolute -top-8 -right-8 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-20 bg-fuchsia-700/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -top-8 -right-8 w-36 h-36 bg-amber-500/25 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-purple-600/30 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative z-10 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {/* Game icon with glow ring */}
-                  <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 flex items-center justify-center text-3xl shadow-lg shrink-0 border-2 ${isLight ? 'border-amber-200 shadow-amber-300/40' : 'border-amber-400/30 shadow-amber-900/50'}`}>
-                    👑
-                    <div className="absolute inset-0 rounded-2xl bg-white/10 animate-pulse pointer-events-none" />
+                <div className="flex items-center gap-3.5 min-w-0">
+                  {/* Real Framed Game Poster */}
+                  <div className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-2xl overflow-hidden border-2 border-amber-400/80 shadow-xl shrink-0 group-hover:scale-105 transition-transform bg-slate-900">
+                    <img 
+                      src="https://images.unsplash.com/photo-1511193311914-0346f16efe90?auto=format&fit=crop&w=400&q=80" 
+                      alt="Hokm Royal" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end justify-center pb-1">
+                      <span className="text-[9px] font-black text-amber-300">👑 شاهانه</span>
+                    </div>
                   </div>
+
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black ${
-                        isLight ? 'bg-amber-100 border-amber-300 text-amber-900' : 'bg-amber-500/20 border-amber-400/40 text-amber-300'
+                    <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black flex items-center gap-1 ${
+                        isLight ? 'bg-amber-100 border-amber-300 text-amber-950' : 'bg-amber-500/25 border-amber-400/50 text-amber-300'
                       }`}>
-                        {isRtl ? '⭐ برگزیده هفته' : '⭐ Featured'}
+                        <Sparkles size={10} className="text-amber-500" />
+                        <span>{isRtl ? 'بازی برگزیده هفته' : 'Featured Game'}</span>
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded-full border text-[9px] font-bold ${
-                        isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-800' : 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
+                      <span className={`px-2 py-0.5 rounded-full border text-[9px] font-bold ${
+                        isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-900' : 'bg-emerald-500/25 border-emerald-400/50 text-emerald-300'
                       }`}>
-                        ⚡ {isRtl ? 'آنلاین ۴ نفره' : '4P Online'}
+                        ⚡ {isRtl ? '۴ نفره آنلاین زنده' : '4P Live Online'}
                       </span>
                     </div>
-                    <h2 className={`text-sm sm:text-[15px] font-black leading-tight ${
-                      isLight ? 'text-slate-900' : 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300'
+
+                    <h2 className={`text-base sm:text-lg font-black leading-tight ${
+                      isLight ? 'text-slate-950' : 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300'
                     }`}>
                       {isRtl ? 'حکم ۴ نفره شاهانه' : 'Royal 4-Player Hokm'}
                     </h2>
-                    <p className={`text-[10px] mt-0.5 line-clamp-1 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                      {isRtl ? 'رقابت زنده با جوایز سکه 🪙 • بیش از ۱۰۰۰ بازیکن آنلاین' : 'Live matches • 1000+ players online • win coins!'}
+                    <p className={`text-[11px] mt-1 line-clamp-1 font-medium ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                      {isRtl ? 'رقابت زنده کشوری • برد ۵۰+ سکه 🪙 • ۱۲۵۰ بازیکن هم‌اکنون' : 'Live tournaments • Win 50+ coins 🪙 • 1250+ gamers online'}
                     </p>
                   </div>
                 </div>
 
                 <div className="shrink-0">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       const hokmDef = GAME_DEFS.find(g => g.id === 'hokm');
                       if (hokmDef) handleGameClick(hokmDef);
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs active:scale-95 shadow-lg shadow-amber-500/30 hover:brightness-110 transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs sm:text-sm active:scale-95 shadow-xl shadow-amber-500/35 hover:brightness-110 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Zap size={13} className="fill-slate-950" />
-                    <span>{isRtl ? 'بازی کن' : 'Play Now'}</span>
+                    <Zap size={15} className="fill-slate-950" />
+                    <span>{isRtl ? 'ورود به بازی' : 'Play Now'}</span>
                   </button>
                 </div>
               </div>
