@@ -130,7 +130,7 @@ export const GAME_DEFS = [
     titleFa: 'نقطه خط کیهانی',
     titleEn: 'Cosmic Dots & Boxes',
     icon: '📦',
-    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=85',
     category: 'board',
     maxPlayers: 2,
     color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
@@ -164,7 +164,7 @@ export const GAME_DEFS = [
     titleFa: 'نبرد ناوها و جنگ کیهانی',
     titleEn: 'Cosmic Battleship',
     icon: '🚀',
-    coverImage: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=85',
     category: 'board',
     maxPlayers: 2,
     color: 'from-indigo-600/30 via-purple-800/20 to-indigo-950/50 border-indigo-500/40',
@@ -232,7 +232,7 @@ export const GAME_DEFS = [
     titleFa: 'اسنوکر شاهانه سه‌بعدی',
     titleEn: 'Royal Snooker 3D',
     icon: '🎱',
-    coverImage: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=600&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1760903192559-17dc111d31e3?auto=format&fit=crop&w=800&q=85',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-emerald-600/30 via-teal-800/25 to-slate-950/60 border-emerald-500/50',
@@ -249,7 +249,7 @@ export const GAME_DEFS = [
     titleFa: 'بیلیارد ۸-توپی',
     titleEn: '8-Ball Billiards',
     icon: '🎱',
-    coverImage: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1772143535059-3988b87de76a?auto=format&fit=crop&w=800&q=85',
     category: 'arcade',
     maxPlayers: 2,
     color: 'from-teal-600/30 via-emerald-800/20 to-teal-950/50 border-teal-500/40',
@@ -361,7 +361,7 @@ export const GAME_DEFS = [
     titleFa: 'سرعت واکنش',
     titleEn: 'Reaction Speed',
     icon: '⚡',
-    coverImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
+    coverImage: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=85',
     category: 'puzzle',
     maxPlayers: 1,
     color: 'from-amber-600/20 via-orange-900/30 to-slate-950/50 border-amber-500/40',
@@ -408,7 +408,7 @@ export const GAME_DEFS = [
 
 export const MULTIPLAYER_IDS = [
   'hokm', 'backgammon', 'ludo', 'snakes', 'connect_four', 'dots_and_boxes',
-  'air_hockey', 'battleship', 'soccer', 'ocho', 'golf', 'pasur', 'billiards',
+  'air_hockey', 'battleship', 'soccer', 'ocho', 'golf', 'snooker', 'pasur', 'billiards',
   'cosmic_chess', 'tic_tac_toe', 'cosmic_pong'
 ];
 
@@ -503,12 +503,39 @@ export const SEED_ACTIVE_ROOMS = [
     bet: 150,
     status: 'waiting',
     createdAt: Date.now() - 190000
+  },
+  {
+    roomId: 'SNOO-4147',
+    gameType: 'snooker',
+    gameTitleFa: 'اسنوکر حرفه‌ای ۳بعدی',
+    gameTitleEn: 'Royal Snooker 3D',
+    hostName: 'استاد_بریک',
+    hostAvatar: '🎱',
+    currentPlayers: 1,
+    maxPlayers: 2,
+    bet: 300,
+    status: 'waiting',
+    createdAt: Date.now() - 45000
+  },
+  {
+    roomId: 'BILL-8820',
+    gameType: 'billiards',
+    gameTitleFa: 'بیلیارد ۸-توپی',
+    gameTitleEn: '8-Ball Billiards',
+    hostName: 'شاهین_پاکت‌زن',
+    hostAvatar: '🎱',
+    currentPlayers: 1,
+    maxPlayers: 2,
+    bet: 200,
+    status: 'waiting',
+    createdAt: Date.now() - 85000
   }
 ];
 
 export const QUICK_CHAT_PHRASES = [
   '🎲 کی میاد تخته نرد؟',
   '👑 حکم ۴ نفره بیاین',
+  '🎱 اسنوکر و بیلیارد کی حریفه؟',
   '🔥 منچ ۴ نفره کی حاضره؟',
   '🃏 بیا پاسور بزنیم سریع',
   '👋 سلام به رفقای چاژا',
@@ -708,7 +735,7 @@ function GameCard({ game, isLight, isRtl, onGameClick }) {
             alt={game.titleEn}
             loading="lazy"
             onError={() => setImgError(true)}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 contrast-[1.08] saturate-[1.2] brightness-[1.02]"
           />
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${game.color} flex items-center justify-center text-4xl`}>
@@ -716,9 +743,9 @@ function GameCard({ game, isLight, isRtl, onGameClick }) {
           </div>
         )}
 
-        {/* Cinematic Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-transparent" />
+        {/* Crisp & Vibrant Edge Lighting (No muddy center fog) */}
+        <div className="absolute top-0 inset-x-0 h-9 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent pointer-events-none" />
 
         {/* Top Badges (Category & Live Players Counter) */}
         <div className="absolute top-2 inset-x-2 flex items-center justify-between z-10">
@@ -1001,6 +1028,7 @@ function CreateRoomModal({ isOpen, onClose, onCreated, userName, userAvatar, isR
 }
 
 // Game Mode Selector & Matchmaking Modal (Supports Light & Dark themes)
+// Game Mode Selector & Matchmaking Modal (Illustrated, Attractive & Intuitive)
 function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl, isLight }) {
   const navigate = useNavigate();
   const [isSearching, setIsSearching] = useState(false);
@@ -1008,6 +1036,9 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl, isLight }) 
   const [showWager, setShowWager] = useState(false);
   const [selectedWager, setSelectedWager] = useState(50);
   const { coins, spendCoins } = useAppStore();
+
+  // Dynamic realistic live online players calculated per game
+  const onlinePlayersCount = Math.floor(180 + ((game?.id?.charCodeAt(0) || 75) * 19 + (game?.maxPlayers || 2) * 43) % 230);
 
   useEffect(() => {
     let interval;
@@ -1049,186 +1080,275 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl, isLight }) 
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4" onClick={onClose} dir={isRtl ? 'rtl' : 'ltr'}>
+      <div 
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4" 
+        onClick={onClose} 
+        dir={isRtl ? 'rtl' : 'ltr'}
+      >
         <motion.div
           initial={{ scale: 0.92, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 20 }}
           onClick={e => e.stopPropagation()}
-          className={`w-full max-w-sm rounded-3xl border-2 p-6 text-center shadow-2xl space-y-4 ${
+          className={`w-full max-w-md rounded-3xl border-2 p-4 sm:p-6 text-center shadow-2xl space-y-4 relative overflow-hidden ${
             isLight
               ? 'bg-white text-slate-900 border-purple-200'
-              : 'bg-gradient-to-b from-[#1a0c2e] via-[#12071f] to-[#0a0312] border-purple-500/40 text-white'
+              : 'bg-gradient-to-b from-[#180d2b] via-[#11071e] to-[#0a0312] border-purple-500/40 text-white shadow-purple-950/50'
           }`}
         >
-          {/* Header */}
-          <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
-            <div className="flex items-center gap-2 text-start">
-              <span className="text-3xl">{game.icon}</span>
-              <div>
-                <h3 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          {/* Top Decorative Ambient Glow */}
+          <div className="absolute -top-12 inset-x-0 h-24 bg-gradient-to-b from-purple-500/20 to-transparent pointer-events-none blur-xl" />
+
+          {/* Illustrated Game Header */}
+          <div className={`flex items-center justify-between border-b pb-3.5 relative z-10 ${
+            isLight ? 'border-slate-200' : 'border-white/10'
+          }`}>
+            <div className="flex items-center gap-3 text-start min-w-0">
+              {/* Framed Game Cover Thumbnail */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 border-amber-400/80 shadow-lg shrink-0 relative bg-slate-900 group">
+                {game.coverImage ? (
+                  <img
+                    src={game.coverImage}
+                    alt={game.titleEn}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 contrast-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl">
+                    {game.icon}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-center pb-0.5">
+                  <span className="text-[10px]">{game.icon}</span>
+                </div>
+              </div>
+
+              {/* Title & Metadata */}
+              <div className="min-w-0">
+                <h3 className={`text-base sm:text-lg font-black truncate leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {isRtl ? game.titleFa : game.titleEn}
                 </h3>
-                <span className={`text-[10px] font-bold ${isLight ? 'text-purple-600' : 'text-purple-300'}`}>
-                  {isRtl ? `${game.maxPlayers} نفره • ${game.levelFa}` : `${game.maxPlayers} Players • ${game.levelEn}`}
-                </span>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                    isLight ? 'bg-purple-100 border-purple-200 text-purple-900' : 'bg-purple-500/20 border-purple-400/30 text-purple-300'
+                  }`}>
+                    {isRtl ? `${game.maxPlayers} نفره` : `${game.maxPlayers} Players`}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    isLight ? 'bg-amber-100 border-amber-200 text-amber-900' : 'bg-amber-500/20 border-amber-400/30 text-amber-300'
+                  }`}>
+                    {isRtl ? game.levelFa : game.levelEn}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Close Button */}
             <button
               onClick={onClose}
-              className={`p-2 rounded-full transition-colors ${
-                isLight ? 'bg-slate-100 text-slate-500 hover:text-slate-900' : 'bg-white/10 text-slate-400 hover:text-white'
+              className={`p-2 rounded-2xl transition-all active:scale-90 cursor-pointer ${
+                isLight ? 'bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200' : 'bg-white/10 text-slate-400 hover:text-white hover:bg-white/15'
               }`}
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
-          {/* Searching Online Radar */}
+          {/* Searching Online Radar Screen */}
           {isSearching ? (
-            <div className="py-8 space-y-4">
-              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-4 border-purple-500/40 animate-ping" />
-                <div className="absolute inset-2 rounded-full border-2 border-pink-500/60 animate-pulse" />
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/50">
-                  {game.icon}
+            <div className="py-6 space-y-4 relative z-10">
+              <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-emerald-500/40 animate-ping" />
+                <div className="absolute inset-2 rounded-full border-2 border-purple-500/60 animate-pulse" />
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-amber-400 shadow-2xl relative z-10 bg-slate-900">
+                  {game.coverImage ? (
+                    <img src={game.coverImage} alt={game.titleEn} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl">{game.icon}</div>
+                  )}
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center text-2xl">
+                    ⚔️
+                  </div>
                 </div>
               </div>
+
               <div>
-                <h4 className={`text-sm font-black animate-pulse ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {isRtl ? 'در حال جستجوی بازیکن آنلاین...' : 'Searching for online opponent...'}
+                <h4 className={`text-sm sm:text-base font-black animate-pulse ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {isRtl ? 'در حال جستجو و اتصال به حریف آنلاین...' : 'Searching for live opponent...'}
                 </h4>
-                <p className={`text-xs mt-1 ${isLight ? 'text-purple-700 font-bold' : 'text-purple-300'}`}>
-                  {isRtl ? `زمان جستجو: ${searchTimer} ثانیه` : `Searching time: ${searchTimer}s`}
+                <p className={`text-xs mt-1.5 font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                  {isRtl ? `از میان ${onlinePlayersCount.toLocaleString('fa-IR')} بازیکن آنلاین • زمان: ${searchTimer} ثانیه` : `Among ${onlinePlayersCount} online players • Time: ${searchTimer}s`}
                 </p>
               </div>
+
               <button
                 onClick={() => setIsSearching(false)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/10 text-slate-300 hover:text-white'}`}
+                className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
+                  isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/10 text-slate-300 hover:text-white'
+                }`}
               >
                 {isRtl ? 'انصراف' : 'Cancel'}
               </button>
             </div>
           ) : showWager ? (
-            <div className="py-2 space-y-4">
-               <h4 className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                 {isRtl ? 'شرطی VIP - انتخاب مبلغ سکه' : 'VIP Wager - Select Coin Amount'}
-               </h4>
-               <p className="text-xs text-amber-600 dark:text-amber-300 font-bold">
-                 {isRtl ? 'موجودی شما:' : 'Your Balance:'} {coins?.toLocaleString() || 0} 🪙
-               </p>
-               <div className="grid grid-cols-2 gap-2">
-                 {[50, 100, 500, 1000].map(amt => (
-                   <button
-                     key={amt}
-                     onClick={() => setSelectedWager(amt)}
-                     className={`p-3 rounded-xl border-2 font-black transition-all ${
-                       selectedWager === amt 
-                        ? 'border-amber-500 bg-amber-500/20 text-amber-600 dark:text-amber-300 shadow-md' 
-                        : (isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-white/10 bg-white/5 text-slate-300')
-                     }`}
-                   >
-                     {amt} 🪙
-                   </button>
-                 ))}
-               </div>
-               <div className={`p-3 border rounded-xl ${isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-500/10 border-amber-500/20 text-amber-300'}`}>
-                 <p className="text-xs">
-                   {isRtl ? `در صورت برد، ${(selectedWager * 2).toLocaleString()} سکه دریافت می‌کنید!` : `Win to get ${(selectedWager * 2).toLocaleString()} coins!`}
-                 </p>
-               </div>
-               <div className="flex gap-2 pt-2">
-                 <button onClick={() => setShowWager(false)} className={`flex-1 py-3 rounded-xl text-xs font-bold ${isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-white'}`}>
-                   {isRtl ? 'بازگشت' : 'Back'}
-                 </button>
-                 <button 
-                   onClick={handleWagerStart}
-                   disabled={coins < selectedWager}
-                   className="flex-[2] py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-sm font-black disabled:opacity-50"
-                 >
-                   {isRtl ? 'شروع بازی' : 'Start Game'}
-                 </button>
-               </div>
+            /* VIP Wager Coin Selection Screen */
+            <div className="py-2 space-y-4 relative z-10">
+              <div className="flex items-center justify-between px-1">
+                <h4 className={`text-sm font-black flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <Crown size={16} className="text-amber-500" />
+                  <span>{isRtl ? 'مسابقه شرطی VIP — انتخاب مبلغ سکه' : 'VIP Wager — Choose Coin Amount'}</span>
+                </h4>
+                <span className="text-xs text-amber-500 font-mono font-black">
+                  {coins?.toLocaleString() || 0} 🪙
+                </span>
+              </div>
+
+              {/* Coin Options Grid */}
+              <div className="grid grid-cols-2 gap-2.5">
+                {[50, 100, 250, 500, 1000].map(amt => (
+                  <button
+                    key={amt}
+                    onClick={() => setSelectedWager(amt)}
+                    className={`p-3 rounded-2xl border-2 font-black transition-all cursor-pointer flex items-center justify-between ${
+                      selectedWager === amt 
+                        ? 'border-amber-400 bg-amber-400/20 text-amber-500 ring-2 ring-amber-400/40 shadow-lg scale-[1.02]' 
+                        : (isLight ? 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10')
+                    }`}
+                  >
+                    <span className="text-sm font-mono">{amt}</span>
+                    <span className="text-xs">🪙 سکه</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Prize Calculator Box */}
+              <div className={`p-3.5 border rounded-2xl flex items-center justify-between ${
+                isLight ? 'bg-amber-50 border-amber-200 text-amber-950' : 'bg-amber-500/10 border-amber-500/20 text-amber-200'
+              }`}>
+                <div className="text-start">
+                  <span className="text-[11px] font-bold block">{isRtl ? 'جایزه پیروزی در این مسابقه:' : 'Victory Prize Pool:'}</span>
+                  <span className="text-sm font-mono font-black text-amber-500">
+                    +{(selectedWager * 2).toLocaleString()} 🪙
+                  </span>
+                </div>
+                <Trophy size={22} className="text-amber-500" />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-1">
+                <button 
+                  onClick={() => setShowWager(false)} 
+                  className={`flex-1 py-3 rounded-2xl text-xs font-bold border transition-all ${
+                    isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-white/10 border-white/10 text-white'
+                  }`}
+                >
+                  {isRtl ? 'بازگشت' : 'Back'}
+                </button>
+                <button 
+                  onClick={handleWagerStart}
+                  disabled={coins < selectedWager}
+                  className="flex-[2] py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/30 disabled:opacity-40 active:scale-95 transition-all cursor-pointer"
+                >
+                  {isRtl ? 'شروع مسابقه شرطی' : 'Start Wager Match'}
+                </button>
+              </div>
             </div>
           ) : (
-            /* Mode Options */
-            <div className="space-y-2.5 pt-1">
-              {/* Option 1: Play vs AI Bot */}
+            /* 4 Illustrated Interactive Mode Cards */
+            <div className="space-y-2.5 pt-1 relative z-10">
+              {/* Option 1: 🤖 Play vs Smart AI Bot (Offline) */}
               <button
                 onClick={() => { onSelectMode('bot'); onClose(); }}
-                className={`w-full p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-95 transition-all shadow-md ${
+                className={`w-full p-3.5 sm:p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-98 transition-all shadow-md cursor-pointer ${
                   isLight
-                    ? 'bg-purple-50/80 border-purple-200 hover:border-purple-400 hover:bg-purple-100/60'
-                    : 'bg-gradient-to-r from-purple-900/60 to-indigo-950/80 border-purple-500/40 hover:border-purple-400 shadow-purple-950/40'
+                    ? 'bg-purple-50/90 border-purple-200/90 hover:border-purple-400 hover:bg-purple-100/70 shadow-purple-200/40'
+                    : 'bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-slate-900/80 border-purple-500/30 hover:border-purple-400/70 hover:shadow-purple-900/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-purple-600/30 border border-purple-400/40 flex items-center justify-center text-xl text-purple-600 dark:text-purple-300 group-hover:scale-110 transition-transform">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
                     🤖
                   </div>
-                  <div>
-                    <h4 className={`text-sm font-black group-hover:text-purple-600 dark:group-hover:text-purple-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {isRtl ? 'بازی با ربات هوشمند' : 'Play vs Smart AI Bot'}
-                    </h4>
-                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                      {isRtl ? 'آفلاین، سریع و بدون معطلی با هوش مصنوعی' : 'Instant offline match against smart AI'}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`text-xs sm:text-sm font-black group-hover:text-purple-600 dark:group-hover:text-purple-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {isRtl ? 'بازی با ربات هوشمند' : 'Play vs Smart AI Bot'}
+                      </span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-400/30">
+                        {isRtl ? '⚡ فوری و آفلاین' : 'Instant'}
+                      </span>
+                    </div>
+                    <p className={`text-[10px] leading-tight truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                      {isRtl ? 'شروع آنی بدون نیاز به اینترنت، دارای ۳ سطح تمرینی' : 'Instant offline match with 3 AI levels'}
                     </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className={`text-purple-500 ${isRtl ? '' : 'rotate-180'}`} />
+                <ChevronLeft size={18} className={`text-purple-500 shrink-0 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
 
-              {/* Option 2: Live Online Matchmaking */}
+              {/* Option 2: 👥 Live Online Matchmaking with Active Players Counter */}
               <button
                 onClick={handleStartOnlineSearch}
-                className={`w-full p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-95 transition-all shadow-md ${
+                className={`w-full p-3.5 sm:p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-98 transition-all shadow-md cursor-pointer ${
                   isLight
-                    ? 'bg-pink-50/80 border-pink-200 hover:border-pink-400 hover:bg-pink-100/60'
-                    : 'bg-gradient-to-r from-pink-900/60 to-purple-950/80 border-pink-500/40 hover:border-pink-400 shadow-pink-950/40'
+                    ? 'bg-emerald-50/90 border-emerald-200/90 hover:border-emerald-400 hover:bg-emerald-100/70 shadow-emerald-200/40'
+                    : 'bg-gradient-to-r from-emerald-950/70 via-teal-950/50 to-slate-900/80 border-emerald-500/30 hover:border-emerald-400/70 hover:shadow-emerald-900/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-pink-600/30 border border-pink-400/40 flex items-center justify-center text-xl text-pink-600 dark:text-pink-300 group-hover:scale-110 transition-transform">
-                    👥
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform relative">
+                    ⚔️
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-slate-900 animate-pulse" />
                   </div>
-                  <div>
-                    <h4 className={`text-sm font-black group-hover:text-pink-600 dark:group-hover:text-pink-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {isRtl ? 'جستجوی حریف آنلاین' : 'Find Online Opponent'}
-                    </h4>
-                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                      {isRtl ? 'اتصال زنده به بازیکنان حاضر در ربات' : 'Real-time live matchmaking with players'}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                      <span className={`text-xs sm:text-sm font-black group-hover:text-emerald-600 dark:group-hover:text-emerald-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {isRtl ? 'جستجوی حریف آنلاین' : 'Find Online Opponent'}
+                      </span>
+                      {/* Active Online Players Badge */}
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span>{onlinePlayersCount.toLocaleString(isRtl ? 'fa-IR' : 'en-US')} {isRtl ? 'آنلاین' : 'Online'}</span>
+                      </span>
+                    </div>
+                    <p className={`text-[10px] leading-tight truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                      {isRtl ? 'اتصال هوشمند به بازیکنان آنلاین چاژا در تلگرام • PING 24ms ⚡' : 'Live smart matchmaking on Telegram server'}
                     </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className={`text-pink-500 ${isRtl ? '' : 'rotate-180'}`} />
+                <ChevronLeft size={18} className={`text-emerald-500 shrink-0 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
               
-              {/* Option 3: VIP Wager Mode */}
+              {/* Option 3: 💎 VIP Wager Mode */}
               <button
                 onClick={() => setShowWager(true)}
-                className={`w-full p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-95 transition-all shadow-md ${
+                className={`w-full p-3.5 sm:p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-98 transition-all shadow-md cursor-pointer ${
                   isLight
-                    ? 'bg-amber-50/80 border-amber-200 hover:border-amber-400 hover:bg-amber-100/60'
-                    : 'bg-gradient-to-r from-amber-900/60 to-orange-950/80 border-amber-500/40 hover:border-amber-400 shadow-amber-950/40'
+                    ? 'bg-amber-50/90 border-amber-200/90 hover:border-amber-400 hover:bg-amber-100/70 shadow-amber-200/40'
+                    : 'bg-gradient-to-r from-amber-950/70 via-orange-950/50 to-slate-900/80 border-amber-500/30 hover:border-amber-400/70 hover:shadow-amber-900/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-amber-600/30 border border-amber-400/40 flex items-center justify-center text-xl text-amber-600 dark:text-amber-300 group-hover:scale-110 transition-transform">
-                    💎
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 text-slate-950 flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
+                    👑
                   </div>
-                  <div>
-                    <h4 className={`text-sm font-black group-hover:text-amber-600 dark:group-hover:text-amber-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {isRtl ? 'شرطی VIP' : 'VIP Wager Mode'}
-                    </h4>
-                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                      {isRtl ? 'بازی با شرط سکه (جایزه ۲ برابر برای برنده)' : 'Bet coins and win 2x back!'}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`text-xs sm:text-sm font-black group-hover:text-amber-600 dark:group-hover:text-amber-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {isRtl ? 'مسابقه شرطی VIP' : 'VIP Wager Mode'}
+                      </span>
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40">
+                        {isRtl ? '🔥 ۲ برابر جایزه' : '2x Coins'}
+                      </span>
+                    </div>
+                    <p className={`text-[10px] leading-tight truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                      {isRtl ? `شرط‌بندی با سکه روی برد مسابقه • موجودی: ${coins?.toLocaleString() || 0} 🪙` : 'Wager coins and win 2x back!'}
                     </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className={`text-amber-500 ${isRtl ? '' : 'rotate-180'}`} />
+                <ChevronLeft size={18} className={`text-amber-500 shrink-0 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
 
-              {/* Option 4: Fast Telegram Challenge */}
+              {/* Option 4: 🚀 Fast Telegram Challenge (Friends Invite) */}
               <button
                 onClick={() => {
                   onClose();
@@ -1237,26 +1357,31 @@ function GameModeModal({ isOpen, onClose, game, onSelectMode, isRtl, isLight }) 
                   shareToTelegram({ roomCode: randomCode, gameType: game.id, gameTitleFa: game.titleFa });
                   navigate(`${game.path}?mode=online&room=${randomCode}&role=white`);
                 }}
-                className={`w-full p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-95 transition-all shadow-md cursor-pointer ${
+                className={`w-full p-3.5 sm:p-4 rounded-2xl border text-start flex items-center justify-between group active:scale-98 transition-all shadow-md cursor-pointer ${
                   isLight
-                    ? 'bg-sky-50/80 border-sky-200 hover:border-sky-400 hover:bg-sky-100/60'
-                    : 'bg-gradient-to-r from-sky-900/60 to-blue-950/80 border-sky-500/40 hover:border-sky-400 shadow-sky-950/40'
+                    ? 'bg-sky-50/90 border-sky-200/90 hover:border-sky-400 hover:bg-sky-100/70 shadow-sky-200/40'
+                    : 'bg-gradient-to-r from-sky-950/70 via-blue-950/50 to-slate-900/80 border-sky-500/30 hover:border-sky-400/70 hover:shadow-sky-900/30'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-sky-600/30 border border-sky-400/40 flex items-center justify-center text-xl text-sky-600 dark:text-sky-300 group-hover:scale-110 transition-transform">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0 group-hover:scale-105 transition-transform">
                     🚀
                   </div>
-                  <div>
-                    <h4 className={`text-sm font-black group-hover:text-sky-600 dark:group-hover:text-sky-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {isRtl ? 'دعوت دوستان در تلگرام' : 'Challenge Friends in Telegram'}
-                    </h4>
-                    <p className={`text-[10px] mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                      {isRtl ? 'ارسال دعوت به چت دوستان و ورود مستقیم به اتاق' : 'Send invite to any Telegram chat and enter room'}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`text-xs sm:text-sm font-black group-hover:text-sky-600 dark:group-hover:text-sky-300 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                        {isRtl ? 'دعوت و چالش دوستان در تلگرام' : 'Challenge Telegram Friends'}
+                      </span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-400/30">
+                        {isRtl ? '✨ کارت مسابقه' : 'Match Card'}
+                      </span>
+                    </div>
+                    <p className={`text-[10px] leading-tight truncate ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                      {isRtl ? 'ارسال کارت مستقیم دعوت به پیوی دوستان یا گروه‌ها و ورود به بازی' : 'Send match card to friends and play together'}
                     </p>
                   </div>
                 </div>
-                <ChevronLeft size={18} className={`text-sky-500 ${isRtl ? '' : 'rotate-180'}`} />
+                <ChevronLeft size={18} className={`text-sky-500 shrink-0 ${isRtl ? '' : 'rotate-180'}`} />
               </button>
             </div>
           )}
@@ -1371,10 +1496,12 @@ export default function Games() {
     }
   };
 
-  const handleModeSelected = (mode) => {
+  const handleModeSelected = (mode, wagerAmount) => {
     if (!selectedGameForMode) return;
     if (mode === 'bot') {
       navigate(`${selectedGameForMode.path}?mode=bot`);
+    } else if (mode === 'wager') {
+      navigate(`${selectedGameForMode.path}?mode=online&wager=${wagerAmount || 50}&matchmaking=true`);
     } else {
       navigate(`${selectedGameForMode.path}?mode=online&matchmaking=true`);
     }
