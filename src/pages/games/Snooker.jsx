@@ -333,8 +333,8 @@ export default function Snooker() {
     // Record first hit for foul check
     if ((a.id === 0 || b.id === 0) && !stateRef.current.firstHitBall) {
       stateRef.current.firstHitBall = a.id === 0 ? b : a;
-      if (!soundMuted) soundEngine?.playTap?.();
-      haptics?.impact?.('light');
+      if (!soundMuted) (soundEngine?.playBallCollision || soundEngine?.playTap)?.(Math.min(1.2, imp * 0.15));
+      haptics?.snookerHit?.(Math.min(1, imp * 0.1));
 
       // Apply Cue Ball Screw/Draw back or Topspin Follow through
       const whiteBall = a.id === 0 ? a : b.id === 0 ? b : null;
@@ -438,8 +438,8 @@ export default function Snooker() {
             b.vx = 0;
             b.vy = 0;
             state.pottedInCurrentShot.push({ ...b });
-            if (!soundMuted) soundEngine?.playSuccess?.();
-            haptics?.impact?.('medium');
+            if (!soundMuted) (soundEngine?.playPocketSink || soundEngine?.playSuccess)?.();
+            haptics?.notification?.('success');
           } else if (d < p.r * 1.45) {
             // Pocket mouth funnel suction
             const pull = (p.r * 1.45 - d) * 0.16;
@@ -712,14 +712,12 @@ export default function Snooker() {
   const handleExecuteShot = (overridePower) => {
     if (stateRef.current.isMoving || isShooting) return;
     const white = stateRef.current.balls.find(b => b.type === 'white');
-    if (!white || white.potted) return;
-
-    if (!soundMuted) soundEngine?.playTap?.();
-    haptics?.impact?.('heavy');
-    setIsShooting(true);
-
     const activeCue = SNOOKER_CUES.find(c => c.id === selectedCueId) || SNOOKER_CUES[0];
     const powerValue = overridePower !== undefined ? overridePower : shotPower;
+
+    if (!soundMuted) (soundEngine?.playSnookerStrike || soundEngine?.playTap)?.(powerValue / 100);
+    haptics?.snookerHit?.(powerValue / 100);
+    setIsShooting(true);
     const powerMult = (powerValue / 100) * (activeCue.power / 75) * 19.5;
 
     const rad = (aimAngle * Math.PI) / 180;

@@ -6,7 +6,7 @@ import {
   Lock, Unlock, Radio, Clock, RotateCcw, X,
   Crown, Sparkles, Swords, Zap, ChevronLeft, ChevronRight,
   Flame, Target, Layers, Brain, Coins, Gift, Sun, Moon, Share2, Copy, Send,
-  Search, MessageSquare, ArrowRight, CornerDownLeft
+  Search, MessageSquare, ArrowRight, CornerDownLeft, Shield
 } from 'lucide-react';
 import useAppStore from '../store/appStore';
 import useMultiplayerStore from '../store/multiplayerStore';
@@ -20,6 +20,9 @@ import OpponentProfileModal from '../components/games/OpponentProfileModal';
 import TournamentHubModal from '../components/games/TournamentHubModal';
 import ReferralHubModal from '../components/referral/ReferralHubModal';
 import GameHistoryPanel from '../components/games/GameHistoryPanel';
+import DailyLuckyWheelModal from '../components/games/DailyLuckyWheelModal';
+import ClansHubModal from '../components/games/ClansHubModal';
+import LoungeMusicWidget from '../components/games/LoungeMusicWidget';
 
 // Complete Game Definitions with rich bilingual artwork & tags
 export const GAME_DEFS = [
@@ -1429,6 +1432,8 @@ export default function Games() {
   const [showModeModal, setShowModeModal] = useState(false);
   const [showTournamentsModal, setShowTournamentsModal] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showWheelModal, setShowWheelModal] = useState(false);
+  const [showClansModal, setShowClansModal] = useState(false);
 
   const chatScrollRef = useRef(null);
 
@@ -1717,6 +1722,38 @@ export default function Games() {
               title={isLight ? (isRtl ? 'تم تاریک' : 'Dark Mode') : (isRtl ? 'تم روشن' : 'Light Mode')}
             >
               {isLight ? <Moon size={15} /> : <Sun size={15} />}
+            </button>
+
+            {/* Lounge Ambient Music Player */}
+            <LoungeMusicWidget />
+
+            {/* Daily Lucky Wheel */}
+            <button
+              onClick={() => { setShowWheelModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
+              className={`p-2 px-2.5 rounded-xl border text-xs font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer relative ${
+                isLight
+                  ? 'bg-rose-50 border-rose-300 text-rose-900 hover:bg-rose-100'
+                  : 'bg-rose-500/15 border-rose-400/40 text-rose-300 hover:bg-rose-500/25'
+              }`}
+              title={isRtl ? 'گردونه شانس روزانه (رایگان)' : 'Daily Lucky Wheel (Free)'}
+            >
+              <Gift size={15} className="text-rose-400 animate-bounce" />
+              <span className="hidden sm:inline">{isRtl ? 'گردونه' : 'Wheel'}</span>
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping absolute -top-1 -right-1" />
+            </button>
+
+            {/* Clans & Guilds */}
+            <button
+              onClick={() => { setShowClansModal(true); soundEngine.playTap?.(); haptics.tap?.(); }}
+              className={`p-2 px-2 rounded-xl border text-xs font-black flex items-center gap-1 active:scale-95 transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-900 hover:bg-indigo-100'
+                  : 'bg-indigo-500/15 border-indigo-400/40 text-indigo-300 hover:bg-indigo-500/25'
+              }`}
+              title={isRtl ? 'کلوب‌ها و کلن‌های چاژا' : 'Clans & Guilds'}
+            >
+              <Shield size={15} className="text-indigo-400" />
+              <span className="hidden xs:inline">{isRtl ? 'کلن‌ها' : 'Clans'}</span>
             </button>
 
             {/* Tournaments */}
@@ -2370,6 +2407,16 @@ export default function Games() {
       <ReferralHubModal
         isOpen={showReferralModal}
         onClose={() => setShowReferralModal(false)}
+      />
+
+      <DailyLuckyWheelModal
+        isOpen={showWheelModal}
+        onClose={() => setShowWheelModal(false)}
+      />
+
+      <ClansHubModal
+        isOpen={showClansModal}
+        onClose={() => setShowClansModal(false)}
       />
 
     </div>

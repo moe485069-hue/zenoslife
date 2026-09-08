@@ -83,6 +83,24 @@ class Haptics {
     if (type === 'error') this.warning();
     else this.success();
   }
+
+  // 10. Dedicated Game Haptics
+  wheelTick() {
+    this.impact('light');
+  }
+
+  diceRoll() {
+    this.vibrate([15, 20, 15, 25]);
+    this.impact('medium');
+  }
+
+  snookerHit(power = 1) {
+    if (power > 0.7) {
+      this.impact('heavy');
+    } else {
+      this.impact('medium');
+    }
+  }
 }
 
 export const haptics = new Haptics();

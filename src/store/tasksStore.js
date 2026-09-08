@@ -39,8 +39,22 @@ const useTasksStore = create((set, get) => ({
   toggleTask: async (id) => {
     const task = await db.tasks.get(id);
     if (task) {
-      await db.tasks.update(id, { completed: !task.completed });
+      const nextCompleted = !task.completed;
+      await db.tasks.update(id, { completed: nextCompleted });
       await get().loadTasks(get().selectedDate);
+
+      // Play-to-Grow Synergy: Reward coins & XP for real-world personal growth!
+      if (nextCompleted) {
+        try {
+          const appStore = (await import('./appStore')).default;
+          appStore.getState().addCoins?.(20);
+          appStore.getState().addXp?.(30);
+          const soundEngine = (await import('../utils/audio')).default;
+          soundEngine.playCheckmark?.();
+          const haptics = (await import('../utils/haptics')).default;
+          haptics.success?.();
+        } catch (_) {}
+      }
     }
   },
   

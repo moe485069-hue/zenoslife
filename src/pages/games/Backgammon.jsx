@@ -19,6 +19,7 @@ import ChazhaStoreModal from '../../components/games/ChazhaStoreModal';
 import InGameReactions from '../../components/games/InGameReactions';
 import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegram';
+import ShareStoryModal from '../../components/common/ShareStoryModal';
 
 // 3D Telegram-Style Dice Face Renderer with Individual Theme Customization
 const RenderDiceFace = ({ value, isRolling, size = 'md', isSelected = false, themeKey = 'wood', ownerBadge = '', ownerLabel = '' }) => {
@@ -403,6 +404,8 @@ export default function Backgammon() {
   });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [botBanterQuote, setBotBanterQuote] = useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [turnTimerSeconds, setTurnTimerSeconds] = useState(60);
 
@@ -833,7 +836,7 @@ export default function Backgammon() {
     setMoveHistory([]);
     setSelectedDie(null);
     playSfx(soundEngine.playDiceRoll || soundEngine.playTap);
-    haptics.tap?.();
+    haptics.diceRoll?.();
 
     if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
     let rollCount = 0;
@@ -876,7 +879,13 @@ export default function Backgammon() {
             incrementGameStat?.('doublesRolled');
             setLastMoveMsg(isRtl ? `🎉 جفت ${d1} آوردی! ۴ حرکت مجاز داری.` : `🎉 Doubles ${d1}! 4 moves available.`);
             playSfx(soundEngine.playLevelUp);
-            haptics.success?.();
+            haptics.notification?.('success');
+
+            if (gameMode === 'bot' && turn === 'black') {
+              const botQuotes = ['عجب تاسی نشوندم! 🔥', 'جفت نشستی رو دلم! 🎲', 'حالا ببین چیکار میکنم! ⚡'];
+              setBotBanterQuote(botQuotes[Math.floor(Math.random() * botQuotes.length)]);
+              setTimeout(() => setBotBanterQuote(''), 3000);
+            }
           } else {
             setLastMoveMsg(isRtl ? `تاس: ${d1} و ${d2} — مهره‌های چشمک‌زن را لمس کنید` : `Dice: ${d1} & ${d2} — Tap a glowing checker`);
           }
@@ -1865,6 +1874,16 @@ export default function Backgammon() {
             title={isRtl ? 'مشاهده پروفایل حریف و ارسال درخواست دوستی' : 'View profile & send friend request'}
           >
             <div className="relative">
+              {botBanterQuote && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5, scale: 0.8 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shadow-lg pointer-events-none z-50 border border-black animate-bounce"
+                >
+                  {botBanterQuote}
+                </motion.div>
+              )}
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900 border-2 border-amber-500/50 flex items-center justify-center text-sm shadow-md group-hover:border-amber-400">
                 {gameMode === 'bot' ? '🤖' : (topPlayerRole === 'white' ? '⚪' : '⚫')}
               </div>
@@ -2604,7 +2623,20 @@ export default function Backgammon() {
                       className="w-full py-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-black text-xs shadow-lg shadow-sky-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
                       <Share2 size={16} />
-                      <span>{isRtl ? '📤 اشتراک‌گذاری کارت نتیجه در تلگرام' : 'Share Result Card to Telegram'}</span>
+                      <span>{isRtl ? '📤 اشتراک‌گذاری نتیجه با دوستان' : 'Share Result to Friends'}</span>
+                    </button>
+
+                    {/* Share to Telegram Story */}
+                    <button
+                      onClick={() => {
+                        setShowStoryModal(true);
+                        soundEngine.playTap?.();
+                        haptics.notification?.('success');
+                      }}
+                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white font-black text-xs shadow-lg shadow-purple-900/30 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Sparkles size={16} />
+                      <span>{isRtl ? '📸 ساخت کارت استوری تلگرام' : 'Create Story Card'}</span>
                     </button>
                   </>
                 ) : (
@@ -2732,6 +2764,22 @@ export default function Backgammon() {
 
       {/* Plato In-Game Reactions Launcher */}
       <InGameReactions roomId={onlineRoomCode || 'BACKGAMMON_MAIN'} />
+
+      {/* Telegram Story Card Generator Modal */}
+      <ShareStoryModal
+        isOpen={showStoryModal}
+        onClose={() => setShowStoryModal(false)}
+        gameTitle={isRtl ? 'تخته نرد اصیل ایرانی' : 'Persian Backgammon'}
+        gameIcon="🎲"
+        resultHeadline={
+          (matchWinner === 'white' || matchWinner === myOnlineRole)
+            ? (scoreBlack === 0 ? (isRtl ? 'مارس تاریخی و مقتدرانه! 🔥' : 'Historic Gammon Victory!') : (isRtl ? 'پیروزی قاطع در تخته نرد! 👑' : 'Victory in Backgammon!'))
+            : (isRtl ? 'بازی نزدیک و نفس‌گیر!' : 'Close & Thrilling Match!')
+        }
+        scoreText={`${scoreWhite} - ${scoreBlack}`}
+        opponentName={gameMode === 'bot' ? (isRtl ? 'ربات هوشمند' : 'AI Bot') : (opponentProfile?.name || 'حریف آنلاین')}
+        coinsWon={(coinsBet || 50) * 2}
+      />
 
     </div>
   );

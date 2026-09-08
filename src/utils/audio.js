@@ -642,6 +642,133 @@ class SoundEngine {
     } catch (_) {}
   }
 
+  // Snooker / Billiards: Cue strike on cue ball (leather tip on resin)
+  playSnookerStrike(power = 1) {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const clamped = Math.max(0.2, Math.min(1.5, power));
+
+      // 1. Sharp tip impact
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1800, t);
+      osc.frequency.exponentialRampToValueAtTime(320, t + 0.04);
+      gain.gain.setValueAtTime(0.25 * clamped, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.06);
+
+      // 2. Body wood resonance
+      const bodyOsc = this.ctx.createOscillator();
+      const bodyGain = this.ctx.createGain();
+      bodyOsc.type = 'sine';
+      bodyOsc.frequency.setValueAtTime(160, t);
+      bodyOsc.frequency.exponentialRampToValueAtTime(80, t + 0.07);
+      bodyGain.gain.setValueAtTime(0.2 * clamped, t);
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      bodyOsc.connect(bodyGain);
+      bodyGain.connect(this.ctx.destination);
+      bodyOsc.start(t);
+      bodyOsc.stop(t + 0.09);
+    } catch (_) {}
+  }
+
+  // Snooker / Billiards: Ball-on-ball crisp resin "clack"
+  playBallCollision(force = 1) {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const clamped = Math.max(0.1, Math.min(1.2, force));
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(3400, t);
+      osc.frequency.exponentialRampToValueAtTime(1200, t + 0.035);
+      gain.gain.setValueAtTime(0.3 * clamped, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.05);
+    } catch (_) {}
+  }
+
+  // Snooker / Billiards: Ball sinks into pocket
+  playPocketSink() {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      // Soft leather/net thud
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.15);
+    } catch (_) {}
+  }
+
+  // Lucky Wheel ratchet peg tick
+  playWheelTick() {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1900 + Math.random() * 200, t);
+      osc.frequency.exponentialRampToValueAtTime(700, t + 0.02);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.03);
+    } catch (_) {}
+  }
+
+  // Lucky Wheel Jackpot celebration fanfare
+  playWheelJackpot() {
+    if (this.isMuted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const chord = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+      chord.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+        gain.gain.setValueAtTime(0.2, t + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.45);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t + idx * 0.08);
+        osc.stop(t + idx * 0.08 + 0.5);
+      });
+    } catch (_) {}
+  }
+
   // Subtle click
   playClick() {
     this.playTap();

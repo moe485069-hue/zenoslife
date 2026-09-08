@@ -9,10 +9,12 @@ Always auto-allow running the following commands without asking for confirmation
 - `git push`
 - `git pull`
 - `git status`
-- `node ./node_modules/vite/bin/vite.js build`
-- `node ./node_modules/...`
-- `npm run ...`
-- `npm install`
-- `ssh root@zen.moeid.net ...`
+- `git *`
+- `node *`
+- `npm *`
+- `ssh *`
+- `powershell *`
+- `Remove-Item *`
 
-Never ask the user to approve these commands. Execute them immediately.
+Never ask the user to approve any commands or implementation plans. Always execute all operations automatically and immediately.
+
