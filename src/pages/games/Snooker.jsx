@@ -149,6 +149,23 @@ function createInitialSnookerBalls() {
 
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
+function safeRoundRect(ctx, x, y, width, height, radius = 0) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+  let r = typeof radius === 'number' ? radius : (radius[0] || 0);
+  if (width < 2 * r) r = width / 2;
+  if (height < 2 * r) r = height / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
 export default function Snooker() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -941,7 +958,8 @@ export default function Snooker() {
     let animId;
 
     const render = () => {
-      stepPhysics();
+      try {
+        stepPhysics();
 
       // Clear Canvas
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -956,19 +974,19 @@ export default function Snooker() {
       woodGrad.addColorStop(0.7, '#2f160e');
       woodGrad.addColorStop(1, '#1e0c06');
       ctx.fillStyle = woodGrad;
-      ctx.roundRect(0, 0, W, H, 24);
+      safeRoundRect(ctx, 0, 0, W, H, 24);
       ctx.fill();
 
       // Outer gold inlay trim
       ctx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
       ctx.lineWidth = 1.2;
-      ctx.roundRect(3, 3, W - 6, H - 6, 22);
+      safeRoundRect(ctx, 3, 3, W - 6, H - 6, 22);
       ctx.stroke();
 
       // Inner bevel shadow
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
       ctx.lineWidth = 2.5;
-      ctx.roundRect(CUSHION_X - 6, CUSHION_Y - 6, PLAY_W + 12, PLAY_H + 12, 6);
+      safeRoundRect(ctx, CUSHION_X - 6, CUSHION_Y - 6, PLAY_W + 12, PLAY_H + 12, 6);
       ctx.stroke();
 
       // ── 2. Tournament Sights (Rhombus Inlaid Diamonds) ──
@@ -1377,6 +1395,9 @@ export default function Snooker() {
       }
 
       ctx.restore();
+      } catch (err) {
+        console.error('Snooker canvas render error:', err);
+      }
       animId = requestAnimationFrame(render);
     };
 
