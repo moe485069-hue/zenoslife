@@ -93,6 +93,9 @@ function createInitialSnookerBalls() {
     vy: 0,
     spinX: 0,
     spinY: 0,
+    screwFrames: 0,
+    screwForceX: 0,
+    screwForceY: 0,
     potted: false
   });
 
@@ -447,13 +450,22 @@ export default function Snooker() {
     const imp = dvx * nx + dvy * ny;
     if (imp <= 0) return;
 
-    // Record first hit for foul check
-    if ((a.id === 0 || b.id === 0) && !stateRef.current.firstHitBall) {
-      stateRef.current.firstHitBall = a.id === 0 ? b : a;
+    // Record first hit for foul check & Apply Principled Snooker Spin Physics
+    const isWhiteA = a.id === 0;
+    const isWhiteB = b.id === 0;
+    if (isWhiteA || isWhiteB) {
+      const whiteBall = isWhiteA ? a : b;
+      const objectBall = isWhiteA ? b : a;
 
-      // Apply Cue Ball Screw/Draw back or Topspin Follow through scaled by equipped cue spinControl
-      const whiteBall = a.id === 0 ? a : b.id === 0 ? b : null;
-      if (whiteBall && (whiteBall.spinY !== 0 || whiteBall.spinX !== 0)) {
+      if (!stateRef.current.firstHitBall) {
+        stateRef.current.firstHitBall = objectBall;
+      }
+
+      // Vector pointing FROM white ball TO object ball
+      const toObjX = isWhiteA ? nx : -nx;
+      const toObjY = isWhiteA ? ny : -ny;
+
+      if (whiteBall.spinY !== 0 || whiteBall.spinX !== 0) {
         const curTurn = stateRef.current.turn;
         const shooterCueId = curTurn === 'p1'
           ? (selectedCueIdRef.current || selectedCueId)
@@ -461,17 +473,43 @@ export default function Snooker() {
               ? (BOT_PRESETS_BY_DIFFICULTY[botDifficulty]?.cueId || 'ebony_club')
               : (onlineOpponentCueId || 'ash_classic'));
         const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
-        const spinFactor = (activeCue?.spinControl || 60) / 70;
+        const spinFactor = (activeCue?.spinControl || 60) / 72;
 
+        // 1. Backspin / Screw Back (spinY > 0)
+        // Struck below center: on contact with object ball, the cue ball grips baize and draws backwards!
         if (whiteBall.spinY > 0) {
-          whiteBall.vx -= nx * imp * (whiteBall.spinY * 0.52 * spinFactor);
-          whiteBall.vy -= ny * imp * (whiteBall.spinY * 0.52 * spinFactor);
-        } else if (whiteBall.spinY < 0) {
-          whiteBall.vx += nx * imp * (Math.abs(whiteBall.spinY) * 0.42 * spinFactor);
-          whiteBall.vy += ny * imp * (Math.abs(whiteBall.spinY) * 0.42 * spinFactor);
+          const screwPower = whiteBall.spinY * (imp * 0.95 + 1.8) * spinFactor;
+          whiteBall.vx -= toObjX * screwPower;
+          whiteBall.vy -= toObjY * screwPower;
+
+          // Progressive cloth-bite acceleration across subsequent frames
+          whiteBall.screwFrames = 12;
+          whiteBall.screwForceX = -toObjX * (whiteBall.spinY * 0.32 * spinFactor);
+          whiteBall.screwForceY = -toObjY * (whiteBall.spinY * 0.32 * spinFactor);
         }
-        whiteBall.spinX *= 0.65;
-        whiteBall.spinY *= 0.35;
+        // 2. Topspin / Follow-Through (spinY < 0)
+        // Struck above center: follows through forward behind the object ball
+        else if (whiteBall.spinY < 0) {
+          const followPower = Math.abs(whiteBall.spinY) * (imp * 0.85 + 1.5) * spinFactor;
+          whiteBall.vx += toObjX * followPower;
+          whiteBall.vy += toObjY * followPower;
+
+          whiteBall.screwFrames = 10;
+          whiteBall.screwForceX = toObjX * (Math.abs(whiteBall.spinY) * 0.25 * spinFactor);
+          whiteBall.screwForceY = toObjY * (Math.abs(whiteBall.spinY) * 0.25 * spinFactor);
+        }
+
+        // 3. Side Spin Throw (spinX !== 0)
+        if (whiteBall.spinX !== 0) {
+          const tanX = -toObjY;
+          const tanY = toObjX;
+          const sideDeflection = whiteBall.spinX * (imp * 0.35) * spinFactor;
+          whiteBall.vx += tanX * sideDeflection;
+          whiteBall.vy += tanY * sideDeflection;
+        }
+
+        whiteBall.spinX *= 0.70;
+        whiteBall.spinY *= 0.40;
       }
     }
 
@@ -511,7 +549,7 @@ export default function Snooker() {
           ? (BOT_PRESETS_BY_DIFFICULTY[botDifficulty]?.cueId || 'ebony_club')
           : (onlineOpponentCueId || 'ash_classic'));
     const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
-    const spinFactor = (activeCue?.spinControl || 60) / 70;
+    const spinFactor = (activeCue?.spinControl || 60) / 72;
 
     // Sub-stepping for ultra-smooth trajectory without tunneling
     const SUB_STEPS = 4;
@@ -523,6 +561,13 @@ export default function Snooker() {
         b.vy *= Math.pow(FRICTION, 1 / SUB_STEPS);
         if (Math.abs(b.vx) < MIN_VEL) b.vx = 0;
         if (Math.abs(b.vy) < MIN_VEL) b.vy = 0;
+
+        // Apply progressive cloth-bite spin acceleration for white ball
+        if (b.id === 0 && b.screwFrames && b.screwFrames > 0) {
+          b.vx += b.screwForceX / SUB_STEPS;
+          b.vy += b.screwForceY / SUB_STEPS;
+          b.screwFrames--;
+        }
 
         b.x += b.vx / SUB_STEPS;
         b.y += b.vy / SUB_STEPS;
@@ -538,48 +583,64 @@ export default function Snooker() {
         if (!nearPocket) {
           let bounced = false;
           let bounceImp = 0;
+
+          // Left cushion
           if (b.x < leftWall) { 
             b.x = leftWall; 
-            b.vx = -b.vx * 0.80; 
+            const preVx = b.vx;
+            const cushionRestitution = b.id === 0 ? Math.max(0.65, 0.80 - (b.spinY || 0) * 0.10 * spinFactor) : 0.80;
+            b.vx = -b.vx * cushionRestitution; 
             b.vy *= 0.96;
             bounced = true;
-            bounceImp = Math.abs(b.vx);
+            bounceImp = Math.abs(preVx);
             if (b.id === 0 && b.spinX) {
-              b.vy += b.spinX * 1.8 * spinFactor;
-              b.spinX *= 0.65;
+              b.vy += b.spinX * (1.9 + bounceImp * 0.28) * spinFactor;
+              b.spinX *= 0.58;
             }
           }
+
+          // Right cushion
           if (b.x > rightWall) { 
             b.x = rightWall; 
-            b.vx = -b.vx * 0.80; 
+            const preVx = b.vx;
+            const cushionRestitution = b.id === 0 ? Math.max(0.65, 0.80 - (b.spinY || 0) * 0.10 * spinFactor) : 0.80;
+            b.vx = -b.vx * cushionRestitution; 
             b.vy *= 0.96;
             bounced = true;
-            bounceImp = Math.abs(b.vx);
+            bounceImp = Math.abs(preVx);
             if (b.id === 0 && b.spinX) {
-              b.vy -= b.spinX * 1.8 * spinFactor;
-              b.spinX *= 0.65;
+              b.vy -= b.spinX * (1.9 + bounceImp * 0.28) * spinFactor;
+              b.spinX *= 0.58;
             }
           }
+
+          // Top cushion
           if (b.y < topWall) { 
             b.y = topWall; 
-            b.vy = -b.vy * 0.80; 
+            const preVy = b.vy;
+            const cushionRestitution = b.id === 0 ? Math.max(0.65, 0.80 - (b.spinY || 0) * 0.10 * spinFactor) : 0.80;
+            b.vy = -b.vy * cushionRestitution; 
             b.vx *= 0.96;
             bounced = true;
-            bounceImp = Math.abs(b.vy);
+            bounceImp = Math.abs(preVy);
             if (b.id === 0 && b.spinX) {
-              b.vx -= b.spinX * 1.8 * spinFactor;
-              b.spinX *= 0.65;
+              b.vx += b.spinX * (1.9 + bounceImp * 0.28) * spinFactor;
+              b.spinX *= 0.58;
             }
           }
+
+          // Bottom cushion
           if (b.y > bottomWall) { 
             b.y = bottomWall; 
-            b.vy = -b.vy * 0.80; 
+            const preVy = b.vy;
+            const cushionRestitution = b.id === 0 ? Math.max(0.65, 0.80 - (b.spinY || 0) * 0.10 * spinFactor) : 0.80;
+            b.vy = -b.vy * cushionRestitution; 
             b.vx *= 0.96;
             bounced = true;
-            bounceImp = Math.abs(b.vy);
+            bounceImp = Math.abs(preVy);
             if (b.id === 0 && b.spinX) {
-              b.vx += b.spinX * 1.8 * spinFactor;
-              b.spinX *= 0.65;
+              b.vx -= b.spinX * (1.9 + bounceImp * 0.28) * spinFactor;
+              b.spinX *= 0.58;
             }
           }
           if (bounced && !soundMuted && bounceImp > 0.4) {
@@ -781,6 +842,11 @@ export default function Snooker() {
           white.y = BAULK_Y + 28;
           white.vx = 0;
           white.vy = 0;
+          white.spinX = 0;
+          white.spinY = 0;
+          white.screwFrames = 0;
+          white.screwForceX = 0;
+          white.screwForceY = 0;
           white.potted = false;
           setBallInHand(true);
         }
@@ -870,6 +936,14 @@ export default function Snooker() {
 
     state.firstHitBall = null;
     state.pottedInCurrentShot = [];
+    const whiteBall = state.balls?.find(b => b.type === 'white');
+    if (whiteBall) {
+      whiteBall.spinX = 0;
+      whiteBall.spinY = 0;
+      whiteBall.screwFrames = 0;
+      whiteBall.screwForceX = 0;
+      whiteBall.screwForceY = 0;
+    }
     setIsShooting(false);
     setIsBallsRolling(false);
     setSpinOffset({ x: 0, y: 0 });
@@ -942,6 +1016,9 @@ export default function Snooker() {
     // Apply spin settings
     white.spinX = spinOffset.x;
     white.spinY = spinOffset.y;
+    white.screwFrames = 0;
+    white.screwForceX = 0;
+    white.screwForceY = 0;
 
     stateRef.current.isMoving = true;
     stateRef.current.firstHitBall = null;
@@ -1090,6 +1167,11 @@ export default function Snooker() {
         const powerMult = (bestShot.power / 100) * 19.5;
         white.vx = Math.cos(rad) * powerMult;
         white.vy = Math.sin(rad) * powerMult;
+        white.spinX = 0;
+        white.spinY = 0;
+        white.screwFrames = 0;
+        white.screwForceX = 0;
+        white.screwForceY = 0;
         state.isMoving = true;
         setIsShooting(true);
         setIsBallsRolling(true);
