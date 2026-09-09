@@ -247,6 +247,16 @@ export default function Snooker() {
   const selectedCueIdRef = useRef(DEFAULT_SNOOKER_CUE?.id || 'ash_classic');
   const selectedThemeRef = useRef(DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]);
 
+  // Easy mode (forgiving pocket suction and friendly potting) vs Pro mode
+  const [easyMode, setEasyMode] = useState(true);
+  const easyModeRef = useRef(true);
+  useEffect(() => {
+    easyModeRef.current = easyMode;
+  }, [easyMode]);
+
+  const holdTimerRef = useRef(null);
+  const holdIntervalRef = useRef(null);
+
   useEffect(() => {
     selectedCueIdRef.current = selectedCueId;
   }, [selectedCueId]);
@@ -254,6 +264,37 @@ export default function Snooker() {
   useEffect(() => {
     selectedThemeRef.current = selectedTheme;
   }, [selectedTheme]);
+
+  // Helper to determine if a ball is a legal target in the current frame phase
+  const isLegalTarget = useCallback((ball) => {
+    if (!ball || ball.potted || ball.type === 'white') return false;
+    const target = stateRef.current.targetBallType;
+    if (target === 'red') {
+      return ball.type === 'red';
+    } else if (target === 'colour') {
+      return ball.type !== 'red' && ball.type !== 'white';
+    } else if (target === 'sequence') {
+      const expected = SEQUENCE_ORDER[stateRef.current.activeSequenceIndex || 0];
+      return ball.type === expected;
+    }
+    return false;
+  }, []);
+
+  // Smart Auto-Aim: Automatically point cue towards the nearest legal ball
+  const autoAim = useCallback(() => {
+    const state = stateRef.current;
+    const white = state.balls.find(b => b.type === 'white' && !b.potted);
+    if (!white) return;
+    const validTargets = state.balls.filter(b => !b.potted && b.type !== 'white' && isLegalTarget(b));
+    if (!validTargets.length) return;
+    const nearest = validTargets.reduce((prev, curr) => 
+      Math.hypot(curr.x - white.x, curr.y - white.y) < Math.hypot(prev.x - white.x, prev.y - white.y) ? curr : prev
+    );
+    const angleRad = Math.atan2(nearest.y - white.y, nearest.x - white.x);
+    const deg = (angleRad * 180 / Math.PI + 360) % 360;
+    aimAngleRef.current = deg;
+    setAimAngle(deg);
+  }, [isLegalTarget]);
 
   // Canvas & Physics Refs
   const canvasRef = useRef(null);
@@ -356,6 +397,9 @@ export default function Snooker() {
     stateRef.current.pottedInCurrentShot = [];
     setIsShooting(false);
     setIsBallsRolling(false);
+    setTimeout(() => {
+      autoAim();
+    }, 120);
   };
 
   // URL search params initialize
@@ -555,6 +599,8 @@ export default function Snooker() {
         if (b.potted) return;
         POCKETS.forEach(p => {
           const d = Math.hypot(b.x - p.x, b.y - p.y);
+          const suctionMult = easyModeRef.current ? 1.70 : 1.45;
+          const pullMult = easyModeRef.current ? 0.32 : 0.18;
           if (d < p.r) {
             b.potted = true;
             b.vx = 0;
@@ -562,9 +608,9 @@ export default function Snooker() {
             state.pottedInCurrentShot.push({ ...b });
             if (!soundMuted) (soundEngine?.playPocketSink || soundEngine?.playSuccess)?.();
             haptics?.notification?.('success');
-          } else if (d < p.r * 1.6) {
-            // Generous pocket mouth funnel suction - smooth, satisfying entry without stubborn rebound
-            const pull = (p.r * 1.6 - d) * 0.28;
+          } else if (d < p.r * suctionMult) {
+            // Generous pocket mouth funnel suction - customized by Easy / Pro mode
+            const pull = (p.r * suctionMult - d) * pullMult;
             b.vx += ((p.x - b.x) / d) * pull;
             b.vy += ((p.y - b.y) / d) * pull;
           }
@@ -819,6 +865,11 @@ export default function Snooker() {
     setIsShooting(false);
     setIsBallsRolling(false);
     setSpinOffset({ x: 0, y: 0 });
+    setTimeout(() => {
+      if (stateRef.current?.turn === 'p1' || stateRef.current?.gameMode === 'local') {
+        autoAim();
+      }
+    }, 80);
   };
 
   const handleFrameWin = () => {
@@ -890,26 +941,38 @@ export default function Snooker() {
     setBallInHand(false);
   };
 
-  // Fine Angle continuous adjustment helpers
+  // Fine Angle continuous adjustment helpers with hold acceleration
   const startFineAdjust = (delta) => {
     if (!soundMuted) soundEngine?.playTap?.();
+    haptics?.selection?.();
     const next = (aimAngleRef.current + delta + 360) % 360;
     aimAngleRef.current = next;
     setAimAngle(next);
-    clearInterval(fineIntervalRef.current);
-    fineIntervalRef.current = setInterval(() => {
-      const nextLoop = (aimAngleRef.current + delta + 360) % 360;
-      aimAngleRef.current = nextLoop;
-      setAimAngle(nextLoop);
-    }, 50);
+
+    clearTimeout(holdTimerRef.current);
+    clearInterval(holdIntervalRef.current);
+
+    holdTimerRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => {
+        if (!stateRef.current.isMoving && !isShooting) {
+          const step = (aimAngleRef.current + delta + 360) % 360;
+          aimAngleRef.current = step;
+          setAimAngle(step);
+        }
+      }, 40);
+    }, 320);
   };
 
   const stopFineAdjust = () => {
-    clearInterval(fineIntervalRef.current);
+    clearTimeout(holdTimerRef.current);
+    clearInterval(holdIntervalRef.current);
   };
 
   useEffect(() => {
-    return () => clearInterval(fineIntervalRef.current);
+    return () => {
+      clearTimeout(holdTimerRef.current);
+      clearInterval(holdIntervalRef.current);
+    };
   }, []);
 
   // ── 8. Bulletproof Snooker AI Bot Logic (Zero-Freeze Guaranteed) ───
@@ -1262,33 +1325,29 @@ export default function Snooker() {
         ctx.setLineDash([]);
       }
 
-      // ── 6. 6 Snooker Drop Pockets & Polished Brass Brackets ──
+      // ── 6. 6 Snooker Drop Pockets & Polished Brass Collars ──
       POCKETS.forEach(p => {
-        const isMiddle = p.id === 'ML' || p.id === 'MR';
-        const bracketR = isMiddle ? p.r + 6 : p.r + 8;
-
-        // Brass pocket bracket casting
-        const brassGrad = ctx.createRadialGradient(p.x - 2, p.y - 2, 2, p.x, p.y, bracketR);
+        // Polished Brass Pocket Collar (from inspiration)
+        const brassGrad = ctx.createRadialGradient(p.x - 2, p.y - 2, 2, p.x, p.y, p.r + 5);
         brassGrad.addColorStop(0, '#fef08a');
-        brassGrad.addColorStop(0.35, '#eab308');
-        brassGrad.addColorStop(0.8, '#a16207');
-        brassGrad.addColorStop(1, '#713f12');
+        brassGrad.addColorStop(0.35, '#d4af37');
+        brassGrad.addColorStop(0.8, '#996515');
+        brassGrad.addColorStop(1, '#5c3a09');
         ctx.fillStyle = brassGrad;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, bracketR, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r + 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Pocket Leather Mouth Liner
-        ctx.fillStyle = '#22140a';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r + 2, 0, Math.PI * 2);
-        ctx.fill();
+        // Outer brass highlight rim
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-        // Pure Drop Hole with depth gradient
+        // Deep leather pocket drop hole
         const holeGrad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.r);
         holeGrad.addColorStop(0, '#000000');
-        holeGrad.addColorStop(0.8, '#080808');
-        holeGrad.addColorStop(1, '#181410');
+        holeGrad.addColorStop(0.7, '#081712');
+        holeGrad.addColorStop(1, '#15241f');
         ctx.fillStyle = holeGrad;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -1376,6 +1435,17 @@ export default function Snooker() {
         ctx.beginPath();
         ctx.arc(b.x - BALL_R * 0.22, b.y - BALL_R * 0.22, BALL_R * 0.45, 0, Math.PI * 2);
         ctx.fill();
+
+        // Glowing Halo ring around legal target balls (from inspiration)
+        if (!stateRef.current.isMoving && !isShooting && isLegalTarget(b)) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, BALL_R + 3.8, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
       });
 
       // ── 8. Draw Cue Stick & Aiming Guideline (Always ready when balls still) ──
@@ -1433,26 +1503,28 @@ export default function Snooker() {
             ctx.arc(ghostX, ghostY, BALL_R, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Target Ball Deflection Arrow
+            // Target Ball Deflection Arrow with Legal/Foul Color
             const contactNormX = hitTargetBall.x - ghostX;
             const contactNormY = hitTargetBall.y - ghostY;
             const contactDist = Math.hypot(contactNormX, contactNormY);
             if (contactDist > 0) {
               const normX = contactNormX / contactDist;
               const normY = contactNormY / contactDist;
-              const targetPathLength = 32 + 35 * aimScale;
+              const targetPathLength = 36 + 35 * aimScale;
+              const isLegal = isLegalTarget(hitTargetBall);
+              const pathColor = isLegal ? '#4ade80' : '#f87171'; // Green for legal hit, warning red for foul!
 
-              ctx.strokeStyle = '#eab308';
-              ctx.lineWidth = 1.8;
+              ctx.strokeStyle = pathColor;
+              ctx.lineWidth = 2.4;
               ctx.beginPath();
               ctx.moveTo(hitTargetBall.x, hitTargetBall.y);
               ctx.lineTo(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength);
               ctx.stroke();
 
               // Arrow tip
-              ctx.fillStyle = '#eab308';
+              ctx.fillStyle = pathColor;
               ctx.beginPath();
-              ctx.arc(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength, 3.2, 0, Math.PI * 2);
+              ctx.arc(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength, 3.8, 0, Math.PI * 2);
               ctx.fill();
             }
           }
@@ -1560,6 +1632,55 @@ export default function Snooker() {
       (gameMode === 'online' && turn === myOnlineRole)
     )
   );
+
+  // Desktop Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) return;
+      if (setupModalOpen || cueStoreOpen || spinModalOpen || rulesModalOpen || chatDrawerOpen || profileModalOpen) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const step = e.shiftKey ? 0.15 : 0.6;
+        const newAngle = (aimAngleRef.current - step + 360) % 360;
+        aimAngleRef.current = newAngle;
+        setAimAngle(newAngle);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 0.15 : 0.6;
+        const newAngle = (aimAngleRef.current + step) % 360;
+        aimAngleRef.current = newAngle;
+        setAimAngle(newAngle);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setShotPower(prev => {
+          const nv = Math.min(100, prev + 3);
+          shotPowerRef.current = nv;
+          return nv;
+        });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setShotPower(prev => {
+          const nv = Math.max(5, prev - 3);
+          shotPowerRef.current = nv;
+          return nv;
+        });
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        if (canShoot) {
+          handleExecuteShot();
+        }
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        if (canShoot) {
+          autoAim();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canShoot, setupModalOpen, cueStoreOpen, spinModalOpen, rulesModalOpen, chatDrawerOpen, profileModalOpen]);
 
   // Touch & Drag to Aim or Move Ball in Hand (Silky smooth 60/120Hz decoupled tracking)
   const handleCanvasPointerDown = (e) => {
@@ -1775,6 +1896,23 @@ export default function Snooker() {
               </span>
             </div>
 
+            {/* Easy / Pro Mode Toggle */}
+            <button
+              onClick={() => {
+                if (!soundMuted) soundEngine?.playTap?.();
+                setEasyMode(prev => !prev);
+                haptics?.selection?.();
+              }}
+              className={`px-2 py-1 rounded-xl text-[10px] font-black transition-all active:scale-95 border ${
+                easyMode
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+              }`}
+              title={easyMode ? (isRtl ? 'حالت آسان (مکش سوراخ‌ها بالا)' : 'Easy Mode (Higher Pocket Suction)') : (isRtl ? 'حالت مسابقه‌ای حرفه‌ای' : 'Pro Tournament Mode')}
+            >
+              {easyMode ? (isRtl ? '🎯 آسان' : '🎯 Easy') : (isRtl ? '🏆 حرفه‌ای' : '🏆 Pro')}
+            </button>
+
             {/* Restart / Setup */}
             <button
               onClick={() => setSetupModalOpen(true)}
@@ -1912,23 +2050,61 @@ export default function Snooker() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 25, scale: 0.94 }}
             transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-            className="fixed bottom-2.5 sm:bottom-3 inset-x-3 sm:max-w-sm sm:mx-auto z-50 bg-white/95 text-slate-900 rounded-2xl px-3.5 py-2 shadow-[0_15px_35px_rgba(0,0,0,0.5)] border border-indigo-100 backdrop-blur-2xl select-none"
+            className="fixed bottom-2.5 sm:bottom-3 inset-x-3 sm:max-w-md sm:mx-auto z-50 bg-slate-900/95 text-slate-100 rounded-2xl p-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] border border-white/15 backdrop-blur-2xl select-none flex flex-col gap-2"
             dir={isRtl ? 'rtl' : 'ltr'}
           >
-            <div className="flex items-center justify-between gap-3">
-              {/* Power display & slim slider */}
-              <div className="flex-1 flex flex-col items-start gap-1">
-                <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
-                  <span className="text-slate-500 font-bold">{isRtl ? 'قدرت ضربه:' : 'Power:'}</span>
-                  <span className="text-indigo-600 font-mono text-sm font-black">
+            {/* Top row: Status info & Auto-Aim button */}
+            <div className="flex items-center justify-between gap-2 px-1 text-[11px]">
+              <div className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                <span className="truncate">
+                  {ballInHand
+                    ? (isRtl ? 'توپ سفید در دست (منطقه D)' : 'Ball in Hand (D-Zone)')
+                    : (isRtl ? 'روی میز لمس کن یا بکش تا هدف بگیری' : 'Drag or tap table to aim')}
+                </span>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!soundMuted) soundEngine?.playTap?.();
+                  autoAim();
+                  haptics?.selection?.();
+                }}
+                className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/40 text-indigo-200 active:scale-95 transition-all flex items-center gap-1 font-black text-[10px]"
+              >
+                <span>🎯</span>
+                <span>{isRtl ? 'هدف خودکار' : 'Auto Aim'}</span>
+              </button>
+            </div>
+
+            {/* Bottom row: Fine Adjust ◀, Power Slider, Fine Adjust ▶, Emerald Strike Button */}
+            <div className="flex items-center gap-2">
+              {/* Fine left nudge */}
+              <button
+                onPointerDown={() => startFineAdjust(-0.4)}
+                onPointerUp={stopFineAdjust}
+                onPointerLeave={stopFineAdjust}
+                onClick={() => {
+                  if (!soundMuted) soundEngine?.playTap?.();
+                  setAimAngle(prev => (prev - 0.4 + 360) % 360);
+                }}
+                className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
+                title={isRtl ? 'تنظیم ریز زاویه چپ' : 'Fine adjust left'}
+              >
+                ◀
+              </button>
+
+              {/* Power Slider */}
+              <div className="flex-1 flex flex-col justify-center gap-1 px-1">
+                <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                  <span className="text-slate-400">{isRtl ? 'قدرت ضربه' : 'Power'}</span>
+                  <span className="text-emerald-400 font-mono font-black">
                     {isRtl ? `${toPersianDigits(shotPower)}٪` : `${shotPower}%`}
                   </span>
                 </div>
-
-                {/* Slim Horizontal Track */}
-                <div className="relative w-full h-2.5 rounded-full bg-[#ede9fe] flex items-center">
+                <div className="relative w-full h-2 rounded-full bg-slate-800 border border-white/10 flex items-center">
                   <div
-                    className="absolute top-0 bottom-0 rounded-full bg-[#4f46e5] transition-all duration-75"
+                    className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 transition-all duration-75"
                     style={
                       isRtl
                         ? { width: `${shotPower}%`, right: 0 }
@@ -1936,11 +2112,11 @@ export default function Snooker() {
                     }
                   />
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#4f46e5] shadow pointer-events-none transition-all duration-75"
+                    className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-400 shadow pointer-events-none transition-all duration-75"
                     style={
                       isRtl
-                        ? { right: `calc(${shotPower}% - 8px)` }
-                        : { left: `calc(${shotPower}% - 8px)` }
+                        ? { right: `calc(${shotPower}% - 7px)` }
+                        : { left: `calc(${shotPower}% - 7px)` }
                     }
                   />
                   <input
@@ -1960,10 +2136,25 @@ export default function Snooker() {
                 </div>
               </div>
 
+              {/* Fine right nudge */}
+              <button
+                onPointerDown={() => startFineAdjust(0.4)}
+                onPointerUp={stopFineAdjust}
+                onPointerLeave={stopFineAdjust}
+                onClick={() => {
+                  if (!soundMuted) soundEngine?.playTap?.();
+                  setAimAngle(prev => (prev + 0.4) % 360);
+                }}
+                className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
+                title={isRtl ? 'تنظیم ریز زاویه راست' : 'Fine adjust right'}
+              >
+                ▶
+              </button>
+
               {/* Action Button: ضربه بزن ↗ */}
               <button
                 onClick={() => handleExecuteShot(shotPower)}
-                className="flex-shrink-0 bg-[#4732e6] hover:bg-[#3724c9] active:scale-95 text-white font-black text-xs px-4 py-2 rounded-xl shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1 transition-all"
+                className="flex-shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center gap-1 transition-all"
               >
                 <span>{isRtl ? 'ضربه بزن' : 'Strike'}</span>
                 <span className="text-sm font-bold">↗</span>
