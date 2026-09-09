@@ -276,9 +276,9 @@ export default function SnookerCueStoreModal({
                 {/* Cue Stick Visual Simulation */}
                 <div className="py-3 flex flex-col items-center justify-center">
                   <div 
-                    className="w-full h-4 rounded-full shadow-lg relative overflow-hidden"
+                    className="w-full h-4 rounded-full shadow-lg relative overflow-hidden flex items-center"
                     style={{
-                      background: `linear-gradient(90deg, #332010 0%, ${activeCueObj.tipColor} 95%, #ffffff 100%)`,
+                      background: `linear-gradient(90deg, ${activeCueObj.buttColor || '#332010'} 0%, ${activeCueObj.shaftColor || '#e2b17a'} 70%, ${activeCueObj.tipColor || '#ffffff'} 95%, #ffffff 100%)`,
                       boxShadow: `0 0 20px ${activeCueObj.glowColor}`
                     }}
                   >
@@ -386,7 +386,7 @@ export default function SnookerCueStoreModal({
                           className="w-9 h-9 rounded-xl flex items-center justify-center text-base border border-white/10 shrink-0"
                           style={{ background: cue.glowColor }}
                         >
-                          {cue.id === 'ash_classic' ? '🪵' : cue.id === 'faravahar_dragon' ? '🦅' : cue.id === 'royal_gold' ? '👑' : cue.id === 'cyber_plasma' ? '⚡' : '💎'}
+                          {cue.icon || '🪄'}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">

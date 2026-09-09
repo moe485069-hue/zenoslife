@@ -13,7 +13,7 @@ import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
 import SnookerSetupModal from '../../components/games/SnookerSetupModal';
 import SnookerCueStoreModal from '../../components/games/SnookerCueStoreModal';
-import { TABLE_THEMES, SNOOKER_CUES, DEFAULT_TABLE_THEME, DEFAULT_SNOOKER_CUE } from '../../components/games/snookerConstants';
+import { TABLE_THEMES, SNOOKER_CUES, DEFAULT_TABLE_THEME, DEFAULT_SNOOKER_CUE, BOT_CUES_BY_DIFFICULTY } from '../../components/games/snookerConstants';
 import SnookerSpinModal from '../../components/games/SnookerSpinModal';
 import SnookerRulesModal from '../../components/games/SnookerRulesModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
@@ -27,10 +27,10 @@ import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegra
 // True English 12ft x 6ft snooker table (exact 2:1 playing surface ratio)
 const W = 460;
 const H = 920;
-const CANVAS_W = 540;
-const CANVAS_H = 1080;
-const OFFSET_X = 40;
-const OFFSET_Y = 80;
+const CANVAS_W = 480;
+const CANVAS_H = 960;
+const OFFSET_X = 10;
+const OFFSET_Y = 20;
 
 const CUSHION_X = 28; // Slender tournament cushion side rail
 const CUSHION_Y = 56; // Slender top & bottom cushion rail
@@ -379,18 +379,27 @@ export default function Snooker() {
     if ((a.id === 0 || b.id === 0) && !stateRef.current.firstHitBall) {
       stateRef.current.firstHitBall = a.id === 0 ? b : a;
 
-      // Apply Cue Ball Screw/Draw back or Topspin Follow through
+      // Apply Cue Ball Screw/Draw back or Topspin Follow through scaled by equipped cue spinControl
       const whiteBall = a.id === 0 ? a : b.id === 0 ? b : null;
       if (whiteBall && (whiteBall.spinY !== 0 || whiteBall.spinX !== 0)) {
+        const curTurn = stateRef.current.turn;
+        const shooterCueId = curTurn === 'p1'
+          ? selectedCueId
+          : (stateRef.current.gameMode === 'bot'
+              ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
+              : 'ash_classic');
+        const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
+        const spinFactor = (activeCue?.spinControl || 60) / 70;
+
         if (whiteBall.spinY > 0) {
-          whiteBall.vx -= nx * imp * (whiteBall.spinY * 0.48);
-          whiteBall.vy -= ny * imp * (whiteBall.spinY * 0.48);
+          whiteBall.vx -= nx * imp * (whiteBall.spinY * 0.52 * spinFactor);
+          whiteBall.vy -= ny * imp * (whiteBall.spinY * 0.52 * spinFactor);
         } else if (whiteBall.spinY < 0) {
-          whiteBall.vx += nx * imp * (Math.abs(whiteBall.spinY) * 0.38);
-          whiteBall.vy += ny * imp * (Math.abs(whiteBall.spinY) * 0.38);
+          whiteBall.vx += nx * imp * (Math.abs(whiteBall.spinY) * 0.42 * spinFactor);
+          whiteBall.vy += ny * imp * (Math.abs(whiteBall.spinY) * 0.42 * spinFactor);
         }
-        whiteBall.spinX *= 0.5;
-        whiteBall.spinY *= 0.5;
+        whiteBall.spinX *= 0.65;
+        whiteBall.spinY *= 0.35;
       }
     }
 
@@ -422,6 +431,16 @@ export default function Snooker() {
     const state = stateRef.current;
     const balls = state.balls;
 
+    // Retrieve active shooter cue spin multiplier for authentic cushion running/check side
+    const curTurn = state.turn;
+    const shooterCueId = curTurn === 'p1'
+      ? selectedCueId
+      : (state.gameMode === 'bot'
+          ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
+          : 'ash_classic');
+    const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
+    const spinFactor = (activeCue?.spinControl || 60) / 70;
+
     // Sub-stepping for ultra-smooth trajectory without tunneling
     const SUB_STEPS = 4;
     for (let step = 0; step < SUB_STEPS; step++) {
@@ -449,37 +468,53 @@ export default function Snooker() {
           let bounceImp = 0;
           if (b.x < leftWall) { 
             b.x = leftWall; 
-            b.vx = -b.vx * 0.84; 
+            b.vx = -b.vx * 0.82; 
+            b.vy *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vx);
-            if (b.id === 0 && b.spinX) b.vy += b.spinX * 1.2;
+            if (b.id === 0 && b.spinX) {
+              b.vy += b.spinX * 1.8 * spinFactor;
+              b.spinX *= 0.65;
+            }
           }
           if (b.x > rightWall) { 
             b.x = rightWall; 
-            b.vx = -b.vx * 0.84; 
+            b.vx = -b.vx * 0.82; 
+            b.vy *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vx);
-            if (b.id === 0 && b.spinX) b.vy += b.spinX * 1.2;
+            if (b.id === 0 && b.spinX) {
+              b.vy -= b.spinX * 1.8 * spinFactor;
+              b.spinX *= 0.65;
+            }
           }
           if (b.y < topWall) { 
             b.y = topWall; 
-            b.vy = -b.vy * 0.84; 
+            b.vy = -b.vy * 0.82; 
+            b.vx *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vy);
-            if (b.id === 0 && b.spinX) b.vx += b.spinX * 1.2;
+            if (b.id === 0 && b.spinX) {
+              b.vx -= b.spinX * 1.8 * spinFactor;
+              b.spinX *= 0.65;
+            }
           }
           if (b.y > bottomWall) { 
             b.y = bottomWall; 
-            b.vy = -b.vy * 0.84; 
+            b.vy = -b.vy * 0.82; 
+            b.vx *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vy);
-            if (b.id === 0 && b.spinX) b.vx += b.spinX * 1.2;
+            if (b.id === 0 && b.spinX) {
+              b.vx += b.spinX * 1.8 * spinFactor;
+              b.spinX *= 0.65;
+            }
           }
-          if (bounced && !soundMuted && bounceImp > 0.6) {
+          if (bounced && !soundMuted && bounceImp > 0.4) {
             const now = performance.now();
-            if (!stateRef.current.lastCushionTime || (now - stateRef.current.lastCushionTime) > 40) {
+            if (!stateRef.current.lastCushionTime || (now - stateRef.current.lastCushionTime) > 35) {
               stateRef.current.lastCushionTime = now;
-              soundEngine?.playCushionBounce?.(bounceImp * 0.15);
+              soundEngine?.playCushionBounce?.(bounceImp * 0.16);
             }
           }
         }
@@ -655,8 +690,10 @@ export default function Snooker() {
 
       if (curTurn === 'p1') {
         setScoreP2(prev => prev + penaltyPoints);
+        state.scoreP2 += penaltyPoints;
       } else {
         setScoreP1(prev => prev + penaltyPoints);
+        state.scoreP1 += penaltyPoints;
       }
 
       // Respawn any potted colours
@@ -678,15 +715,20 @@ export default function Snooker() {
       // Switch turn
       const nextTurn = curTurn === 'p1' ? 'p2' : 'p1';
       setTurn(nextTurn);
+      state.turn = nextTurn;
       setCurrentBreak(0);
-      setTargetBallType(unpottedReds > 0 ? 'red' : 'sequence');
+      state.currentBreak = 0;
+      const nextTarget = unpottedReds > 0 ? 'red' : 'sequence';
+      setTargetBallType(nextTarget);
+      state.targetBallType = nextTarget;
     } else {
       let pointsScored = 0;
 
       if (target === 'red' && redBallsPotted.length > 0) {
         pointsScored = redBallsPotted.length * 1;
         setTargetBallType('colour');
-        setAnnouncementMsg(isRtl ? `🔴 +${pointsScored} امتیاز (نوبت توپ رنگی)` : `🔴 +${pointsScored} (Nominate Colour)`);
+        state.targetBallType = 'colour';
+        setAnnouncementMsg(isRtl ? `🔴 +${pointsScored} امتیاز! اکنون یک توپ رنگی را پاکت کنید` : `🔴 +${pointsScored} (Nominate & pot Colour)`);
       } else if (target === 'colour' && colourBallsPotted.length === 1) {
         const pottedColour = colourBallsPotted[0];
         pointsScored = pottedColour.points;
@@ -694,10 +736,13 @@ export default function Snooker() {
         if (unpottedReds > 0) {
           respawnColorBall(pottedColour.type);
           setTargetBallType('red');
-          setAnnouncementMsg(isRtl ? `⭐ +${pointsScored} امتیاز (نوبت قرمز بعدی)` : `⭐ +${pointsScored} (Shoot next Red)`);
+          state.targetBallType = 'red';
+          setAnnouncementMsg(isRtl ? `⭐ +${pointsScored} امتیاز! اکنون نوبت قرمز بعدی است` : `⭐ +${pointsScored} (Shoot next Red)`);
         } else {
           setTargetBallType('sequence');
+          state.targetBallType = 'sequence';
           setActiveSequenceIndex(0);
+          state.activeSequenceIndex = 0;
           setAnnouncementMsg(isRtl ? `🏆 تمام قرمزها پاکت شد! فاز ترتیبی رنگی‌ها (زرد تا مشکی)` : `🏆 Sequence phase started!`);
         }
       } else if (target === 'sequence' && colourBallsPotted.length === 1) {
@@ -707,6 +752,7 @@ export default function Snooker() {
           pointsScored = pottedColour.points;
           const nextSeq = activeSequenceIndex + 1;
           setActiveSequenceIndex(nextSeq);
+          state.activeSequenceIndex = nextSeq;
           
           if (nextSeq >= SEQUENCE_ORDER.length) {
             handleFrameWin();
@@ -722,19 +768,29 @@ export default function Snooker() {
         haptics?.success?.();
         const newBreak = currentBreak + pointsScored;
         setCurrentBreak(newBreak);
+        state.currentBreak = newBreak;
         if (newBreak > highestBreak) setHighestBreak(newBreak);
 
         if (curTurn === 'p1') {
           setScoreP1(prev => prev + pointsScored);
+          state.scoreP1 += pointsScored;
         } else {
           setScoreP2(prev => prev + pointsScored);
+          state.scoreP2 += pointsScored;
         }
+        // Turn strictly stays with current shooter!
+        setTurn(curTurn);
+        state.turn = curTurn;
         setTimeout(() => setAnnouncementMsg(null), 2500);
       } else {
         const nextTurn = curTurn === 'p1' ? 'p2' : 'p1';
         setTurn(nextTurn);
+        state.turn = nextTurn;
         setCurrentBreak(0);
-        setTargetBallType(unpottedReds > 0 ? 'red' : 'sequence');
+        state.currentBreak = 0;
+        const nextTarget = unpottedReds > 0 ? 'red' : 'sequence';
+        setTargetBallType(nextTarget);
+        state.targetBallType = nextTarget;
       }
     }
 
@@ -784,7 +840,13 @@ export default function Snooker() {
     if (stateRef.current.isMoving || isShooting) return;
     const white = stateRef.current.balls.find(b => b.type === 'white');
     if (!white) return;
-    const activeCue = SNOOKER_CUES?.find(c => c.id === selectedCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
+    const curTurn = stateRef.current.turn;
+    const shooterCueId = curTurn === 'p1'
+      ? selectedCueId
+      : (stateRef.current.gameMode === 'bot'
+          ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
+          : 'ash_classic');
+    const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
     const powerValue = overridePower !== undefined ? overridePower : (shotPowerRef.current || shotPower);
 
     if (!soundMuted) (soundEngine?.playSnookerStrike || soundEngine?.playTap)?.(powerValue / 100);
@@ -967,24 +1029,25 @@ export default function Snooker() {
       ctx.save();
       ctx.translate(OFFSET_X, OFFSET_Y);
 
-      // ── 1. Outer Wood Cushion Rail (Luxury Mahogany / English Oak) ──
+      // ── 1. Outer Wood Cushion Rail (Luxury Solid Mahogany) ──
       const woodGrad = ctx.createLinearGradient(0, 0, W, H);
-      woodGrad.addColorStop(0, '#2d150c');
-      woodGrad.addColorStop(0.3, '#451f13');
-      woodGrad.addColorStop(0.7, '#2f160e');
-      woodGrad.addColorStop(1, '#1e0c06');
+      woodGrad.addColorStop(0, '#2d140b');
+      woodGrad.addColorStop(0.2, '#481f12');
+      woodGrad.addColorStop(0.5, '#35160c');
+      woodGrad.addColorStop(0.8, '#4a2114');
+      woodGrad.addColorStop(1, '#1f0d06');
       ctx.fillStyle = woodGrad;
       safeRoundRect(ctx, 0, 0, W, H, 24);
       ctx.fill();
 
-      // Outer gold inlay trim
-      ctx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
-      ctx.lineWidth = 1.2;
-      safeRoundRect(ctx, 3, 3, W - 6, H - 6, 22);
+      // Outer 3D gold championship trim
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.45)';
+      ctx.lineWidth = 1.4;
+      safeRoundRect(ctx, 3.5, 3.5, W - 7, H - 7, 21);
       ctx.stroke();
 
-      // Inner bevel shadow
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+      // Inner bevel shadow separating wood from cushion
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
       ctx.lineWidth = 2.5;
       safeRoundRect(ctx, CUSHION_X - 6, CUSHION_Y - 6, PLAY_W + 12, PLAY_H + 12, 6);
       ctx.stroke();
@@ -1024,12 +1087,28 @@ export default function Snooker() {
       ctx.fillStyle = selectedTheme.clothColor || '#0e5531';
       ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
 
-      // Arena Crucible Spotlight (Authentic Directional Glow)
-      const spotlight = ctx.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, PLAY_W * 0.9);
-      spotlight.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-      spotlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.03)');
-      spotlight.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
-      ctx.fillStyle = spotlight;
+      // Dual TV-Broadcast Overhead Arena Lighting (Authentic Twin Light Canopy)
+      // 1. Top half canopy (over colors and reds pack)
+      const spotTop = ctx.createRadialGradient(W / 2, CUSHION_Y + PLAY_H * 0.28, 35, W / 2, CUSHION_Y + PLAY_H * 0.28, PLAY_W * 0.75);
+      spotTop.addColorStop(0, 'rgba(255, 255, 255, 0.13)');
+      spotTop.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
+      spotTop.addColorStop(1, 'transparent');
+      ctx.fillStyle = spotTop;
+      ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
+
+      // 2. Bottom half canopy (over baulk and D)
+      const spotBottom = ctx.createRadialGradient(W / 2, CUSHION_Y + PLAY_H * 0.72, 35, W / 2, CUSHION_Y + PLAY_H * 0.72, PLAY_W * 0.75);
+      spotBottom.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+      spotBottom.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
+      spotBottom.addColorStop(1, 'transparent');
+      ctx.fillStyle = spotBottom;
+      ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
+
+      // Ambient Table Edge Vignette
+      const vignette = ctx.createRadialGradient(W / 2, H / 2, PLAY_W * 0.5, W / 2, H / 2, PLAY_H * 0.62);
+      vignette.addColorStop(0, 'transparent');
+      vignette.addColorStop(1, 'rgba(0, 0, 0, 0.22)');
+      ctx.fillStyle = vignette;
       ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
 
       // ── 4. Authentic 6 Beveled Snooker Cushions ──
@@ -1241,24 +1320,37 @@ export default function Snooker() {
         ctx.fill();
 
         // Primary Specular Glint Reflection
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
         ctx.beginPath();
         ctx.arc(b.x - BALL_R * 0.35, b.y - BALL_R * 0.35, BALL_R * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Secondary soft ambient glow
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.beginPath();
+        ctx.arc(b.x - BALL_R * 0.22, b.y - BALL_R * 0.22, BALL_R * 0.45, 0, Math.PI * 2);
         ctx.fill();
       });
 
       // ── 8. Draw Cue Stick & Aiming Guideline (Always ready when balls still) ──
       const white = balls.find(b => b.type === 'white');
-      const activeCue = SNOOKER_CUES?.find(c => c.id === selectedCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
+      const curShooterTurn = stateRef.current.turn;
+      const shooterCueId = curShooterTurn === 'p1'
+        ? selectedCueId
+        : (gameMode === 'bot'
+            ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
+            : 'ash_classic');
+      const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
 
       if (white && !white.potted && !stateRef.current.isMoving && !isShooting) {
         const rad = (aimAngleRef.current * Math.PI) / 180;
         const dirX = Math.cos(rad);
         const dirY = Math.sin(rad);
 
-        // Aim Laser & Ghost Ball
+        // Aim Laser & Ghost Ball scaled by activeCue.aimLength
         if (showAimLaser) {
-          let maxLaserDist = 900;
+          const aimScale = (activeCue.aimLength || 65) / 75;
+          let maxLaserDist = 420 + 480 * aimScale;
           let hitTargetBall = null;
           let closestHitDist = Infinity;
 
@@ -1284,9 +1376,9 @@ export default function Snooker() {
           const ghostX = white.x + dirX * actualLaserDist;
           const ghostY = white.y + dirY * actualLaserDist;
 
-          // Dotted Cue Trajectory Line
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-          ctx.lineWidth = 1.2;
+          // Dotted Cue Trajectory Line with cue glowing aura
+          ctx.strokeStyle = activeCue.glowColor || 'rgba(255, 255, 255, 0.45)';
+          ctx.lineWidth = 1.4;
           ctx.setLineDash([5, 4]);
           ctx.beginPath();
           ctx.moveTo(white.x, white.y);
@@ -1296,8 +1388,8 @@ export default function Snooker() {
 
           // Ghost Ball Circle
           if (hitTargetBall) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 1.6;
             ctx.beginPath();
             ctx.arc(ghostX, ghostY, BALL_R, 0, Math.PI * 2);
             ctx.stroke();
@@ -1309,10 +1401,10 @@ export default function Snooker() {
             if (contactDist > 0) {
               const normX = contactNormX / contactDist;
               const normY = contactNormY / contactDist;
-              const targetPathLength = 45;
+              const targetPathLength = 32 + 35 * aimScale;
 
               ctx.strokeStyle = '#eab308';
-              ctx.lineWidth = 1.6;
+              ctx.lineWidth = 1.8;
               ctx.beginPath();
               ctx.moveTo(hitTargetBall.x, hitTargetBall.y);
               ctx.lineTo(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength);
@@ -1321,14 +1413,14 @@ export default function Snooker() {
               // Arrow tip
               ctx.fillStyle = '#eab308';
               ctx.beginPath();
-              ctx.arc(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength, 3, 0, Math.PI * 2);
+              ctx.arc(hitTargetBall.x + normX * targetPathLength, hitTargetBall.y + normY * targetPathLength, 3.2, 0, Math.PI * 2);
               ctx.fill();
             }
           }
         }
 
         // Full-Size Snooker Cue Stick
-        const cueLength = 420;
+        const cueLength = 430;
         const pullBack = ((shotPowerRef.current || shotPower) / 100) * 65;
         const cueTipDist = BALL_R + 8 + pullBack;
 
@@ -1338,14 +1430,24 @@ export default function Snooker() {
         const cueEndY = white.y - dirY * (cueTipDist + cueLength);
 
         // Soft Cast Shadow on Cloth
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.38)';
         ctx.lineWidth = 10;
         ctx.beginPath();
         ctx.moveTo(cueStartX + 5, cueStartY + 8);
         ctx.lineTo(cueEndX + 8, cueEndY + 12);
         ctx.stroke();
 
-        // Cue Tip (Chalk Sky Blue)
+        // Glowing Laser Aura along shaft (for high-end pro cues)
+        if (activeCue.glowColor) {
+          ctx.strokeStyle = activeCue.glowColor;
+          ctx.lineWidth = 14;
+          ctx.beginPath();
+          ctx.moveTo(cueStartX, cueStartY);
+          ctx.lineTo(cueEndX, cueEndY);
+          ctx.stroke();
+        }
+
+        // Cue Tip (Chalk Sky Blue / Custom Tip)
         ctx.strokeStyle = activeCue.tipColor || '#38bdf8';
         ctx.lineWidth = 6.5;
         ctx.beginPath();
@@ -1353,41 +1455,41 @@ export default function Snooker() {
         ctx.lineTo(cueStartX - dirX * 12, cueStartY - dirY * 12);
         ctx.stroke();
 
-        // Brass Ferrule
-        ctx.strokeStyle = '#f59e0b';
+        // Precision Ferrule (Brass / Titanium / Gold)
+        ctx.strokeStyle = activeCue.ferruleColor || '#f59e0b';
         ctx.lineWidth = 7;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 12, cueStartY - dirY * 12);
         ctx.lineTo(cueStartX - dirX * 24, cueStartY - dirY * 24);
         ctx.stroke();
 
-        // Ash Shaft
-        ctx.strokeStyle = '#e2b17a';
+        // Custom Wood / Carbon Shaft
+        ctx.strokeStyle = activeCue.shaftColor || '#e2b17a';
         ctx.lineWidth = 8.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 24, cueStartY - dirY * 24);
         ctx.lineTo(cueStartX - dirX * 220, cueStartY - dirY * 220);
         ctx.stroke();
 
-        // Splice Transition
-        ctx.strokeStyle = '#854d0e';
+        // Splice Transition (Hand-spliced chevrons)
+        ctx.strokeStyle = '#522b10';
         ctx.lineWidth = 10.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 220, cueStartY - dirY * 220);
         ctx.lineTo(cueStartX - dirX * 300, cueStartY - dirY * 300);
         ctx.stroke();
 
-        // Ebony Butt
-        ctx.strokeStyle = activeCue.accentGradient ? '#18181b' : '#1c1917';
-        ctx.lineWidth = 12;
+        // Custom Butt (Ebony / Ancient Gold / Carbon / Ruby)
+        ctx.strokeStyle = activeCue.buttColor || '#18181b';
+        ctx.lineWidth = 12.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 300, cueStartY - dirY * 300);
         ctx.lineTo(cueEndX, cueEndY);
         ctx.stroke();
 
-        // Gold Ring on Butt
-        ctx.strokeStyle = '#eab308';
-        ctx.lineWidth = 13;
+        // Inlaid Accent Ring on Butt
+        ctx.strokeStyle = activeCue.ferruleColor || '#eab308';
+        ctx.lineWidth = 13.5;
         ctx.beginPath();
         ctx.moveTo(cueStartX - dirX * 360, cueStartY - dirY * 360);
         ctx.lineTo(cueStartX - dirX * 372, cueStartY - dirY * 372);
@@ -1403,7 +1505,7 @@ export default function Snooker() {
 
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [selectedCueId, selectedTheme, isShooting, isBallsRolling, showAimLaser, soundMuted, ballInHand]);
+  }, [selectedCueId, selectedTheme, isShooting, isBallsRolling, showAimLaser, soundMuted, ballInHand, turn, botDifficulty, gameMode]);
 
   // Touch & Drag to Aim or Move Ball in Hand (Silky smooth 60/120Hz decoupled tracking)
   const handleCanvasPointerDown = (e) => {
@@ -1428,12 +1530,13 @@ export default function Snooker() {
       return;
     }
 
-    // Otherwise, start drag aiming immediately across the entire table
+    // Otherwise, tap anywhere immediately snaps direction to that spot, and dragging adjusts from there!
     isAimingRef.current = true;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
     const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
-    const deg = (angleRad * 180) / Math.PI;
+    const deg = (angleRad * 180 / Math.PI + 360) % 360;
     aimAngleRef.current = deg;
+    setAimAngle(deg);
   };
 
   const handleCanvasPointerMove = (e) => {
@@ -1471,8 +1574,9 @@ export default function Snooker() {
       const white = stateRef.current.balls.find(b => b.type === 'white');
       if (!white) return;
       const angleRad = Math.atan2(clickY - white.y, clickX - white.x);
-      const deg = (angleRad * 180) / Math.PI;
+      const deg = (angleRad * 180 / Math.PI + 360) % 360;
       aimAngleRef.current = deg;
+      setAimAngle(deg);
     }
   };
 
@@ -1670,9 +1774,9 @@ export default function Snooker() {
       </header>
 
       {/* ── 2. Main Gaming Stage: Genuine Elongated 2:1 Snooker Table ── */}
-      <main className="flex-1 w-full max-w-lg flex items-center justify-center relative px-2 py-0.5 min-h-0 overflow-hidden">
-        {/* Table Canvas Viewport - Maximized to 86vh while strictly preserving 1:2 portrait ratio */}
-        <div className="relative h-full max-h-[85vh] sm:max-h-[87vh] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
+      <main className="flex-1 w-full max-w-xl flex items-center justify-center relative px-1 py-0 min-h-0 overflow-hidden">
+        {/* Table Canvas Viewport - Maximized to fill all vertical room */}
+        <div className="relative h-full max-h-[calc(100dvh-54px)] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
           <canvas
             ref={canvasRef}
             width={CANVAS_W}
@@ -1681,7 +1785,7 @@ export default function Snooker() {
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
             onPointerCancel={handleCanvasPointerCancel}
-            className="w-full h-full object-contain touch-none cursor-crosshair drop-shadow-[0_15px_35px_rgba(0,0,0,0.85)]"
+            className="w-full h-full object-contain touch-none cursor-crosshair drop-shadow-[0_20px_45px_rgba(0,0,0,0.9)]"
           />
         </div>
 

@@ -75,63 +75,77 @@ class SoundEngine {
     } catch (_) {}
   }
 
-  // Realistic Aramith Resin Ball-to-Ball Collision Sound
+  // Authentic Aramith Phenolic Resin Ball Collision Sound (Solid 142g Snooker Ball "Tock/Clack")
   playBallCollision(speed = 1) {
     if (this.isMuted) return;
     try {
       this.init();
       if (!this.ctx) return;
       const t = this.ctx.currentTime;
-      const vol = Math.min(1.0, Math.max(0.08, (speed || 1) * 0.45));
+      const vol = Math.min(1.0, Math.max(0.12, (speed || 1) * 0.52));
 
-      // 1. Primary high-frequency resonant click (sharp Aramith phenolic resin contact)
-      const osc1 = this.ctx.createOscillator();
-      const gain1 = this.ctx.createGain();
-      osc1.type = 'sine';
-      const baseFreq = 3400 + Math.random() * 400;
-      osc1.frequency.setValueAtTime(baseFreq, t);
-      osc1.frequency.exponentialRampToValueAtTime(1800, t + 0.022);
-      gain1.gain.setValueAtTime(vol * 0.5, t);
-      gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
-      osc1.connect(gain1);
-      gain1.connect(this.ctx.destination);
-      osc1.start(t);
-      osc1.stop(t + 0.028);
+      // 1. Transient sharp contact crack (Phenolic resin shell impact)
+      const oscSnap = this.ctx.createOscillator();
+      const gainSnap = this.ctx.createGain();
+      oscSnap.type = 'triangle';
+      const snapFreq = 1450 + Math.random() * 150;
+      oscSnap.frequency.setValueAtTime(snapFreq, t);
+      oscSnap.frequency.exponentialRampToValueAtTime(620, t + 0.012);
+      gainSnap.gain.setValueAtTime(vol * 0.7, t);
+      gainSnap.gain.exponentialRampToValueAtTime(0.001, t + 0.018);
+      oscSnap.connect(gainSnap);
+      gainSnap.connect(this.ctx.destination);
+      oscSnap.start(t);
+      oscSnap.stop(t + 0.02);
 
-      // 2. Secondary glass-like overtone ring
-      const osc2 = this.ctx.createOscillator();
-      const gain2 = this.ctx.createGain();
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(baseFreq * 1.58, t);
-      osc2.frequency.exponentialRampToValueAtTime(2600, t + 0.035);
-      gain2.gain.setValueAtTime(vol * 0.25, t);
-      gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
-      osc2.connect(gain2);
-      gain2.connect(this.ctx.destination);
-      osc2.start(t);
-      osc2.stop(t + 0.038);
+      // 2. Dense Phenolic Resin core body resonance (Solid 142g weight overtone)
+      const oscCore = this.ctx.createOscillator();
+      const gainCore = this.ctx.createGain();
+      oscCore.type = 'sine';
+      oscCore.frequency.setValueAtTime(1180, t);
+      oscCore.frequency.exponentialRampToValueAtTime(540, t + 0.026);
+      gainCore.gain.setValueAtTime(vol * 0.45, t);
+      gainCore.gain.exponentialRampToValueAtTime(0.001, t + 0.032);
+      oscCore.connect(gainCore);
+      gainCore.connect(this.ctx.destination);
+      oscCore.start(t);
+      oscCore.stop(t + 0.035);
 
-      // 3. Transient micro-crack / surface impact snap (Noise burst)
-      const bufferSize = Math.floor(this.ctx.sampleRate * 0.008);
+      // 3. Lower Slate & Cloth acoustic thud
+      const oscSlate = this.ctx.createOscillator();
+      const gainSlate = this.ctx.createGain();
+      oscSlate.type = 'sine';
+      oscSlate.frequency.setValueAtTime(320, t);
+      oscSlate.frequency.exponentialRampToValueAtTime(110, t + 0.035);
+      gainSlate.gain.setValueAtTime(vol * 0.28, t);
+      gainSlate.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      oscSlate.connect(gainSlate);
+      gainSlate.connect(this.ctx.destination);
+      oscSlate.start(t);
+      oscSlate.stop(t + 0.042);
+
+      // 4. Subtle micro-surface friction snap (Short filtered impulse)
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.006);
       if (bufferSize > 0) {
         const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const output = noiseBuffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
-          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
         }
         const noise = this.ctx.createBufferSource();
         noise.buffer = noiseBuffer;
         const noiseFilter = this.ctx.createBiquadFilter();
-        noiseFilter.type = 'highpass';
-        noiseFilter.frequency.setValueAtTime(2200, t);
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.setValueAtTime(1600, t);
+        noiseFilter.Q.setValueAtTime(2.0, t);
         const noiseGain = this.ctx.createGain();
-        noiseGain.gain.setValueAtTime(vol * 0.4, t);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.008);
+        noiseGain.gain.setValueAtTime(vol * 0.35, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.006);
         noise.connect(noiseFilter);
         noiseFilter.connect(noiseGain);
         noiseGain.connect(this.ctx.destination);
         noise.start(t);
-        noise.stop(t + 0.01);
+        noise.stop(t + 0.008);
       }
     } catch (_) {}
   }
@@ -219,26 +233,39 @@ class SoundEngine {
     this.playPocketSink();
   }
 
-  // Ball bounces off rubber cushion
+  // Ball bounces off tournament rubber cushion (Molded rubber + wool cloth dampening)
   playCushionBounce(speed = 1) {
     if (this.isMuted) return;
     try {
       this.init();
       if (!this.ctx) return;
       const t = this.ctx.currentTime;
-      const vol = Math.min(0.5, Math.max(0.05, (speed || 1) * 0.25));
+      const vol = Math.min(0.6, Math.max(0.08, (speed || 1) * 0.32));
 
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(180, t);
-      osc.frequency.exponentialRampToValueAtTime(75, t + 0.05);
+      osc.frequency.setValueAtTime(145, t);
+      osc.frequency.exponentialRampToValueAtTime(62, t + 0.055);
       gain.gain.setValueAtTime(vol, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.065);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
       osc.start(t);
       osc.stop(t + 0.07);
+
+      // Low rubber thud body
+      const oscLow = this.ctx.createOscillator();
+      const gainLow = this.ctx.createGain();
+      oscLow.type = 'triangle';
+      oscLow.frequency.setValueAtTime(95, t);
+      oscLow.frequency.exponentialRampToValueAtTime(45, t + 0.07);
+      gainLow.gain.setValueAtTime(vol * 0.45, t);
+      gainLow.gain.exponentialRampToValueAtTime(0.001, t + 0.075);
+      oscLow.connect(gainLow);
+      gainLow.connect(this.ctx.destination);
+      oscLow.start(t);
+      oscLow.stop(t + 0.08);
     } catch (_) {}
   }
 
