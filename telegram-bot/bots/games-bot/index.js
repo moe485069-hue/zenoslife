@@ -223,7 +223,8 @@ async function sendGameCard(chatId, gameKey, userId) {
   const user = getUser(userId);
   const isEn = user.lang === 'en';
   const roomCode = `${game.prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const playUrl = `${CONFIG.WEBAPP_URL}?app=chazha#${game.path}?room=${roomCode}&mode=online&role=black&autostart=1`;
+  const hostRole = gameKey === 'backgammon' ? 'white' : 'p1';
+  const playUrl = `${CONFIG.WEBAPP_URL}?app=chazha#${game.path}?room=${roomCode}&mode=online&role=${hostRole}&host=1&autostart=1`;
   const botUrl = `${CONFIG.WEBAPP_URL}?app=chazha#${game.path}?mode=bot`;
   const shareDuelUrl = getShareDuelUrl(gameKey, roomCode);
 
@@ -514,7 +515,8 @@ async function onMessage(msg) {
       gameName = names[gameType] || 'اسنوکر شاهانه';
     }
 
-    const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
+    const guestRole = gameType === 'backgammon' ? 'black' : 'p2';
+    const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=${guestRole}&autostart=1`;
     const photoUrl = GAME_BANNER_PHOTOS[gameType] || GAME_BANNER_PHOTOS.default;
 
     const caption = `⚔️ <b>کارت دعوت به مسابقه آنلاین ${gameName} چاژا!</b>\n\n` +
@@ -1465,7 +1467,8 @@ async function onInlineQuery(iq) {
     }
   }
 
-  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=black&autostart=1`;
+  const guestRole = gameType === 'backgammon' ? 'black' : 'p2';
+  const guestGameUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameType}?room=${roomCode}&mode=online&role=${guestRole}&autostart=1`;
   const photoUrl = GAME_BANNER_PHOTOS[gameType] || GAME_BANNER_PHOTOS.default;
 
   // Rich multi-game cards for inline sharing
@@ -1478,7 +1481,8 @@ async function onInlineQuery(iq) {
   ];
 
   const results = gamesToShare.map((g, idx) => {
-    const url = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${g.type}?room=${g.code}&mode=online&role=black&autostart=1`;
+    const gRole = g.type === 'backgammon' ? 'black' : 'p2';
+    const url = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${g.type}?room=${g.code}&mode=online&role=${gRole}&autostart=1`;
     return {
       type: 'photo',
       id: `duel_photo_${g.type}_${senderId}_${idx}`,

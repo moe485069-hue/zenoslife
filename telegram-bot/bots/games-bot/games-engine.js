@@ -707,8 +707,8 @@ async function handleGenerateStakedDuel(botToken, chatId, userId, gameKey, stake
     });
   }
 
-  const roomCode = `STK-${gameKey.toUpperCase().slice(0, 4)}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const playUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameKey}?room=${roomCode}&mode=online&stake=${stakeObj.coins}&role=black&autostart=1`;
+  const hostRole = gameKey === 'backgammon' ? 'white' : 'p1';
+  const playUrl = `${CONFIG.WEBAPP_URL}?app=chazha#/games/${gameKey}?room=${roomCode}&mode=online&stake=${stakeObj.coins}&role=${hostRole}&host=1&autostart=1`;
   const shareDuelUrl = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/chazha_bot?start=room_${roomCode}`)}&text=${encodeURIComponent(`⚔️ بیا با من دوئل آنلاین بدیم!\n🎮 بازی: ${gameKey}\n💰 جایزه برد: ${stakeObj.prize}\nکد اتاق: ${roomCode}`)}`;
 
   const text = `🎉 <b>میز مسابقه با موفقیت ساخته شد!</b> ⚔️\n━━━━━━━━━━━━━━━━━━━━\n` +

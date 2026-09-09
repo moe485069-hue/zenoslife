@@ -368,7 +368,7 @@ export default function Snooker() {
   };
 
   // Reset match
-  const handleStartGame = ({ mode = 'bot', frames = 1, theme = (DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]) }) => {
+  const handleStartGame = ({ mode = 'bot', frames = 1, theme = (DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]), roomCode = null }) => {
     setGameMode(mode);
     setMatchFrames(frames);
     setSelectedTheme(theme);
@@ -400,6 +400,19 @@ export default function Snooker() {
     stateRef.current.pottedInCurrentShot = [];
     setIsShooting(false);
     setIsBallsRolling(false);
+
+    if (mode === 'online') {
+      const finalRoom = roomCode || `SNOO-${Math.floor(1000 + Math.random() * 9000)}`;
+      setOnlineRoomCode(finalRoom);
+      setMyOnlineRole('p1');
+      setWaitingOverlay(true);
+      try {
+        realtimeNetwork.subscribeGameRoom(finalRoom);
+      } catch (_) {}
+    } else {
+      setWaitingOverlay(false);
+    }
+
     setTimeout(() => {
       autoAim();
     }, 120);
@@ -410,34 +423,289 @@ export default function Snooker() {
     const roomParam = searchParams.get('room');
     const modeParam = searchParams.get('mode');
     const roleParam = searchParams.get('role');
+    const hostParam = searchParams.get('host');
 
-    if (roomParam && modeParam === 'online') {
+    if (roomParam && (modeParam === 'online' || searchParams.has('autostart'))) {
       setGameMode('online');
       setOnlineRoomCode(roomParam);
-      setMyOnlineRole(roleParam === 'p2' ? 'p2' : 'p1');
+
+      // Deterministic Host vs Guest identification
+      const isHost = hostParam === '1' || roleParam === 'p1' || roleParam === 'host' || roleParam === 'white';
+      const myRole = isHost ? 'p1' : 'p2';
+      setMyOnlineRole(myRole);
 
       try {
-        if (typeof realtimeNetwork?.joinRoom === 'function') {
-          realtimeNetwork.joinRoom(roomParam, {
-            userId: myUserId,
-            userName: myUserName,
-            role: roleParam || 'p1',
-            game: 'snooker'
-          });
-        } else if (typeof realtimeNetwork?.subscribeGameRoom === 'function') {
-          realtimeNetwork.subscribeGameRoom(roomParam);
-        }
+        realtimeNetwork.subscribeGameRoom(roomParam);
       } catch (err) {
         console.warn('Realtime join error:', err);
       }
 
-      if (roleParam === 'p2') {
-        setWaitingOverlay(false);
-      } else {
+      if (isHost) {
         setWaitingOverlay(true);
+      } else {
+        setWaitingOverlay(false);
+        // Announce presence immediately to host
+        setTimeout(() => {
+          try {
+            realtimeNetwork.publish({
+              type: 'GAME_ACTION',
+              actionType: 'PLAYER_JOINED',
+              roomCode: roomParam,
+              senderId: myUserId,
+              senderName: myUserName,
+              payload: {
+                userName: myUserName,
+                avatar: myAvatar,
+                cueId: selectedCueIdRef.current,
+                themeId: selectedThemeRef.current?.id,
+                role: 'p2'
+              },
+              timestamp: Date.now()
+            }, `zenoslife_v3_game_${roomParam}`);
+          } catch (_) {}
+        }, 400);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, myUserId, myUserName, myAvatar]);
+
+  // ── Online Multiplayer Realtime Network Listener ──
+  useEffect(() => {
+    if (gameMode !== 'online' || !onlineRoomCode) return;
+
+    realtimeNetwork.subscribeGameRoom(onlineRoomCode);
+
+    const handleIncomingAction = (data) => {
+      if (!data) return;
+      if (data.roomCode && data.roomCode !== onlineRoomCode) return;
+      if (data.senderId && data.senderId === myUserId) return; // ignore own echo
+
+      const actionType = data.actionType || data.type;
+      const payload = data.payload || data;
+
+      if (actionType === 'PLAYER_JOINED') {
+        // Guest has arrived! Dismiss waiting overlay
+        setWaitingOverlay(false);
+        soundEngine?.playLevelUp?.();
+        haptics?.success?.();
+        const oppName = data.senderName || payload?.userName || (isRtl ? 'حریف آنلاین' : 'Online Opponent');
+        setAnnouncementMsg(isRtl ? `⚡ ${oppName} وارد میز شد! مسابقه شروع شد.` : `${oppName} joined! Match started.`);
+        setTimeout(() => setAnnouncementMsg(null), 3000);
+
+        if (payload?.cueId) setOnlineOpponentCueId(payload.cueId);
+        if (payload?.themeId) setOnlineOpponentThemeId(payload.themeId);
+        if (data.senderId) {
+          setProfileModalUser({
+            id: data.senderId,
+            name: oppName,
+            avatar: payload?.avatar || '🎱',
+            cueId: payload?.cueId || 'ash_classic',
+            themeId: payload?.themeId || 'championship_green'
+          });
+        }
+
+        // Host responds with ACK including host's cue, theme, and current table state
+        realtimeNetwork.publish({
+          type: 'GAME_ACTION',
+          actionType: 'PLAYER_ACK',
+          roomCode: onlineRoomCode,
+          senderId: myUserId,
+          senderName: myUserName,
+          payload: {
+            userName: myUserName,
+            cueId: selectedCueIdRef.current,
+            themeId: selectedThemeRef.current?.id,
+            avatar: myAvatar,
+            balls: stateRef.current.balls.map(b => ({
+              id: b.id, type: b.type, x: b.x, y: b.y, potted: b.potted
+            })),
+            scoreP1: stateRef.current.scoreP1,
+            scoreP2: stateRef.current.scoreP2,
+            turn: stateRef.current.turn,
+            targetBallType: stateRef.current.targetBallType,
+            activeSequenceIndex
+          },
+          timestamp: Date.now()
+        }, `zenoslife_v3_game_${onlineRoomCode}`);
+
+      } else if (actionType === 'PLAYER_ACK') {
+        // Guest received ACK from host!
+        setWaitingOverlay(false);
+        soundEngine?.playLevelUp?.();
+        haptics?.success?.();
+        const hostName = data.senderName || payload?.userName || (isRtl ? 'میزبان مسابقه' : 'Host');
+        setAnnouncementMsg(isRtl ? `⚡ به میز ${hostName} متصل شدید! بازی شروع شد.` : `Connected to ${hostName}'s table!`);
+        setTimeout(() => setAnnouncementMsg(null), 3000);
+
+        if (payload?.cueId) setOnlineOpponentCueId(payload.cueId);
+        if (payload?.themeId) setOnlineOpponentThemeId(payload.themeId);
+        if (data.senderId) {
+          setProfileModalUser({
+            id: data.senderId,
+            name: hostName,
+            avatar: payload?.avatar || '👑',
+            cueId: payload?.cueId || 'ash_classic',
+            themeId: payload?.themeId || 'championship_green'
+          });
+        }
+
+        // Sync balls & state from host
+        if (payload?.balls && Array.isArray(payload.balls)) {
+          payload.balls.forEach(pb => {
+            const b = stateRef.current.balls.find(ball => ball.id === pb.id);
+            if (b) {
+              b.x = pb.x;
+              b.y = pb.y;
+              b.vx = 0;
+              b.vy = 0;
+              b.potted = pb.potted;
+            }
+          });
+        }
+        if (payload?.scoreP1 !== undefined) {
+          setScoreP1(payload.scoreP1);
+          stateRef.current.scoreP1 = payload.scoreP1;
+        }
+        if (payload?.scoreP2 !== undefined) {
+          setScoreP2(payload.scoreP2);
+          stateRef.current.scoreP2 = payload.scoreP2;
+        }
+        if (payload?.turn) {
+          setTurn(payload.turn);
+          stateRef.current.turn = payload.turn;
+        }
+        if (payload?.targetBallType) {
+          setTargetBallType(payload.targetBallType);
+          stateRef.current.targetBallType = payload.targetBallType;
+        }
+        if (payload?.activeSequenceIndex !== undefined) {
+          setActiveSequenceIndex(payload.activeSequenceIndex);
+        }
+
+      } else if (actionType === 'AIM_UPDATE') {
+        if (payload?.angle !== undefined) {
+          aimAngleRef.current = payload.angle;
+          setAimAngle(payload.angle);
+        }
+
+      } else if (actionType === 'SHOT_EXECUTE') {
+        if (payload?.cueId) setOnlineOpponentCueId(payload.cueId);
+        executeRemoteShot(payload);
+
+      } else if (actionType === 'SHOT_RESOLVED') {
+        syncShotResolution(payload);
+
+      } else if (actionType === 'BALL_IN_HAND_POS') {
+        const white = stateRef.current.balls.find(b => b.type === 'white');
+        if (white && payload?.x && payload?.y) {
+          white.x = payload.x;
+          white.y = payload.y;
+          white.vx = 0;
+          white.vy = 0;
+        }
+
+      } else if (actionType === 'REMATCH_REQ') {
+        handleStartGame({ mode: 'online', frames: matchFrames, theme: selectedTheme, roomCode: onlineRoomCode });
+      }
+    };
+
+    const unsubscribe = realtimeNetwork.subscribe(handleIncomingAction);
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [gameMode, onlineRoomCode, myOnlineRole, myUserId, myUserName, myAvatar, isRtl]);
+
+  const executeRemoteShot = (payload) => {
+    const white = stateRef.current.balls.find(b => b.type === 'white');
+    if (!white) return;
+
+    const angle = payload.aimAngle !== undefined ? payload.aimAngle : aimAngleRef.current;
+    const power = payload.shotPower || 35;
+    const spin = payload.spinOffset || { x: 0, y: 0 };
+    const shooterCue = SNOOKER_CUES.find(c => c.id === payload.cueId) || SNOOKER_CUES[0];
+
+    aimAngleRef.current = angle;
+    setAimAngle(angle);
+    shotPowerRef.current = power;
+    setShotPower(power);
+    setSpinOffset(spin);
+
+    if (!soundMuted) (soundEngine?.playSnookerStrike || soundEngine?.playTap)?.(power / 100);
+    haptics?.snookerHit?.(power / 100);
+    setIsShooting(true);
+    setIsBallsRolling(true);
+
+    const powerMult = (power / 100) * (shooterCue.power / 75) * 19.5;
+    const rad = (angle * Math.PI) / 180;
+    white.vx = Math.cos(rad) * powerMult;
+    white.vy = Math.sin(rad) * powerMult;
+    white.spinX = spin.x;
+    white.spinY = spin.y;
+    white.screwFrames = 0;
+    white.screwForceX = 0;
+    white.screwForceY = 0;
+
+    stateRef.current.isMoving = true;
+    stateRef.current.firstHitBall = null;
+    stateRef.current.pottedInCurrentShot = [];
+    setBallInHand(false);
+  };
+
+  const syncShotResolution = (payload) => {
+    if (!payload) return;
+    if (payload.balls && Array.isArray(payload.balls)) {
+      payload.balls.forEach(pb => {
+        const b = stateRef.current.balls.find(ball => ball.id === pb.id);
+        if (b) {
+          b.x = pb.x;
+          b.y = pb.y;
+          b.vx = 0;
+          b.vy = 0;
+          b.potted = pb.potted;
+        }
+      });
+    }
+    if (payload.scoreP1 !== undefined) {
+      setScoreP1(payload.scoreP1);
+      stateRef.current.scoreP1 = payload.scoreP1;
+    }
+    if (payload.scoreP2 !== undefined) {
+      setScoreP2(payload.scoreP2);
+      stateRef.current.scoreP2 = payload.scoreP2;
+    }
+    if (payload.turn) {
+      setTurn(payload.turn);
+      stateRef.current.turn = payload.turn;
+    }
+    if (payload.targetBallType) {
+      setTargetBallType(payload.targetBallType);
+      stateRef.current.targetBallType = payload.targetBallType;
+    }
+    if (payload.activeSequenceIndex !== undefined) {
+      setActiveSequenceIndex(payload.activeSequenceIndex);
+    }
+    if (payload.currentBreak !== undefined) {
+      setCurrentBreak(payload.currentBreak);
+      stateRef.current.currentBreak = payload.currentBreak;
+    }
+    if (payload.foulMessage !== undefined) {
+      setFoulMessage(payload.foulMessage);
+    }
+    if (payload.announcementMsg !== undefined) {
+      setAnnouncementMsg(payload.announcementMsg);
+    }
+    if (payload.ballInHand !== undefined) {
+      setBallInHand(payload.ballInHand);
+    }
+    if (payload.frameWinner !== undefined) {
+      setFrameWinner(payload.frameWinner);
+    }
+    if (payload.matchWinner !== undefined) {
+      setMatchWinner(payload.matchWinner);
+    }
+    setIsShooting(false);
+    setIsBallsRolling(false);
+  };
 
   // ── 4. Physics Engine Step ─────────────────────────────────────────
   const resolveBallCollision = (a, b) => {
@@ -947,6 +1215,31 @@ export default function Snooker() {
     setIsShooting(false);
     setIsBallsRolling(false);
     setSpinOffset({ x: 0, y: 0 });
+
+    if (gameMode === 'online' && onlineRoomCode && curTurn === myOnlineRole) {
+      try {
+        realtimeNetwork.publish({
+          type: 'GAME_ACTION',
+          actionType: 'SHOT_RESOLVED',
+          roomCode: onlineRoomCode,
+          senderId: myUserId,
+          payload: {
+            balls: state.balls.map(b => ({ id: b.id, x: b.x, y: b.y, potted: b.potted })),
+            scoreP1: state.scoreP1,
+            scoreP2: state.scoreP2,
+            turn: state.turn,
+            targetBallType: state.targetBallType,
+            activeSequenceIndex,
+            currentBreak: state.currentBreak,
+            foulMessage,
+            announcementMsg,
+            ballInHand
+          },
+          timestamp: Date.now()
+        }, `zenoslife_v3_game_${onlineRoomCode}`);
+      } catch (_) {}
+    }
+
     setTimeout(() => {
       if (stateRef.current?.turn === 'p1' || stateRef.current?.gameMode === 'local') {
         autoAim();
@@ -1024,6 +1317,25 @@ export default function Snooker() {
     stateRef.current.firstHitBall = null;
     stateRef.current.pottedInCurrentShot = [];
     setBallInHand(false);
+
+    // Broadcast shot to opponent in online mode
+    if (gameMode === 'online' && onlineRoomCode) {
+      try {
+        realtimeNetwork.publish({
+          type: 'GAME_ACTION',
+          actionType: 'SHOT_EXECUTE',
+          roomCode: onlineRoomCode,
+          senderId: myUserId,
+          payload: {
+            aimAngle: currentAim,
+            shotPower: powerValue,
+            spinOffset: { x: spinOffset.x, y: spinOffset.y },
+            cueId: selectedCueIdRef.current
+          },
+          timestamp: Date.now()
+        }, `zenoslife_v3_game_${onlineRoomCode}`);
+      } catch (_) {}
+    }
   };
 
   // Fine Angle continuous adjustment helpers with hold acceleration

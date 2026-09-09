@@ -296,33 +296,33 @@ export default function GameRoomsLounge() {
     haptics.success?.();
 
     if (cleanCode.startsWith('HOKM')) {
-      navigate(`/games/hokm?room=${cleanCode}&mode=online`);
+      navigate(`/games/hokm?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('LUDO')) {
-      navigate(`/games/ludo?room=${cleanCode}&mode=online`);
+      navigate(`/games/ludo?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('PASS') || cleanCode.startsWith('PASU')) {
-      navigate(`/games/pasur?room=${cleanCode}&mode=online`);
+      navigate(`/games/pasur?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('OCHO') || cleanCode.startsWith('UNO')) {
-      navigate(`/games/ocho?room=${cleanCode}&mode=online`);
+      navigate(`/games/ocho?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('DOTS')) {
-      navigate(`/games/dots-and-boxes?room=${cleanCode}&mode=online`);
+      navigate(`/games/dots-and-boxes?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('AIRH') || cleanCode.startsWith('HOCK')) {
-      navigate(`/games/air-hockey?room=${cleanCode}&mode=online`);
+      navigate(`/games/air-hockey?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('SNAK')) {
-      navigate(`/games/snakes-and-ladders?room=${cleanCode}&mode=online`);
+      navigate(`/games/snakes-and-ladders?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('SNOO')) {
-      navigate(`/games/snooker?room=${cleanCode}&mode=online`);
+      navigate(`/games/snooker?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('BILL')) {
-      navigate(`/games/billiards?room=${cleanCode}&mode=online`);
+      navigate(`/games/billiards?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('CHES')) {
-      navigate(`/games/cosmic-chess?room=${cleanCode}&mode=online`);
+      navigate(`/games/cosmic-chess?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('BATT')) {
-      navigate(`/games/battleship?room=${cleanCode}&mode=online`);
+      navigate(`/games/battleship?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('CONN')) {
-      navigate(`/games/connect-four?room=${cleanCode}&mode=online`);
+      navigate(`/games/connect-four?room=${cleanCode}&mode=online&role=p2`);
     } else if (cleanCode.startsWith('FING') || cleanCode.startsWith('SOCC')) {
-      navigate(`/games/finger-soccer?room=${cleanCode}&mode=online`);
+      navigate(`/games/finger-soccer?room=${cleanCode}&mode=online&role=p2`);
     } else {
-      navigate(`/games/backgammon?room=${cleanCode}&mode=online`);
+      navigate(`/games/backgammon?room=${cleanCode}&mode=online&role=black`);
     }
   };
 
