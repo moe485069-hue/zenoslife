@@ -141,6 +141,41 @@ class RealtimeNetworkEngine {
     this.activeGameRoomId = null;
   }
 
+  joinRoom(roomId, userInfo = {}) {
+    if (!roomId) return;
+    this.subscribeGameRoom(roomId);
+    if (userInfo && userInfo.userId) {
+      this.publish({
+        type: 'GAME_PLAYER_JOINED',
+        actionType: 'PLAYER_JOINED',
+        roomId,
+        roomCode: roomId,
+        user: userInfo,
+        senderId: userInfo.userId,
+        senderName: userInfo.userName,
+        timestamp: Date.now()
+      }, `zenoslife_v3_game_${roomId}`);
+    }
+  }
+
+  leaveRoom(roomId) {
+    this.leaveGameRoom();
+  }
+
+  sendChat(roomId, senderName, text) {
+    if (!roomId || !text) return;
+    return this.publish({
+      type: 'CHAT',
+      actionType: 'CHAT',
+      roomCode: roomId,
+      roomId,
+      senderName,
+      text,
+      payload: { sender: senderName, text, timestamp: Date.now() },
+      timestamp: Date.now()
+    }, `zenoslife_v3_game_${roomId}`);
+  }
+
   // Fallback to Server-Sent Events (SSE) if standard WebSocket is restricted
   fallbackToEventSource() {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;

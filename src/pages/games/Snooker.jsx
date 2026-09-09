@@ -413,12 +413,20 @@ export default function Snooker() {
       setOnlineRoomCode(roomParam);
       setMyOnlineRole(roleParam === 'p2' ? 'p2' : 'p1');
 
-      realtimeNetwork.joinRoom(roomParam, {
-        userId: myUserId,
-        userName: myUserName,
-        role: roleParam || 'p1',
-        game: 'snooker'
-      });
+      try {
+        if (typeof realtimeNetwork?.joinRoom === 'function') {
+          realtimeNetwork.joinRoom(roomParam, {
+            userId: myUserId,
+            userName: myUserName,
+            role: roleParam || 'p1',
+            game: 'snooker'
+          });
+        } else if (typeof realtimeNetwork?.subscribeGameRoom === 'function') {
+          realtimeNetwork.subscribeGameRoom(roomParam);
+        }
+      } catch (err) {
+        console.warn('Realtime join error:', err);
+      }
 
       if (roleParam === 'p2') {
         setWaitingOverlay(false);
@@ -2213,7 +2221,20 @@ export default function Snooker() {
         hideCapsule={true}
         onSendMessage={(text) => {
           if (onlineRoomCode) {
-            realtimeNetwork.sendChat(onlineRoomCode, myUserName, text);
+            try {
+              if (typeof realtimeNetwork?.sendChat === 'function') {
+                realtimeNetwork.sendChat(onlineRoomCode, myUserName, text);
+              } else if (typeof realtimeNetwork?.publish === 'function') {
+                realtimeNetwork.publish({
+                  type: 'CHAT',
+                  roomCode: onlineRoomCode,
+                  senderName: myUserName,
+                  text
+                }, `zenoslife_v3_game_${onlineRoomCode}`);
+              }
+            } catch (err) {
+              console.warn('Chat error:', err);
+            }
           }
         }}
         isRtl={isRtl}
