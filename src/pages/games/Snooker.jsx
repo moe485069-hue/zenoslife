@@ -474,6 +474,45 @@ export default function Snooker() {
 
     realtimeNetwork.subscribeGameRoom(onlineRoomCode);
 
+    // Periodic handshake pulse until game is fully connected
+    const handshakePulse = setInterval(() => {
+      try {
+        if (myOnlineRole === 'p2') {
+          realtimeNetwork.publish({
+            type: 'GAME_ACTION',
+            actionType: 'PLAYER_JOINED',
+            roomCode: onlineRoomCode,
+            senderId: myUserId,
+            senderName: myUserName,
+            payload: {
+              userName: myUserName,
+              avatar: myAvatar,
+              cueId: selectedCueIdRef.current,
+              themeId: selectedThemeRef.current?.id,
+              role: 'p2'
+            },
+            timestamp: Date.now()
+          }, `zenoslife_v3_game_${onlineRoomCode}`);
+        } else if (myOnlineRole === 'p1' && waitingOverlay) {
+          realtimeNetwork.publish({
+            type: 'GAME_ACTION',
+            actionType: 'HOST_WAITING',
+            roomCode: onlineRoomCode,
+            senderId: myUserId,
+            senderName: myUserName,
+            payload: {
+              userName: myUserName,
+              avatar: myAvatar,
+              cueId: selectedCueIdRef.current,
+              themeId: selectedThemeRef.current?.id,
+              role: 'p1'
+            },
+            timestamp: Date.now()
+          }, `zenoslife_v3_game_${onlineRoomCode}`);
+        }
+      } catch (_) {}
+    }, 1800);
+
     const handleIncomingAction = (data) => {
       if (!data) return;
       if (data.roomCode && data.roomCode !== onlineRoomCode) return;
@@ -481,6 +520,37 @@ export default function Snooker() {
 
       const actionType = data.actionType || data.type;
       const payload = data.payload || data;
+
+      if (actionType === 'HOST_WAITING' && myOnlineRole === 'p2') {
+        setWaitingOverlay(false);
+        const hostName = data.senderName || payload?.userName || (isRtl ? 'میزبان مسابقه' : 'Host');
+        if (payload?.cueId) setOnlineOpponentCueId(payload.cueId);
+        if (payload?.themeId) setOnlineOpponentThemeId(payload.themeId);
+        if (data.senderId) {
+          setProfileModalUser({
+            id: data.senderId,
+            name: hostName,
+            avatar: payload?.avatar || '👑',
+            cueId: payload?.cueId || 'ash_classic',
+            themeId: payload?.themeId || 'championship_green'
+          });
+        }
+        realtimeNetwork.publish({
+          type: 'GAME_ACTION',
+          actionType: 'PLAYER_JOINED',
+          roomCode: onlineRoomCode,
+          senderId: myUserId,
+          senderName: myUserName,
+          payload: {
+            userName: myUserName,
+            avatar: myAvatar,
+            cueId: selectedCueIdRef.current,
+            themeId: selectedThemeRef.current?.id,
+            role: 'p2'
+          },
+          timestamp: Date.now()
+        }, `zenoslife_v3_game_${onlineRoomCode}`);
+      }
 
       if (actionType === 'PLAYER_JOINED') {
         // Guest has arrived! Dismiss waiting overlay
@@ -611,6 +681,7 @@ export default function Snooker() {
     const unsubscribe = realtimeNetwork.subscribe(handleIncomingAction);
 
     return () => {
+      clearInterval(handshakePulse);
       unsubscribe?.();
     };
   }, [gameMode, onlineRoomCode, myOnlineRole, myUserId, myUserName, myAvatar, isRtl]);
@@ -2281,7 +2352,9 @@ export default function Snooker() {
             <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-lg transition-colors ${
               turn === 'p1' ? 'bg-indigo-600/30 text-emerald-300 border border-indigo-500/40' : 'text-slate-400'
             }`}>
-              <span className="text-[11px] font-bold truncate max-w-[48px]">{myUserName}</span>
+              <span className="text-[11px] font-bold truncate max-w-[56px]">
+                {myOnlineRole === 'p1' ? (myUserName || (isRtl ? 'شما' : 'You')) : (profileModalUser?.name || (isRtl ? 'میزبان' : 'Host'))}
+              </span>
               <span className="font-mono font-black text-xs text-white bg-slate-800/80 px-1 rounded">{scoreP1}</span>
               {turn === 'p1' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
             </div>
@@ -2293,8 +2366,8 @@ export default function Snooker() {
             }`}>
               {turn === 'p2' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />}
               <span className="font-mono font-black text-xs text-white bg-slate-800/80 px-1 rounded">{scoreP2}</span>
-              <span className="text-[11px] font-bold truncate max-w-[48px]">
-                {gameMode === 'bot' ? (isRtl ? 'ربات' : 'Bot') : (isRtl ? 'حریف' : 'Opp')}
+              <span className="text-[11px] font-bold truncate max-w-[56px]">
+                {myOnlineRole === 'p2' ? (myUserName || (isRtl ? 'شما' : 'You')) : (gameMode === 'bot' ? (isRtl ? 'ربات' : 'Bot') : (profileModalUser?.name || (isRtl ? 'حریف' : 'Opponent')))}
               </span>
             </div>
 
@@ -2552,9 +2625,13 @@ export default function Snooker() {
               <span>
                 {isBallsRolling 
                   ? (isRtl ? '💫 توپ‌ها در حال غلتیدن...' : 'Balls rolling...')
-                  : (turn === 'p2' 
-                      ? (isRtl ? (gameMode === 'bot' ? '🤖 ربات در حال بررسی میز و شلیک...' : '⏳ نوبت حریف آنلاین...') : 'Opponent turn...') 
-                      : (isRtl ? 'در حال آماده‌سازی میز...' : 'Preparing table...'))
+                  : gameMode === 'online'
+                    ? (turn === myOnlineRole
+                        ? (isRtl ? '🎯 نوبت شلیک شماست' : 'Your turn to shoot')
+                        : (isRtl ? `⏳ نوبت شلیک حریف آنلاین (${turn === 'p1' ? (myOnlineRole === 'p1' ? 'شما' : 'میزبان مسابقه') : (myOnlineRole === 'p2' ? 'شما' : 'مهمان مسابقه')})...` : 'Opponent turn...'))
+                    : (turn === 'p2' 
+                        ? (isRtl ? '🤖 ربات در حال بررسی میز و شلیک...' : 'Bot thinking...') 
+                        : (isRtl ? '🎯 نوبت شلیک شماست' : 'Your turn to shoot'))
                 }
               </span>
             </motion.div>

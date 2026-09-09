@@ -111,32 +111,106 @@ class RealtimeNetworkEngine {
     }
   }
 
-  // Connect to Live Multiplayer Game Room (for Backgammon, Ludo, Pong)
+  // Connect to Live Multiplayer Game Room (for Snooker, Backgammon, Ludo)
   subscribeGameRoom(roomId) {
     if (!roomId) return;
+    if (this.activeGameRoomId === roomId && (this.gameWs || this.gameEventSource || this.gameBc)) return;
     this.activeGameRoomId = roomId;
 
+    const gameTopic = `zenoslife_v3_game_${roomId}`;
+
+    // 1. Local Cross-tab / Cross-window BroadcastChannel (0ms local latency)
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        if (this.gameBc) {
+          try { this.gameBc.close(); } catch (_) {}
+        }
+        this.gameBc = new BroadcastChannel(gameTopic);
+        this.gameBc.onmessage = (event) => {
+          if (event.data) {
+            this.handleRawIncoming(typeof event.data === 'string' ? event.data : JSON.stringify({
+              event: 'message',
+              message: JSON.stringify(event.data)
+            }));
+          }
+        };
+      }
+    } catch (_) {}
+
+    // 2. WebSocket Stream
     if (this.gameWs) {
       try { this.gameWs.close(); } catch (_) {}
+      this.gameWs = null;
     }
 
     try {
-      const gameTopic = `zenoslife_v3_game_${roomId}`;
       const wsUrl = `${NTFY_BASE_WS}/${gameTopic}/ws`;
       this.gameWs = new WebSocket(wsUrl);
 
       this.gameWs.onmessage = (event) => {
         this.handleRawIncoming(event.data);
       };
+
+      this.gameWs.onerror = () => {
+        this.fallbackGameEventSource(gameTopic);
+      };
     } catch (err) {
-      console.warn('Game WebSocket error:', err);
+      this.fallbackGameEventSource(gameTopic);
     }
+
+    // 3. Guaranteed Polling Fallback (Censorship-Resilient worldwide)
+    if (this.gamePollTimer) clearInterval(this.gamePollTimer);
+    this.pollGameRoomHistory(gameTopic);
+    this.gamePollTimer = setInterval(() => {
+      this.pollGameRoomHistory(gameTopic);
+    }, 1400);
+  }
+
+  fallbackGameEventSource(gameTopic) {
+    if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
+    if (this.gameEventSource) return;
+
+    try {
+      this.gameEventSource = new EventSource(`${NTFY_BASE_HTTP}/${gameTopic}/sse`);
+      this.gameEventSource.onmessage = (e) => {
+        this.handleRawIncoming(e.data);
+      };
+      this.gameEventSource.onerror = () => {
+        this.gameEventSource?.close();
+        this.gameEventSource = null;
+      };
+    } catch (_) {}
+  }
+
+  async pollGameRoomHistory(gameTopic) {
+    if (typeof window === 'undefined' || !this.activeGameRoomId) return;
+    try {
+      const res = await fetch(`${NTFY_BASE_HTTP}/${gameTopic}/json?poll=1`);
+      if (!res.ok) return;
+      const text = await res.text();
+      const lines = text.split('\n').filter(Boolean);
+      for (const line of lines) {
+        this.handleRawIncoming(line);
+      }
+    } catch (_) {}
   }
 
   leaveGameRoom() {
     if (this.gameWs) {
       try { this.gameWs.close(); } catch (_) {}
       this.gameWs = null;
+    }
+    if (this.gameEventSource) {
+      try { this.gameEventSource.close(); } catch (_) {}
+      this.gameEventSource = null;
+    }
+    if (this.gameBc) {
+      try { this.gameBc.close(); } catch (_) {}
+      this.gameBc = null;
+    }
+    if (this.gamePollTimer) {
+      clearInterval(this.gamePollTimer);
+      this.gamePollTimer = null;
     }
     this.activeGameRoomId = null;
   }
@@ -275,6 +349,12 @@ class RealtimeNetworkEngine {
     }
 
     const bodyStr = JSON.stringify(payload);
+
+    try {
+      if (this.gameBc && topic.startsWith('zenoslife_v3_game_')) {
+        this.gameBc.postMessage(payload);
+      }
+    } catch (_) {}
 
     try {
       // 1. Try sending via active WebSocket first for sub-50ms latency
