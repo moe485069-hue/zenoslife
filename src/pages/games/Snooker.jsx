@@ -13,7 +13,7 @@ import soundEngine from '../../utils/audio';
 import haptics from '../../utils/haptics';
 import SnookerSetupModal from '../../components/games/SnookerSetupModal';
 import SnookerCueStoreModal from '../../components/games/SnookerCueStoreModal';
-import { TABLE_THEMES, SNOOKER_CUES, DEFAULT_TABLE_THEME, DEFAULT_SNOOKER_CUE, BOT_CUES_BY_DIFFICULTY } from '../../components/games/snookerConstants';
+import { TABLE_THEMES, SNOOKER_CUES, DEFAULT_TABLE_THEME, DEFAULT_SNOOKER_CUE, BOT_CUES_BY_DIFFICULTY, BOT_PRESETS_BY_DIFFICULTY } from '../../components/games/snookerConstants';
 import SnookerSpinModal from '../../components/games/SnookerSpinModal';
 import SnookerRulesModal from '../../components/games/SnookerRulesModal';
 import InGameChatDrawer from '../../components/games/InGameChatDrawer';
@@ -24,25 +24,25 @@ import realtimeNetwork from '../../services/realtimeNetwork';
 import { shareToTelegram, shareMatchResultToTelegram } from '../../utils/telegram';
 
 // ── 1. Authentic 2:1 Crucible Snooker Table Dimensions ─────────────────
-// True English 12ft x 6ft snooker table (exact 2:1 playing surface ratio)
-const W = 460;
-const H = 920;
+// True English 12ft x 6ft snooker table (exact 2:1 playing surface ratio, maximized to canvas)
+const W = 480;
+const H = 960;
 const CANVAS_W = 480;
 const CANVAS_H = 960;
-const OFFSET_X = 10;
-const OFFSET_Y = 20;
+const OFFSET_X = 0;
+const OFFSET_Y = 0;
 
-const CUSHION_X = 28; // Slender tournament cushion side rail
-const CUSHION_Y = 56; // Slender top & bottom cushion rail
-const PLAY_W = W - 2 * CUSHION_X; // 404
-const PLAY_H = H - 2 * CUSHION_Y; // 808 (exact 2.0:1 snooker proportion)
-const BALL_R = 9.2; // Compact, realistic Aramith snooker ball scale
-const FRICTION = 0.989;
-const MIN_VEL = 0.05;
+const CUSHION_X = 26; // Slender tournament cushion side rail
+const CUSHION_Y = 52; // Slender top & bottom cushion rail
+const PLAY_W = W - 2 * CUSHION_X; // 428
+const PLAY_H = H - 2 * CUSHION_Y; // 856 (exact 2.0:1 snooker proportion)
+const BALL_R = 9.2; // Realistic Aramith snooker ball scale
+const FRICTION = 0.992; // Enhanced glide, eliminating stiffness and stutter
+const MIN_VEL = 0.035;
 
-// Pocket coordinates on vertical portrait table with genuine curved jaws
-const POCKET_CORNER_R = 12.5;
-const POCKET_MID_R = 11.5;
+// Pocket coordinates with generous curved mouth radii for smooth, enjoyable potting
+const POCKET_CORNER_R = 16.5;
+const POCKET_MID_R = 15.0;
 const POCKETS = [
   { id: 'TL', x: CUSHION_X + 2, y: CUSHION_Y + 2, r: POCKET_CORNER_R },
   { id: 'TR', x: W - CUSHION_X - 2, y: CUSHION_Y + 2, r: POCKET_CORNER_R },
@@ -240,6 +240,20 @@ export default function Snooker() {
   const [waitingOverlay, setWaitingOverlay] = useState(false);
   const [onlineRoomCode, setOnlineRoomCode] = useState('');
   const [myOnlineRole, setMyOnlineRole] = useState('p1');
+  const [onlineOpponentCueId, setOnlineOpponentCueId] = useState('ebony_club');
+  const [onlineOpponentThemeId, setOnlineOpponentThemeId] = useState('championship_green');
+
+  // Direct access refs to immediately reflect cue and theme changes in canvas animation loop
+  const selectedCueIdRef = useRef(DEFAULT_SNOOKER_CUE?.id || 'ash_classic');
+  const selectedThemeRef = useRef(DEFAULT_TABLE_THEME || TABLE_THEMES?.[0]);
+
+  useEffect(() => {
+    selectedCueIdRef.current = selectedCueId;
+  }, [selectedCueId]);
+
+  useEffect(() => {
+    selectedThemeRef.current = selectedTheme;
+  }, [selectedTheme]);
 
   // Canvas & Physics Refs
   const canvasRef = useRef(null);
@@ -277,17 +291,22 @@ export default function Snooker() {
       const savedCue = localStorage.getItem('snooker_equipped_cue');
       if (savedCue && SNOOKER_CUES?.some(c => c.id === savedCue)) {
         setSelectedCueId(savedCue);
+        selectedCueIdRef.current = savedCue;
       }
       const savedTheme = localStorage.getItem('snooker_equipped_theme');
       if (savedTheme) {
         const foundTheme = TABLE_THEMES?.find(t => t.id === savedTheme);
-        if (foundTheme) setSelectedTheme(foundTheme);
+        if (foundTheme) {
+          setSelectedTheme(foundTheme);
+          selectedThemeRef.current = foundTheme;
+        }
       }
     } catch (_) {}
   }, []);
 
   const handleSelectCue = (cueId) => {
     setSelectedCueId(cueId);
+    selectedCueIdRef.current = cueId;
     try {
       localStorage.setItem('snooker_equipped_cue', cueId);
     } catch (_) {}
@@ -297,6 +316,7 @@ export default function Snooker() {
     const foundTheme = TABLE_THEMES?.find(t => t.id === themeId);
     if (foundTheme) {
       setSelectedTheme(foundTheme);
+      selectedThemeRef.current = foundTheme;
       try {
         localStorage.setItem('snooker_equipped_theme', themeId);
       } catch (_) {}
@@ -384,10 +404,10 @@ export default function Snooker() {
       if (whiteBall && (whiteBall.spinY !== 0 || whiteBall.spinX !== 0)) {
         const curTurn = stateRef.current.turn;
         const shooterCueId = curTurn === 'p1'
-          ? selectedCueId
+          ? (selectedCueIdRef.current || selectedCueId)
           : (stateRef.current.gameMode === 'bot'
-              ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
-              : 'ash_classic');
+              ? (BOT_PRESETS_BY_DIFFICULTY[botDifficulty]?.cueId || 'ebony_club')
+              : (onlineOpponentCueId || 'ash_classic'));
         const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
         const spinFactor = (activeCue?.spinControl || 60) / 70;
 
@@ -434,10 +454,10 @@ export default function Snooker() {
     // Retrieve active shooter cue spin multiplier for authentic cushion running/check side
     const curTurn = state.turn;
     const shooterCueId = curTurn === 'p1'
-      ? selectedCueId
+      ? (selectedCueIdRef.current || selectedCueId)
       : (state.gameMode === 'bot'
-          ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
-          : 'ash_classic');
+          ? (BOT_PRESETS_BY_DIFFICULTY[botDifficulty]?.cueId || 'ebony_club')
+          : (onlineOpponentCueId || 'ash_classic'));
     const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
     const spinFactor = (activeCue?.spinControl || 60) / 70;
 
@@ -462,13 +482,13 @@ export default function Snooker() {
         const bottomWall = H - CUSHION_Y - BALL_R;
 
         // Check if near any pocket
-        const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < p.r * 1.35);
+        const nearPocket = POCKETS.some(p => Math.hypot(b.x - p.x, b.y - p.y) < p.r * 1.4);
         if (!nearPocket) {
           let bounced = false;
           let bounceImp = 0;
           if (b.x < leftWall) { 
             b.x = leftWall; 
-            b.vx = -b.vx * 0.82; 
+            b.vx = -b.vx * 0.80; 
             b.vy *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vx);
@@ -479,7 +499,7 @@ export default function Snooker() {
           }
           if (b.x > rightWall) { 
             b.x = rightWall; 
-            b.vx = -b.vx * 0.82; 
+            b.vx = -b.vx * 0.80; 
             b.vy *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vx);
@@ -490,7 +510,7 @@ export default function Snooker() {
           }
           if (b.y < topWall) { 
             b.y = topWall; 
-            b.vy = -b.vy * 0.82; 
+            b.vy = -b.vy * 0.80; 
             b.vx *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vy);
@@ -501,7 +521,7 @@ export default function Snooker() {
           }
           if (b.y > bottomWall) { 
             b.y = bottomWall; 
-            b.vy = -b.vy * 0.82; 
+            b.vy = -b.vy * 0.80; 
             b.vx *= 0.96;
             bounced = true;
             bounceImp = Math.abs(b.vy);
@@ -530,7 +550,7 @@ export default function Snooker() {
         }
       }
 
-      // 3. Pocket Detection with Suction Gravity Well
+      // 3. Pocket Detection with Fluid Suction Gravity Well (نرمی پاکت و لذت بازی)
       balls.forEach(b => {
         if (b.potted) return;
         POCKETS.forEach(p => {
@@ -542,9 +562,9 @@ export default function Snooker() {
             state.pottedInCurrentShot.push({ ...b });
             if (!soundMuted) (soundEngine?.playPocketSink || soundEngine?.playSuccess)?.();
             haptics?.notification?.('success');
-          } else if (d < p.r * 1.45) {
-            // Pocket mouth funnel suction
-            const pull = (p.r * 1.45 - d) * 0.16;
+          } else if (d < p.r * 1.6) {
+            // Generous pocket mouth funnel suction - smooth, satisfying entry without stubborn rebound
+            const pull = (p.r * 1.6 - d) * 0.28;
             b.vx += ((p.x - b.x) / d) * pull;
             b.vy += ((p.y - b.y) / d) * pull;
           }
@@ -842,10 +862,10 @@ export default function Snooker() {
     if (!white) return;
     const curTurn = stateRef.current.turn;
     const shooterCueId = curTurn === 'p1'
-      ? selectedCueId
+      ? (selectedCueIdRef.current || selectedCueId)
       : (stateRef.current.gameMode === 'bot'
-          ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
-          : 'ash_classic');
+          ? (BOT_PRESETS_BY_DIFFICULTY[botDifficulty]?.cueId || 'ebony_club')
+          : (onlineOpponentCueId || 'ash_classic'));
     const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
     const powerValue = overridePower !== undefined ? overridePower : (shotPowerRef.current || shotPower);
 
@@ -1029,9 +1049,44 @@ export default function Snooker() {
       ctx.save();
       ctx.translate(OFFSET_X, OFFSET_Y);
 
-      // ── 1. Outer Wood Cushion Rail (Luxury Solid Mahogany) ──
+      // Determine active player's equipped cue and table theme for the current turn
+      const curTurn = stateRef.current.turn;
+      const isP1 = curTurn === 'p1';
+
+      let activeThemeId = 'championship_green';
+      if (isP1) {
+        activeThemeId = selectedThemeRef.current?.id || selectedTheme?.id || 'championship_green';
+      } else {
+        if (gameMode === 'bot') {
+          const botPreset = BOT_PRESETS_BY_DIFFICULTY[botDifficulty] || BOT_PRESETS_BY_DIFFICULTY.medium;
+          activeThemeId = botPreset.themeId || 'royal_blue';
+        } else if (gameMode === 'online') {
+          activeThemeId = onlineOpponentThemeId || 'championship_green';
+        } else {
+          activeThemeId = 'championship_green';
+        }
+      }
+      const activeTheme = TABLE_THEMES.find(t => t.id === activeThemeId) || selectedTheme || DEFAULT_TABLE_THEME || TABLE_THEMES[0];
+
+      let shooterCueId = 'ash_classic';
+      if (isP1) {
+        shooterCueId = selectedCueIdRef.current || selectedCueId || 'ash_classic';
+      } else {
+        if (gameMode === 'bot') {
+          const botPreset = BOT_PRESETS_BY_DIFFICULTY[botDifficulty] || BOT_PRESETS_BY_DIFFICULTY.medium;
+          shooterCueId = botPreset.cueId || 'ebony_club';
+        } else if (gameMode === 'online') {
+          shooterCueId = onlineOpponentCueId || 'ash_classic';
+        } else {
+          shooterCueId = 'ash_classic';
+        }
+      }
+      const activeCue = SNOOKER_CUES.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES[0];
+
+      // ── 1. Outer Wood Cushion Rail (Luxury Solid Wood) ──
+      const woodBase = activeTheme.borderColor || '#2d140b';
       const woodGrad = ctx.createLinearGradient(0, 0, W, H);
-      woodGrad.addColorStop(0, '#2d140b');
+      woodGrad.addColorStop(0, woodBase);
       woodGrad.addColorStop(0.2, '#481f12');
       woodGrad.addColorStop(0.5, '#35160c');
       woodGrad.addColorStop(0.8, '#4a2114');
@@ -1083,25 +1138,16 @@ export default function Snooker() {
         drawDiamondSight(CUSHION_X + i * spacingX, H - CUSHION_Y / 2);
       }
 
-      // ── 3. Snooker Cloth Playing Bed (Strachan 6811 Tournament Green) ──
-      ctx.fillStyle = selectedTheme.clothColor || '#0e5531';
+      // ── 3. Snooker Cloth Playing Bed (Uniform Tournament Baize - یکدست و با کیفیت) ──
+      ctx.fillStyle = activeTheme.clothColor || '#0e5531';
       ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
 
-      // Dual TV-Broadcast Overhead Arena Lighting (Authentic Twin Light Canopy)
-      // 1. Top half canopy (over colors and reds pack)
-      const spotTop = ctx.createRadialGradient(W / 2, CUSHION_Y + PLAY_H * 0.28, 35, W / 2, CUSHION_Y + PLAY_H * 0.28, PLAY_W * 0.75);
-      spotTop.addColorStop(0, 'rgba(255, 255, 255, 0.13)');
-      spotTop.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
-      spotTop.addColorStop(1, 'transparent');
-      ctx.fillStyle = spotTop;
-      ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
-
-      // 2. Bottom half canopy (over baulk and D)
-      const spotBottom = ctx.createRadialGradient(W / 2, CUSHION_Y + PLAY_H * 0.72, 35, W / 2, CUSHION_Y + PLAY_H * 0.72, PLAY_W * 0.75);
-      spotBottom.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-      spotBottom.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
-      spotBottom.addColorStop(1, 'transparent');
-      ctx.fillStyle = spotBottom;
+      // Uniform subtle cloth sheen across the bed (یکدست و بدون لکه دوگانه)
+      const clothSheen = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, PLAY_H * 0.55);
+      clothSheen.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+      clothSheen.addColorStop(0.7, 'rgba(255, 255, 255, 0.015)');
+      clothSheen.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+      ctx.fillStyle = clothSheen;
       ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
 
       // Ambient Table Edge Vignette
@@ -1112,7 +1158,7 @@ export default function Snooker() {
       ctx.fillRect(CUSHION_X, CUSHION_Y, PLAY_W, PLAY_H);
 
       // ── 4. Authentic 6 Beveled Snooker Cushions ──
-      const cushionColor = selectedTheme.cushionColor || '#0a4626';
+      const cushionColor = activeTheme.cushionColor || '#0a4626';
       const cushionHighlight = 'rgba(255, 255, 255, 0.16)';
       const drawCushionPolygon = (points) => {
         ctx.fillStyle = cushionColor;
@@ -1334,13 +1380,6 @@ export default function Snooker() {
 
       // ── 8. Draw Cue Stick & Aiming Guideline (Always ready when balls still) ──
       const white = balls.find(b => b.type === 'white');
-      const curShooterTurn = stateRef.current.turn;
-      const shooterCueId = curShooterTurn === 'p1'
-        ? selectedCueId
-        : (gameMode === 'bot'
-            ? (BOT_CUES_BY_DIFFICULTY[botDifficulty] || 'ebony_club')
-            : 'ash_classic');
-      const activeCue = SNOOKER_CUES?.find(c => c.id === shooterCueId) || DEFAULT_SNOOKER_CUE || SNOOKER_CUES?.[0];
 
       if (white && !white.potted && !stateRef.current.isMoving && !isShooting) {
         const rad = (aimAngleRef.current * Math.PI) / 180;
@@ -1507,9 +1546,24 @@ export default function Snooker() {
     return () => cancelAnimationFrame(animId);
   }, [selectedCueId, selectedTheme, isShooting, isBallsRolling, showAimLaser, soundMuted, ballInHand, turn, botDifficulty, gameMode]);
 
+  // Shooting Control & User Aiming Authorization: Strictly when it is active player's turn to shoot and all balls are still
+  const canShoot = (
+    !isBallsRolling &&
+    !isShooting &&
+    !stateRef.current?.isMoving &&
+    !frameWinner &&
+    !matchWinner &&
+    !waitingOverlay &&
+    (
+      (gameMode === 'bot' && turn === 'p1') ||
+      (gameMode === 'local') ||
+      (gameMode === 'online' && turn === myOnlineRole)
+    )
+  );
+
   // Touch & Drag to Aim or Move Ball in Hand (Silky smooth 60/120Hz decoupled tracking)
   const handleCanvasPointerDown = (e) => {
-    if (stateRef.current.isMoving || isShooting || (gameMode === 'bot' && turn === 'p2')) return;
+    if (!canShoot) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -1540,7 +1594,7 @@ export default function Snooker() {
   };
 
   const handleCanvasPointerMove = (e) => {
-    if (stateRef.current.isMoving || isShooting) return;
+    if (!canShoot) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -1607,21 +1661,6 @@ export default function Snooker() {
   const remainingReds = stateRef.current.balls.filter(b => b.type === 'red' && !b.potted).length;
   const remainingPointsOnTable = remainingReds * 8 + 27;
 
-  // Shooting Control Visibility: Strictly when it is active player's turn to shoot and all balls are still
-  const canShoot = (
-    !isBallsRolling &&
-    !isShooting &&
-    !stateRef.current?.isMoving &&
-    !frameWinner &&
-    !matchWinner &&
-    !waitingOverlay &&
-    (
-      (gameMode === 'bot' && turn === 'p1') ||
-      (gameMode === 'local') ||
-      (gameMode === 'online' && turn === myOnlineRole)
-    )
-  );
-
   return (
     <div 
       className="fixed inset-0 w-full h-full text-white flex flex-col items-center justify-between select-none overflow-hidden font-sans touch-none"
@@ -1636,8 +1675,8 @@ export default function Snooker() {
       }}
     >
       {/* ── 1. Top Bar: Master Minimalist HUD (Clean, Elegant & Compact) ── */}
-      <header className="w-full max-w-xl px-2.5 pt-2 z-30 shrink-0 flex flex-col gap-1">
-        <div className="w-full h-11 px-2.5 rounded-2xl bg-slate-900/85 border border-white/10 backdrop-blur-xl flex items-center justify-between shadow-xl">
+      <header className="w-full max-w-xl px-2 pt-1 z-30 shrink-0 flex flex-col gap-0.5">
+        <div className="w-full h-9.5 px-2 rounded-xl bg-slate-900/85 border border-white/10 backdrop-blur-xl flex items-center justify-between shadow-lg">
           {/* Left: Navigation, Sound, Rules & Boutique Store */}
           <div className="flex items-center gap-1.5">
             <button
@@ -1774,9 +1813,9 @@ export default function Snooker() {
       </header>
 
       {/* ── 2. Main Gaming Stage: Genuine Elongated 2:1 Snooker Table ── */}
-      <main className="flex-1 w-full max-w-xl flex items-center justify-center relative px-1 py-0 min-h-0 overflow-hidden">
+      <main className="flex-1 w-full max-w-xl flex items-center justify-center relative px-0.5 py-0 min-h-0 overflow-hidden">
         {/* Table Canvas Viewport - Maximized to fill all vertical room */}
-        <div className="relative h-full max-h-[calc(100dvh-54px)] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
+        <div className="relative h-full max-h-[calc(100dvh-46px)] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
           <canvas
             ref={canvasRef}
             width={CANVAS_W}
@@ -1789,78 +1828,80 @@ export default function Snooker() {
           />
         </div>
 
-        {/* Right Side Tactical Capsule: Laser, Spin, Fine Aim */}
-        <aside className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 select-none">
-          {/* 1. Toggle Aim Laser */}
-          <button
-            onClick={() => {
-              if (!soundMuted) soundEngine?.playTap?.();
-              setShowAimLaser(prev => !prev);
-            }}
-            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all shadow-lg active:scale-95 ${
-              showAimLaser 
-                ? 'bg-slate-900/90 border-indigo-400/50 text-indigo-300' 
-                : 'bg-slate-950/80 border-white/10 text-slate-500'
-            }`}
-          >
-            {showAimLaser ? <Eye size={16} /> : <EyeOff size={16} />}
-          </button>
+        {/* Right Side Tactical Capsule: Laser, Spin, Fine Aim (Strictly when active player can shoot) */}
+        {canShoot && (
+          <aside className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 select-none">
+            {/* 1. Toggle Aim Laser */}
+            <button
+              onClick={() => {
+                if (!soundMuted) soundEngine?.playTap?.();
+                setShowAimLaser(prev => !prev);
+              }}
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                showAimLaser 
+                  ? 'bg-slate-900/90 border-indigo-400/50 text-indigo-300' 
+                  : 'bg-slate-950/80 border-white/10 text-slate-500'
+              }`}
+            >
+              {showAimLaser ? <Eye size={16} /> : <EyeOff size={16} />}
+            </button>
 
-          {/* 2. Spin Widget with live red dot */}
-          <button
-            onClick={() => {
-              if (!soundMuted) soundEngine?.playTap?.();
-              setSpinModalOpen(true);
-            }}
-            className="relative w-10 h-10 rounded-full shadow-xl border-2 border-slate-600 active:scale-95 transition-transform flex items-center justify-center"
-            style={{
-              background: 'radial-gradient(circle at 35% 35%, #ffffff 0%, #cbd5e1 70%, #64748b 100%)'
-            }}
-          >
-            <div
-              className="absolute w-2.5 h-2.5 rounded-full bg-rose-600 border border-white shadow-sm transform -translate-x-1/2 -translate-y-1/2"
+            {/* 2. Spin Widget with live red dot */}
+            <button
+              onClick={() => {
+                if (!soundMuted) soundEngine?.playTap?.();
+                setSpinModalOpen(true);
+              }}
+              className="relative w-10 h-10 rounded-full shadow-xl border-2 border-slate-600 active:scale-95 transition-transform flex items-center justify-center"
               style={{
-                left: `${50 + spinOffset.x * 35}%`,
-                top: `${50 + spinOffset.y * 35}%`,
-                boxShadow: '0 0 6px rgba(225, 29, 72, 0.9)'
+                background: 'radial-gradient(circle at 35% 35%, #ffffff 0%, #cbd5e1 70%, #64748b 100%)'
               }}
-            />
-          </button>
-
-          {/* 3. Fine Aim Angle Adjustment */}
-          <div className="flex flex-col items-center p-1 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-1">
-            <span className="text-[7px] font-black text-slate-400 uppercase tracking-tighter">FINE</span>
-            <button
-              onPointerDown={() => startFineAdjust(-0.5)}
-              onPointerUp={stopFineAdjust}
-              onPointerLeave={stopFineAdjust}
-              onClick={() => {
-                if (!soundMuted) soundEngine?.playTap?.();
-                setAimAngle(prev => (prev - 0.5 + 360) % 360);
-              }}
-              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
             >
-              <ChevronUp size={15} />
+              <div
+                className="absolute w-2.5 h-2.5 rounded-full bg-rose-600 border border-white shadow-sm transform -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${50 + spinOffset.x * 35}%`,
+                  top: `${50 + spinOffset.y * 35}%`,
+                  boxShadow: '0 0 6px rgba(225, 29, 72, 0.9)'
+                }}
+              />
             </button>
 
-            <span className="text-[9px] font-mono font-black text-indigo-300 select-none">
-              {Math.round(aimAngle)}°
-            </span>
+            {/* 3. Fine Aim Angle Adjustment */}
+            <div className="flex flex-col items-center p-1 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-1">
+              <span className="text-[7px] font-black text-slate-400 uppercase tracking-tighter">FINE</span>
+              <button
+                onPointerDown={() => startFineAdjust(-0.5)}
+                onPointerUp={stopFineAdjust}
+                onPointerLeave={stopFineAdjust}
+                onClick={() => {
+                  if (!soundMuted) soundEngine?.playTap?.();
+                  setAimAngle(prev => (prev - 0.5 + 360) % 360);
+                }}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
+              >
+                <ChevronUp size={15} />
+              </button>
 
-            <button
-              onPointerDown={() => startFineAdjust(0.5)}
-              onPointerUp={stopFineAdjust}
-              onPointerLeave={stopFineAdjust}
-              onClick={() => {
-                if (!soundMuted) soundEngine?.playTap?.();
-                setAimAngle(prev => (prev + 0.5) % 360);
-              }}
-              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
-            >
-              <ChevronDown size={15} />
-            </button>
-          </div>
-        </aside>
+              <span className="text-[9px] font-mono font-black text-indigo-300 select-none">
+                {Math.round(aimAngle)}°
+              </span>
+
+              <button
+                onPointerDown={() => startFineAdjust(0.5)}
+                onPointerUp={stopFineAdjust}
+                onPointerLeave={stopFineAdjust}
+                onClick={() => {
+                  if (!soundMuted) soundEngine?.playTap?.();
+                  setAimAngle(prev => (prev + 0.5) % 360);
+                }}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
+              >
+                <ChevronDown size={15} />
+              </button>
+            </div>
+          </aside>
+        )}
       </main>
 
       {/* ── 3. Floating Compact Strike Dock (Only when active player can shoot) ── */}

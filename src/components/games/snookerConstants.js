@@ -291,6 +291,22 @@ export const BOT_CUES_BY_DIFFICULTY = {
   hard: 'diamond_predator'
 };
 
+export const BOT_PRESETS_BY_DIFFICULTY = {
+  easy: {
+    cueId: 'ebony_club',
+    themeId: 'championship_green'
+  },
+  medium: {
+    cueId: 'rocket_147',
+    themeId: 'royal_blue'
+  },
+  hard: {
+    cueId: 'diamond_predator',
+    themeId: 'cyber_neon'
+  }
+};
+
 export const DEFAULT_TABLE_THEME = TABLE_THEMES[0];
 export const DEFAULT_SNOOKER_CUE = SNOOKER_CUES[0];
+
 
