@@ -1960,8 +1960,8 @@ export default function Snooker() {
 
       {/* ── 2. Main Gaming Stage: Genuine Elongated 2:1 Snooker Table ── */}
       <main className="flex-1 w-full max-w-xl flex items-center justify-center relative px-0.5 py-0 min-h-0 overflow-hidden">
-        {/* Table Canvas Viewport - Maximized to fill all vertical room */}
-        <div className="relative h-full max-h-[calc(100dvh-46px)] aspect-[1/2] flex items-center justify-center mx-auto transition-all">
+        {/* Table Canvas Viewport - Flex bounded to prevent any overlap with header or dock */}
+        <div className="relative h-full aspect-[1/2] flex items-center justify-center mx-auto transition-all">
           <canvas
             ref={canvasRef}
             width={CANVAS_W}
@@ -1974,22 +1974,23 @@ export default function Snooker() {
           />
         </div>
 
-        {/* Right Side Tactical Capsule: Laser, Spin, Fine Aim (Strictly when active player can shoot) */}
+        {/* Right Side Tactical Capsule: Laser & Spin */}
         {canShoot && (
-          <aside className="absolute right-2 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 select-none">
+          <aside className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 select-none">
             {/* 1. Toggle Aim Laser */}
             <button
               onClick={() => {
                 if (!soundMuted) soundEngine?.playTap?.();
                 setShowAimLaser(prev => !prev);
               }}
-              className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+              className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all shadow-lg active:scale-95 ${
                 showAimLaser 
                   ? 'bg-slate-900/90 border-indigo-400/50 text-indigo-300' 
                   : 'bg-slate-950/80 border-white/10 text-slate-500'
               }`}
+              title={isRtl ? 'خط لیزر راهنما' : 'Aim Laser'}
             >
-              {showAimLaser ? <Eye size={16} /> : <EyeOff size={16} />}
+              {showAimLaser ? <Eye size={15} /> : <EyeOff size={15} />}
             </button>
 
             {/* 2. Spin Widget with live red dot */}
@@ -1998,13 +1999,14 @@ export default function Snooker() {
                 if (!soundMuted) soundEngine?.playTap?.();
                 setSpinModalOpen(true);
               }}
-              className="relative w-10 h-10 rounded-full shadow-xl border-2 border-slate-600 active:scale-95 transition-transform flex items-center justify-center"
+              className="relative w-9 h-9 rounded-full shadow-xl border-2 border-slate-600 active:scale-95 transition-transform flex items-center justify-center"
               style={{
                 background: 'radial-gradient(circle at 35% 35%, #ffffff 0%, #cbd5e1 70%, #64748b 100%)'
               }}
+              title={isRtl ? 'تنظیم افه توپ (Spin)' : 'Ball Spin'}
             >
               <div
-                className="absolute w-2.5 h-2.5 rounded-full bg-rose-600 border border-white shadow-sm transform -translate-x-1/2 -translate-y-1/2"
+                className="absolute w-2 h-2 rounded-full bg-rose-600 border border-white shadow-sm transform -translate-x-1/2 -translate-y-1/2"
                 style={{
                   left: `${50 + spinOffset.x * 35}%`,
                   top: `${50 + spinOffset.y * 35}%`,
@@ -2012,165 +2014,159 @@ export default function Snooker() {
                 }}
               />
             </button>
-
-            {/* 3. Fine Aim Angle Adjustment */}
-            <div className="flex flex-col items-center p-1 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl space-y-1">
-              <span className="text-[7px] font-black text-slate-400 uppercase tracking-tighter">FINE</span>
-              <button
-                onPointerDown={() => startFineAdjust(-0.5)}
-                onPointerUp={stopFineAdjust}
-                onPointerLeave={stopFineAdjust}
-                onClick={() => {
-                  if (!soundMuted) soundEngine?.playTap?.();
-                  setAimAngle(prev => (prev - 0.5 + 360) % 360);
-                }}
-                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
-              >
-                <ChevronUp size={15} />
-              </button>
-
-              <span className="text-[9px] font-mono font-black text-indigo-300 select-none">
-                {Math.round(aimAngle)}°
-              </span>
-
-              <button
-                onPointerDown={() => startFineAdjust(0.5)}
-                onPointerUp={stopFineAdjust}
-                onPointerLeave={stopFineAdjust}
-                onClick={() => {
-                  if (!soundMuted) soundEngine?.playTap?.();
-                  setAimAngle(prev => (prev + 0.5) % 360);
-                }}
-                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-slate-200"
-              >
-                <ChevronDown size={15} />
-              </button>
-            </div>
           </aside>
         )}
       </main>
 
-      {/* ── 3. Floating Compact Strike Dock (Only when active player can shoot) ── */}
-      <AnimatePresence>
-        {canShoot && (
-          <motion.div
-            initial={{ opacity: 0, y: 35, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 25, scale: 0.94 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 320 }}
-            className="fixed bottom-2.5 sm:bottom-3 inset-x-3 sm:max-w-md sm:mx-auto z-50 bg-slate-900/95 text-slate-100 rounded-2xl p-2.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] border border-white/15 backdrop-blur-2xl select-none flex flex-col gap-2"
-            dir={isRtl ? 'rtl' : 'ltr'}
-          >
-            {/* Top row: Status info & Auto-Aim button */}
-            <div className="flex items-center justify-between gap-2 px-1 text-[11px]">
-              <div className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                <span className="truncate">
-                  {ballInHand
-                    ? (isRtl ? 'توپ سفید در دست (منطقه D)' : 'Ball in Hand (D-Zone)')
-                    : (isRtl ? 'روی میز لمس کن یا بکش تا هدف بگیری' : 'Drag or tap table to aim')}
-                </span>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (!soundMuted) soundEngine?.playTap?.();
-                  autoAim();
-                  haptics?.selection?.();
-                }}
-                className="flex-shrink-0 px-2.5 py-1 rounded-xl bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/40 text-indigo-200 active:scale-95 transition-all flex items-center gap-1 font-black text-[10px]"
-              >
-                <span>🎯</span>
-                <span>{isRtl ? 'هدف خودکار' : 'Auto Aim'}</span>
-              </button>
-            </div>
-
-            {/* Bottom row: Fine Adjust ◀, Power Slider, Fine Adjust ▶, Emerald Strike Button */}
-            <div className="flex items-center gap-2">
-              {/* Fine left nudge */}
-              <button
-                onPointerDown={() => startFineAdjust(-0.4)}
-                onPointerUp={stopFineAdjust}
-                onPointerLeave={stopFineAdjust}
-                onClick={() => {
-                  if (!soundMuted) soundEngine?.playTap?.();
-                  setAimAngle(prev => (prev - 0.4 + 360) % 360);
-                }}
-                className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
-                title={isRtl ? 'تنظیم ریز زاویه چپ' : 'Fine adjust left'}
-              >
-                ◀
-              </button>
-
-              {/* Power Slider */}
-              <div className="flex-1 flex flex-col justify-center gap-1 px-1">
-                <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                  <span className="text-slate-400">{isRtl ? 'قدرت ضربه' : 'Power'}</span>
-                  <span className="text-emerald-400 font-mono font-black">
-                    {isRtl ? `${toPersianDigits(shotPower)}٪` : `${shotPower}%`}
+      {/* ── 3. Bottom Control Dock (Flow layout - Never overlaps the table!) ── */}
+      <footer className="w-full max-w-md shrink-0 px-2.5 pb-2 pt-1 z-40 select-none" dir={isRtl ? 'rtl' : 'ltr'}>
+        <AnimatePresence mode="wait">
+          {canShoot ? (
+            <motion.div
+              key="active-dock"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.15 }}
+              className="w-full bg-slate-900/95 text-slate-100 rounded-2xl p-2 sm:p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.7)] border border-white/15 backdrop-blur-2xl flex flex-col gap-1.5"
+            >
+              {/* Top row: Status info, Angle Degree & Auto-Aim button */}
+              <div className="flex items-center justify-between gap-2 px-1 text-[11px]">
+                <div className="flex items-center gap-1.5 text-slate-300 font-bold truncate">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                  <span className="truncate text-[10.5px]">
+                    {ballInHand
+                      ? (isRtl ? 'توپ سفید در دست (منطقه D)' : 'Ball in Hand (D-Zone)')
+                      : (isRtl ? 'روی میز لمس کن یا بکش تا هدف بگیری' : 'Drag or tap table to aim')}
                   </span>
                 </div>
-                <div className="relative w-full h-2 rounded-full bg-slate-800 border border-white/10 flex items-center">
-                  <div
-                    className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 transition-all duration-75"
-                    style={
-                      isRtl
-                        ? { width: `${shotPower}%`, right: 0 }
-                        : { width: `${shotPower}%`, left: 0 }
-                    }
-                  />
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-400 shadow pointer-events-none transition-all duration-75"
-                    style={
-                      isRtl
-                        ? { right: `calc(${shotPower}% - 7px)` }
-                        : { left: `calc(${shotPower}% - 7px)` }
-                    }
-                  />
-                  <input
-                    type="range"
-                    dir={isRtl ? 'rtl' : 'ltr'}
-                    min="5"
-                    max="100"
-                    value={shotPower}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      shotPowerRef.current = val;
-                      setShotPower(val);
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[10px] font-mono font-black text-indigo-300 bg-white/5 px-1.5 py-0.5 rounded-lg border border-white/10">
+                    {Math.round(aimAngle)}°
+                  </span>
+
+                  <button
+                    onClick={() => {
+                      if (!soundMuted) soundEngine?.playTap?.();
+                      autoAim();
                       haptics?.selection?.();
                     }}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
-                  />
+                    className="px-2 py-0.5 rounded-lg bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/40 text-indigo-200 active:scale-95 transition-all flex items-center gap-1 font-black text-[10px]"
+                    title={isRtl ? 'هدف‌گیری خودکار به توپ مجاز' : 'Auto Aim'}
+                  >
+                    <span>🎯</span>
+                    <span>{isRtl ? 'هدف خودکار' : 'Auto Aim'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Fine right nudge */}
-              <button
-                onPointerDown={() => startFineAdjust(0.4)}
-                onPointerUp={stopFineAdjust}
-                onPointerLeave={stopFineAdjust}
-                onClick={() => {
-                  if (!soundMuted) soundEngine?.playTap?.();
-                  setAimAngle(prev => (prev + 0.4) % 360);
-                }}
-                className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
-                title={isRtl ? 'تنظیم ریز زاویه راست' : 'Fine adjust right'}
-              >
-                ▶
-              </button>
+              {/* Bottom row: Fine Adjust ◀, Power Slider, Fine Adjust ▶, Emerald Strike Button */}
+              <div className="flex items-center gap-1.5">
+                {/* Fine left nudge */}
+                <button
+                  onPointerDown={() => startFineAdjust(-0.4)}
+                  onPointerUp={stopFineAdjust}
+                  onPointerLeave={stopFineAdjust}
+                  onClick={() => {
+                    if (!soundMuted) soundEngine?.playTap?.();
+                    setAimAngle(prev => (prev - 0.4 + 360) % 360);
+                  }}
+                  className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
+                  title={isRtl ? 'تنظیم ریز زاویه چپ' : 'Fine adjust left'}
+                >
+                  ◀
+                </button>
 
-              {/* Action Button: ضربه بزن ↗ */}
-              <button
-                onClick={() => handleExecuteShot(shotPower)}
-                className="flex-shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center gap-1 transition-all"
-              >
-                <span>{isRtl ? 'ضربه بزن' : 'Strike'}</span>
-                <span className="text-sm font-bold">↗</span>
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {/* Power Slider */}
+                <div className="flex-1 flex flex-col justify-center gap-0.5 px-1">
+                  <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                    <span className="text-slate-400">{isRtl ? 'قدرت ضربه' : 'Power'}</span>
+                    <span className="text-emerald-400 font-mono font-black">
+                      {isRtl ? `${toPersianDigits(shotPower)}٪` : `${shotPower}%`}
+                    </span>
+                  </div>
+                  <div className="relative w-full h-2 rounded-full bg-slate-800 border border-white/10 flex items-center">
+                    <div
+                      className="absolute top-0 bottom-0 rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 transition-all duration-75"
+                      style={
+                        isRtl
+                          ? { width: `${shotPower}%`, right: 0 }
+                          : { width: `${shotPower}%`, left: 0 }
+                      }
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-400 shadow pointer-events-none transition-all duration-75"
+                      style={
+                        isRtl
+                          ? { right: `calc(${shotPower}% - 7px)` }
+                          : { left: `calc(${shotPower}% - 7px)` }
+                      }
+                    />
+                    <input
+                      type="range"
+                      dir={isRtl ? 'rtl' : 'ltr'}
+                      min="5"
+                      max="100"
+                      value={shotPower}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        shotPowerRef.current = val;
+                        setShotPower(val);
+                        haptics?.selection?.();
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
+                    />
+                  </div>
+                </div>
+
+                {/* Fine right nudge */}
+                <button
+                  onPointerDown={() => startFineAdjust(0.4)}
+                  onPointerUp={stopFineAdjust}
+                  onPointerLeave={stopFineAdjust}
+                  onClick={() => {
+                    if (!soundMuted) soundEngine?.playTap?.();
+                    setAimAngle(prev => (prev + 0.4) % 360);
+                  }}
+                  className="w-8 h-8 flex-shrink-0 rounded-xl bg-white/10 hover:bg-white/20 active:scale-90 border border-white/10 flex items-center justify-center text-slate-200 font-bold text-xs"
+                  title={isRtl ? 'تنظیم ریز زاویه راست' : 'Fine adjust right'}
+                >
+                  ▶
+                </button>
+
+                {/* Action Button: ضربه بزن ↗ */}
+                <button
+                  onClick={() => handleExecuteShot(shotPower)}
+                  className="flex-shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs px-3 py-2 rounded-xl shadow-lg shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center gap-1 transition-all"
+                >
+                  <span>{isRtl ? 'ضربه بزن' : 'Strike'}</span>
+                  <span className="text-sm font-bold">↗</span>
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="inactive-dock"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-full h-11 bg-slate-900/75 text-slate-300 rounded-2xl px-3 border border-white/10 backdrop-blur-xl flex items-center justify-center gap-2 text-xs font-bold shadow-lg"
+            >
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span>
+                {isBallsRolling 
+                  ? (isRtl ? '💫 توپ‌ها در حال غلتیدن...' : 'Balls rolling...')
+                  : (turn === 'p2' 
+                      ? (isRtl ? (gameMode === 'bot' ? '🤖 ربات در حال بررسی میز و شلیک...' : '⏳ نوبت حریف آنلاین...') : 'Opponent turn...') 
+                      : (isRtl ? 'در حال آماده‌سازی میز...' : 'Preparing table...'))
+                }
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </footer>
 
       {/* ── 4. All Modals & Overlays ── */}
       {/* Game Setup Modal */}
